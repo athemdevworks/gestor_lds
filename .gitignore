@@ -46,6 +46,6 @@ app.*.map.json
 
 # Excluye archivos de seguridad sensibles y específicos del entorno
 
-/lib/firebase_options.dart
-.firebase/
-.firebaserc
+#/lib/firebase_options.dart - Cuando se publique se activa
+#.firebase/ - Cuando se publique se activa
+#.firebaserc - Cuando se publique se activa
