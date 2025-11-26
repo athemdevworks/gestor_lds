@@ -1,0 +1,60 @@
+// Enum de Roles (No cambia, controla los permisos de acceso)
+enum UserRole {
+  pending,      // Por defecto, sin acceso
+  bishopric,    // Obispado/Admin
+  clerk,        // Secretario
+  ward_council, // Líderes de consejo
+}
+
+class UserModel {
+  final String uid;
+  final String email;
+  final String username;
+  final String nombres;
+  final String apellidos;
+  final UserRole role;
+  final String calling; // ¡Campo actualizado! (Llamamiento)
+  final String status; // 'pending' o 'active'
+
+  UserModel({
+    required this.uid,
+    required this.email,
+    required this.username,
+    required this.nombres,
+    required this.apellidos,
+    required this.role,
+    required this.calling,
+    required this.status,
+  });
+
+  // Metodo para convertir el objeto a un mapa de Firestore
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': uid,
+      'email': email,
+      'username': username,
+      'nombres': nombres,
+      'apellidos': apellidos,
+      'role': role.name,
+      'calling': calling, // Usamos el nuevo nombre
+      'status': status,
+    };
+  }
+
+  // Metodo para crear el objeto desde un documento de Firestore
+  factory UserModel.fromMap(Map<String, dynamic> map) {
+    return UserModel(
+      uid: map['uid'] as String,
+      email: map['email'] as String,
+      username: map['username'] as String,
+      nombres: map['nombres'] as String,
+      apellidos: map['apellidos'] as String,
+      role: UserRole.values.firstWhere(
+            (e) => e.name == map['role'],
+        orElse: () => UserRole.pending,
+      ),
+      calling: map['calling'] as String, // Usamos el nuevo nombre
+      status: map['status'] as String,
+    );
+  }
+}
