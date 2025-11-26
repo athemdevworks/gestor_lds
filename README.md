@@ -1,6 +1,6 @@
 # gestor_lds
 
-Proyecto de gestion de reuniones y agendas
+App Movil de gestion de reuniones y agendas del barrio Nuevo Trujillo
 
 ## Getting Started
 
