@@ -39,6 +39,9 @@ dependencies:
   firebase_core: ^2.27.2 # Núcleo de Firebase
   firebase_auth: ^4.17.2 # Para el login/registro de usuarios
   cloud_firestore: ^4.15.8 # Para la base de datos de Reuniones y Roles
+  intl: 0.20.2 # Para usar DateFormat con nombres de días y meses en español
+  flutter_localizations: # Asegúrate de que esta línea esté presente
+    sdk: flutter
   # FIN DE DEPENDENCIAS DE FIREBASE
 
 dev_dependencies:
