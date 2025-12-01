@@ -1,1 +1,36 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"gestorlds","appId":"1:848918126420:android:69685607942541d145f2c1","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"gestorlds","configurations":{"android":"1:848918126420:android:69685607942541d145f2c1","web":"1:848918126420:web:2847e4a3bf46565f45f2c1"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "gestorlds",
+          "appId": "1:848918126420:android:69685607942541d145f2c1",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "gestorlds",
+          "configurations": {
+            "android": "1:848918126420:android:69685607942541d145f2c1",
+            "web": "1:848918126420:web:2847e4a3bf46565f45f2c1"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

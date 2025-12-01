@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
-
+import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 import '../models/agenda_item_model.dart';
 
 class MeetingService {
@@ -15,8 +15,11 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    SacramentAgendaModel? sacramentAgenda,
+
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
+
   }) async {
     // 1. Creamos una referencia al documento para obtener el ID antes de guardar
     final docRef = _db.collection(_collectionName).doc();
@@ -29,6 +32,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      sacramentAgenda: sacramentAgenda, // <-- Asegúrate de pasarlo
       agendaItems: agendaItems,
       commitments: commitments,
     );
@@ -59,6 +63,8 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    SacramentAgendaModel? sacramentAgenda,
+
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
   }) async {
@@ -70,6 +76,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      sacramentAgenda: sacramentAgenda,
       agendaItems: agendaItems,
       commitments: commitments,
     );
@@ -77,11 +84,17 @@ class MeetingService {
     // 2. Referencia al documento existente
     final docRef = _db.collection('meetings').doc(id); // <--- USAR '_db'
 
-    // 3. Modificamos el documento usando el método set con merge: true
+    // 3. Modificamos el documento usando el metodo set con merge: true
     // Merge asegura que solo los campos proporcionados se actualicen.
     await docRef.set(
         updatedMeeting.toMap(),
         SetOptions(merge: true)
     );
   }
+
+  // 3. ELIMINAR una reunión por su ID
+  Future<void> deleteMeeting(String meetingId) async {
+    await _db.collection(_collectionName).doc(meetingId).delete();
+  }
+
 }

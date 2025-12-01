@@ -42,6 +42,8 @@ dependencies:
   intl: 0.20.2 # Para usar DateFormat con nombres de días y meses en español
   flutter_localizations: # Asegúrate de que esta línea esté presente
     sdk: flutter
+  pdf: ^3.10.6    # Para crear el documento PDF
+  printing: ^5.11.1 # Para mostrar el diálogo de impresión
   # FIN DE DEPENDENCIAS DE FIREBASE
 
 dev_dependencies:
