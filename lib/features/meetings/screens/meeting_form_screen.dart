@@ -5,6 +5,7 @@ import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:intl/intl.dart'; // Importación necesaria para DateFormat
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/widgets/agenda_list_editor.dart';
+import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 
 class MeetingFormScreen extends StatefulWidget {
   // 1. VARIABLE DE INSTANCIA (Debe estar aquí)
@@ -32,6 +33,27 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   final TextEditingController _directedByController = TextEditingController();
   final TextEditingController _presidedByController = TextEditingController();
   final TextEditingController _agendaTopicController = TextEditingController(); // Ya no se usa directamente para la agenda, pero se mantiene por si acaso.
+
+  // Nuevo metodo para guardar el estado del formulario sacramental
+  final _sacramentAgendaFormKey = GlobalKey<FormState>();
+
+  // Controladores para la Agenda Sacramental
+  final TextEditingController _announcementsController = TextEditingController();
+  final TextEditingController _openingHymnController = TextEditingController();
+  final TextEditingController _openingPrayerController = TextEditingController();
+  final TextEditingController _choristerController = TextEditingController();
+  final TextEditingController _pianistController = TextEditingController();
+  final TextEditingController _sacramentHymnController = TextEditingController();
+  final TextEditingController _firstSpeakerNameController = TextEditingController();
+  final TextEditingController _firstSpeakerTopicController = TextEditingController();
+  final TextEditingController _intermediateHymnController = TextEditingController();
+  final TextEditingController _secondSpeakerNameController = TextEditingController();
+  final TextEditingController _secondSpeakerTopicController = TextEditingController();
+  final TextEditingController _closingHymnController = TextEditingController();
+  final TextEditingController _closingPrayerController = TextEditingController();
+
+  // Estado de la Regla del Primer Domingo
+  bool _isFastAndTestimony = false;
 
   @override
   void initState() {
@@ -116,8 +138,33 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       final DateTime selectedDate = DateTime.parse(_dateController.text);
       final isEditing = widget.meetingToEdit != null; // Acceso al widget
       final meetingId = isEditing ? widget.meetingToEdit!.id : null;
+      final bool isSacramental = _selectedType == MeetingType.sacramental;
+      SacramentAgendaModel? sacramentAgenda;
 
       try {
+
+        if (isSacramental) {
+          // 1. Crear el objeto de Agenda Sacramental
+          sacramentAgenda = SacramentAgendaModel(
+            openingHymn: _openingHymnController.text,
+            openingPrayer: _openingPrayerController.text,
+            announcements: _announcementsController.text,
+            chorister: _choristerController.text,
+            pianist: _pianistController.text,
+            sacramentHymn: _sacramentHymnController.text,
+            closingHymn: _closingHymnController.text,
+            closingPrayer: _closingPrayerController.text,
+            isFastAndTestimony: _isFastAndTestimony,
+
+            // Asignar discursantes SOLO si NO es domingo de ayuno
+            firstSpeakerName: _isFastAndTestimony ? null : _firstSpeakerNameController.text,
+            firstSpeakerTopic: _isFastAndTestimony ? null : _firstSpeakerTopicController.text,
+            intermediateHymn: _isFastAndTestimony ? null : _intermediateHymnController.text,
+            secondSpeakerName: _isFastAndTestimony ? null : _secondSpeakerNameController.text,
+            secondSpeakerTopic: _isFastAndTestimony ? null : _secondSpeakerTopicController.text,
+          );
+        }
+
         if (isEditing) {
           // --- LÓGICA DE MODIFICAR (UPDATE) ---
           await _meetingService.updateMeeting(
@@ -127,9 +174,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             time: _timeController.text,
             presidedBy: _presidedByController.text,
             directedBy: _directedByController.text,
-            agendaItems: _selectedType != MeetingType.sacramental
-                ? _currentAgendaItems
-                : null,
+            sacramentAgenda: sacramentAgenda, // <-- AÑADIDO
+            agendaItems: isSacramental ? null : _currentAgendaItems,
             commitments: _selectedType != MeetingType.sacramental ? [] : null,
           );
         } else {
@@ -140,9 +186,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             time: _timeController.text,
             presidedBy: _presidedByController.text,
             directedBy: _directedByController.text,
-            agendaItems: _selectedType != MeetingType.sacramental
-                ? _currentAgendaItems
-                : null,
+            sacramentAgenda: sacramentAgenda, // <-- AÑADIDO
+            agendaItems: isSacramental ? null : _currentAgendaItems,
             commitments: _selectedType != MeetingType.sacramental ? [] : null,
           );
         }
@@ -164,10 +209,12 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     }
   }
 
+  // Reemplaza todo el método build(BuildContext context) con esto:
+
   @override
   Widget build(BuildContext context) {
-    // Es true si se selecciona Obispado, Consejo o Otra Reunión
     final bool isLeadershipMeeting = _selectedType != MeetingType.sacramental;
+    final bool isSacramentalMeeting = _selectedType == MeetingType.sacramental;
 
     // DETERMINA EL TEXTO DEL BOTÓN Y TÍTULO
     final isEditing = widget.meetingToEdit != null;
@@ -181,137 +228,201 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Form(
-              key: _formKey,
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 1. SELECTOR DE TIPO DE REUNIÓN (Dropdown)
+                key: _formKey,
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                    // 1. SELECTOR DE TIPO DE REUNIÓN
                     const Text('Tipo de Reunión', style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+                     const SizedBox(height: 8),
                     DropdownButtonFormField<MeetingType>(
-                      decoration: const InputDecoration(
-                          border: OutlineInputBorder()),
-                      value: _selectedType,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder()),
+                       value: _selectedType,
                       items: MeetingType.values.map((MeetingType type) {
                         return DropdownMenuItem<MeetingType>(
-                          value: type,
-                          child: Text(type.displayName),
-                        );
-                      }).toList(),
+                         value: type,
+                         child: Text(type.displayName),
+                    );
+                    }).toList(),
                       onChanged: (MeetingType? newValue) {
-                        if (newValue != null) {
-                          setState(() {
+                         if (newValue != null) {
+                            setState(() {
                             _selectedType = newValue;
-                          });
-                        }
+                      });
+                    }
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // 2. CAMPOS COMUNES (Detalles Básicos)
+                const Text('Detalles Básicos', style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+                const Divider(height: 20),
+
+                // Fecha, Hora, Preside, Dirige
+                TextFormField(
+                  controller: _dateController,
+                  decoration: const InputDecoration(labelText: 'Fecha', border: OutlineInputBorder(), suffixIcon: Icon(Icons.calendar_today)),
+                  readOnly: true,
+                  onTap: _selectDate,
+                  validator: (value) => value == null || value.isEmpty ? 'Seleccione la fecha' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _timeController,
+                  decoration: const InputDecoration(labelText: 'Hora', border: OutlineInputBorder(), suffixIcon: Icon(Icons.access_time)),
+                  readOnly: true,
+                  onTap: _selectTime,
+                  validator: (value) => value == null || value.isEmpty ? 'Seleccione la hora' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _presidedByController,
+                  decoration: const InputDecoration(labelText: 'Preside (Ej: Obispo)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _directedByController,
+                  decoration: const InputDecoration(labelText: 'Dirige (Ej: 1er Consejero)', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 30),
+
+                // 3. SECCIÓN DINÁMICA: Agenda Fija o Dinámica
+
+                if (isSacramentalMeeting)
+                // A. AGENDA SACRAMENTAL (FIJA)
+                _buildSacramentAgendaForm()
+
+                else if (isLeadershipMeeting)
+                // B. AGENDA DE LIDERAZGO (DINÁMICA)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Agenda y Puntos de Revisión',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary)),
+                    const Divider(height: 20, color: Colors.black45),
+
+                    AgendaListEditor(
+                      initialItems: _currentAgendaItems,
+                      onAgendaChanged: (newAgenda) {
+                        _currentAgendaItems = newAgenda;
                       },
                     ),
-                    const SizedBox(height: 20),
-
-                    // 2. CAMPOS COMUNES
-                    const Text('Detalles Básicos', style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                    const Divider(height: 20),
-
-                    // Campo de Fecha
-                    TextFormField(
-                      controller: _dateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Fecha',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.calendar_today),
-                      ),
-                      readOnly: true,
-                      onTap: _selectDate,
-                      // Llama a la función de selección de FECHA
-                      validator: (value) =>
-                      value == null || value.isEmpty
-                          ? 'Seleccione la fecha'
-                          : null,
-                    ),
                     const SizedBox(height: 12),
+                    // TODO: Aquí se integrará el sub-módulo de Compromisos
+                  ],
+                ),
 
-                    // Campo de Hora
-                    TextFormField(
-                      controller: _timeController,
-                      decoration: const InputDecoration(
-                        labelText: 'Hora',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.access_time),
-                      ),
-                      readOnly: true,
-                      onTap: _selectTime,
-                      // Llama a la función de selección de HORA (12h)
-                      validator: (value) =>
-                      value == null || value.isEmpty
-                          ? 'Seleccione la hora'
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
+                const SizedBox(height: 30), // <-- Este SizedBox debe estar aquí
 
-                    TextFormField(
-                      controller: _presidedByController,
-                      decoration: const InputDecoration(
-                          labelText: 'Preside (Ej: Obispo)',
-                          border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextFormField(
-                      controller: _directedByController,
-                      decoration: const InputDecoration(
-                          labelText: 'Dirige (Ej: 1er Consejero)',
-                          border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 30),
-
-                    // 3. SECCIÓN DINÁMICA: Agenda de Liderazgo
-                    if (isLeadershipMeeting)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Agenda y Puntos de Revisión',
-                              style: TextStyle(fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme
-                                      .of(context)
-                                      .colorScheme
-                                      .secondary)),
-                          const Divider(height: 20, color: Colors.black45),
-
-                          // Nota: Aquí irían los campos de Agendas y Compromisos
-                          AgendaListEditor(
-                            initialItems: _currentAgendaItems,
-                            // Necesitamos modificar AgendaListEditor para aceptar esto
-                            onAgendaChanged: (newAgenda) {
-                              _currentAgendaItems = newAgenda;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          // TODO: Aquí se integrará el sub-módulo de Compromisos y Asuntos a Revisar
-                        ],
-                      ),
-
-                    const SizedBox(height: 30),
-
-                    // Botón de Guardar
-                    ElevatedButton(
-                      onPressed: _saveMeeting,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                      ),
-                      child: Text(
-                          widget.meetingToEdit != null
-                              ? 'Guardar Cambios'
-                              : 'Crear Reunión',
-                          style: TextStyle(fontSize: 18)
-                      ),
-                    ),
-                  ]
+                // 4. BOTÓN DE GUARDAR (Debe estar en la columna principal)
+                ElevatedButton(
+                  onPressed: _saveMeeting,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                  ),
+                child: Text(
+                buttonText,
+                style: const TextStyle(fontSize: 18)
+                 ),
               ),
-            )
-        )
+            ],
+         ),
+       ),
+      ),
     );
   }
+
+  // Incluye el método _buildSacramentAgendaForm() aquí mismo, después de build
+  Widget _buildSacramentAgendaForm() {
+    // TRUE si debe ocultar discursantes y mostrar campo de testimonios
+    final bool hideSpeakers = _isFastAndTestimony;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Agenda Sacramental (Fija)',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
+        ),
+        const Divider(height: 20),
+
+        // CHECKBOX PARA DOMINGO DE AYUNO
+        SwitchListTile(
+          title: const Text('Primer Domingo (Ayuno y Testimonio)'),
+          subtitle: const Text('Oculta discursantes y habilita el tiempo de testimonios.'),
+          value: _isFastAndTestimony,
+          onChanged: (bool value) {
+            setState(() {
+              _isFastAndTestimony = value;
+            });
+          },
+        ),
+        const SizedBox(height: 15),
+
+        // 1. APERTURA
+        TextFormField(controller: _openingHymnController, decoration: const InputDecoration(labelText: 'Himno de Apertura')),
+        TextFormField(controller: _openingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Apertura')),
+        TextFormField(
+            controller: _announcementsController,
+            maxLines: 2, // <--- ¡AQUÍ ES DONDE DEBE IR!
+            decoration: const InputDecoration(
+                labelText: 'Anuncios del Barrio'
+              // Ya no va maxLines aquí
+            )
+        ),        TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música')),
+        TextFormField(controller: _pianistController, decoration: const InputDecoration(labelText: 'Pianista')),
+        const SizedBox(height: 15),
+
+        // 2. LA SANTA CENA
+        TextFormField(controller: _sacramentHymnController, decoration: const InputDecoration(labelText: 'Himno Sacramental')),
+        const SizedBox(height: 25),
+
+        // 3. SECCIÓN DE DISCURSOS / TESTIMONIOS (LÓGICA CONDICIONAL)
+        if (hideSpeakers)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.yellow[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text('Tiempo de Testimonios (Sin discursantes ni Himno Especial)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+          )
+        else
+        // ORDEN DE DISCURSOS REQUERIDO
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Discursos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              // PRIMER DISCURSO
+              TextFormField(controller: _firstSpeakerNameController, decoration: const InputDecoration(labelText: '1er Discursante (Nombre)')),
+              TextFormField(controller: _firstSpeakerTopicController, decoration: const InputDecoration(labelText: '1er Discursante (Tema)')),
+
+              const Divider(height: 30),
+
+              // HIMNO ESPECIAL (INTERMEDIO)
+              TextFormField(controller: _intermediateHymnController, decoration: const InputDecoration(labelText: 'Himno Especial/Intermedio')),
+
+              const Divider(height: 30),
+
+              // SEGUNDO DISCURSO
+              TextFormField(controller: _secondSpeakerNameController, decoration: const InputDecoration(labelText: '2do Discursante (Nombre)')),
+              TextFormField(controller: _secondSpeakerTopicController, decoration: const InputDecoration(labelText: '2do Discursante (Tema)')),
+            ],
+          ),
+
+        const SizedBox(height: 25),
+
+        // 4. CIERRE
+        TextFormField(controller: _closingHymnController, decoration: const InputDecoration(labelText: 'Himno de Cierre')),
+        TextFormField(controller: _closingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Cierre')),
+
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+// ... (asegúrate de que las llaves de _MeetingFormScreenState cierren aquí)
+
 }

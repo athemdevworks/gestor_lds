@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
+import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 
 class MeetingModel {
   // Datos comunes a todas las reuniones
@@ -15,6 +16,7 @@ class MeetingModel {
   // Eliminamos String? agendaTopics, ya que se reemplaza por agendaItems
   final List<AgendaItemModel>? agendaItems;
   final List<String>? commitments; // Lista de compromisos
+  final SacramentAgendaModel? sacramentAgenda; //Solo existe si type == sacramental
 
   MeetingModel({
     required this.id,
@@ -23,6 +25,7 @@ class MeetingModel {
     required this.time,
     required this.presidedBy,
     required this.directedBy,
+    this.sacramentAgenda,
     this.agendaItems,
     this.commitments,
   });
@@ -42,6 +45,8 @@ class MeetingModel {
         .toList()
         : null;
 
+    final sacramentAgendaMap = data['sacramentAgenda'] as Map<String, dynamic>?;
+
     return MeetingModel(
       id: data['id'] as String,
       type: typeEnum,
@@ -49,6 +54,7 @@ class MeetingModel {
       time: data['time'] as String,
       presidedBy: data['presidedBy'] as String,
       directedBy: data['directedBy'] as String,
+      sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
 
       // Asignamos la lista mapeada
       agendaItems: mappedAgendaItems,
@@ -68,6 +74,7 @@ class MeetingModel {
       'presidedBy': presidedBy,
       'directedBy': directedBy,
 
+      'sacramentAgenda': sacramentAgenda?.toMap(), // <-- Guardar el sub-mapa
       'agendaItems': agendaItems?.map((item) => item.toMap()).toList(), // Usamos toMap() en la lista
       'commitments': commitments,
       'createdAt': FieldValue.serverTimestamp(),
