@@ -7,6 +7,7 @@ import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:printing/printing.dart';
 import 'meeting_form_screen.dart';
 import 'package:gestor_lds/features/meetings/services/pdf_service.dart';
+import 'package:gestor_lds/features/commitments/widgets/new_commitment_modal.dart';
 
 class MeetingDetailScreen extends StatelessWidget {
   final MeetingModel meeting;
@@ -100,10 +101,33 @@ class MeetingDetailScreen extends StatelessWidget {
                   leading: const Icon(Icons.push_pin, color: Colors.indigoAccent),
                   title: Text(item.topic, style: const TextStyle(fontWeight: FontWeight.w500)),
                   subtitle: Text('Responsable: ${item.assignedTo}'),
-                  trailing: item.isCompleted
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : const Icon(Icons.schedule, color: Colors.orange),
-                )).toList(),
+                // MODIFICAMOS EL TRAILING PARA TENER DOS ACCIONES
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. Botón para crear compromiso vinculado a ESTE punto
+                    IconButton(
+                      icon: const Icon(Icons.add_task, color: Colors.blue),
+                      tooltip: 'Asignar Compromiso',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => NewCommitmentModal(
+                            meetingId: meeting.id,
+                            agendaItems: meeting.agendaItems,
+                            initialAgendaItem: item, // <-- ¡AQUÍ PASAMOS EL ÍTEM ESPECÍFICO!
+                          ),
+                        );
+                      },
+                    ),
+
+                    // 2. Icono de estado (Completado o Pendiente)
+                    item.isCompleted
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : const Icon(Icons.schedule, color: Colors.orange),
+                  ],
+                ),
+              )).toList(),
 
               if (!hasAgendaItems && meeting.sacramentAgenda == null)
                 const Padding(
