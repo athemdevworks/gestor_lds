@@ -57,4 +57,23 @@ class UserModel {
       status: map['status'] as String,
     );
   }
+
+  // -----------------------------------------------------------
+  // FIX CRÍTICO: IMPLEMENTAR IGUALDAD BASADA EN EL UID
+  // -----------------------------------------------------------
+
+  // 1. Sobreescribir el operador de igualdad (==)
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true; // Si son el mismo objeto en memoria
+
+    // Si son del mismo tipo y tienen el mismo UID, son iguales.
+    return other is UserModel && other.uid == uid;
+  }
+
+  // 2. Sobreescribir el código hash
+  @override
+  int get hashCode => uid.hashCode;
+// -----------------------------------------------------------
+
 }
