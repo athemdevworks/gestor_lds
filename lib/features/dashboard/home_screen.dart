@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
+import 'package:gestor_lds/features/dashboard/screens/user_management_screen.dart';
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
+import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   // 1. Añadimos el objeto UserModel como parámetro requerido
@@ -77,13 +79,23 @@ class HomeScreen extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
           if (title == 'Crear/Editar Agendas') {
-            // Navegación específica para el módulo de reuniones
             Navigator.of(context).push(
               MaterialPageRoute(builder: (context) => const MeetingsListScreen()),
             );
-          } else {
-            // TODO: Implementar navegación a otros módulos
+          } else if (title == 'Revisar Compromisos') {
+            // NAVEGACIÓN NUEVA:
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                // Pasamos el usuario actual (que ya tenemos en HomeScreen)
+                builder: (context) => MyCommitmentsScreen(currentUser: user),
+              ),
+            );
+          } else if (title == 'Aprobar Usuarios') {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const UserManagementScreen()),
+            );
           }
+
         },
       ),
     );

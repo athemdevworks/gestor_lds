@@ -65,4 +65,5 @@ class DefaultFirebaseOptions {
     projectId: 'gestorlds',
     storageBucket: 'gestorlds.firebasestorage.app',
   );
+
 }
