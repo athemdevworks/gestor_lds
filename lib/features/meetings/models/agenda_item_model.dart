@@ -30,4 +30,20 @@ class AgendaItemModel {
       isCompleted: map['isCompleted'] as bool,
     );
   }
+
+  // -----------------------------------------------------------
+  // FIX PARA EL DROPDOWN: Comparar por ID
+  // -----------------------------------------------------------
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is AgendaItemModel && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+// -----------------------------------------------------------
+
 }
