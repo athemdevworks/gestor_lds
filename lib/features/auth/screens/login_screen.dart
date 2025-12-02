@@ -144,6 +144,27 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   child: const Text('¿No tienes cuenta? Solicita acceso aquí.'),
                 ),
+                const SizedBox(height: 40), // Espacio para separarlo
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.only(top: 10.0, bottom: 20.0),
+                  child: Column(
+                    children: [
+                      Text(
+                        'GestorLDS',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                      ),
+                      Text(
+                        'Desarrollado por ATHEM DevWorks © 2025',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        'Versión 1.0.0', // Puedes cambiar esto manualmente cuando actualices
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
