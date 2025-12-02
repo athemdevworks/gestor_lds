@@ -43,6 +43,58 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Función para mostrar el diálogo de recuperación
+  void _showResetPasswordDialog() {
+    final resetEmailController = TextEditingController(text: _emailController.text);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Recuperar Contraseña'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Ingresa tu correo electrónico. Te enviaremos un enlace para crear una nueva contraseña.'),
+            const SizedBox(height: 15),
+            TextField(
+              controller: resetEmailController,
+              decoration: const InputDecoration(labelText: 'Correo Electrónico', border: OutlineInputBorder()),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (resetEmailController.text.isEmpty) return;
+
+              try {
+                await _authService.sendPasswordResetEmail(resetEmailController.text.trim());
+                if (mounted) {
+                  Navigator.pop(context); // Cerrar diálogo
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Correo de recuperación enviado. Revisa tu bandeja.')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: ${e.toString()}')),
+                  );
+                }
+              }
+            },
+            child: const Text('Enviar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +117,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 _buildTextField(_emailController, 'Correo Electrónico', false),
                 _buildTextField(_passwordController, 'Contraseña', true),
 
-                const SizedBox(height: 30),
+                // NUEVO: Botón de Olvidé Contraseña (Alineado a la derecha)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _showResetPasswordDialog,
+                    child: const Text('¿Olvidaste tu contraseña?'),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : ElevatedButton(
