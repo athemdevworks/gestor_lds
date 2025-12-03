@@ -114,8 +114,26 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                _buildTextField(_emailController, 'Correo Electrónico', false),
-                _buildTextField(_passwordController, 'Contraseña', true),
+                // 1. CAMPO EMAIL: Configurado para "Siguiente"
+                _buildTextField(
+                  _emailController,
+                  'Correo Electrónico',
+                  false,
+                  // Esto hace que el teclado muestre la flecha de "Siguiente"
+                  // en lugar de "Intro" o "Nueva línea".
+                  action: TextInputAction.next,
+                ),
+
+                // 2. CAMPO PASSWORD: Configurado para "Enviar/Hecho"
+                _buildTextField(
+                  _passwordController,
+                  'Contraseña',
+                  true,
+                  // Esto hace que el teclado muestre un "Check" o "Ir"
+                  action: TextInputAction.done,
+                  // Esta es la clave: Al presionar Enter, se llama a _login()
+                  onSubmitted: (_) => _login(),
+                ),
 
                 // NUEVO: Botón de Olvidé Contraseña (Alineado a la derecha)
                 Align(
@@ -174,12 +192,20 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   // Utiliza el mismo widget auxiliar que creaste en registration_screen.dart
-  Widget _buildTextField(TextEditingController controller, String label, bool isPassword) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label,
+      bool isPassword, {
+        TextInputAction? action, // Nuevo parámetro opcional
+        Function(String)? onSubmitted, // Nuevo parámetro opcional
+      }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
         controller: controller,
         obscureText: isPassword,
+        textInputAction: action, // Configura la tecla Enter (Siguiente/Enviar)
+        onFieldSubmitted: onSubmitted, // Ejecuta la acción al dar Enter
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
