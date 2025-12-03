@@ -96,6 +96,9 @@ class PdfService {
                     // CABECERA COMÚN
                     pw.Text('AGENDA DE REUNIÓN - ${meeting.type.displayName}',
                         style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                    if (meeting.organization != null)
+                      pw.Text(meeting.organization!, style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold)),
+                    // -------------------
                     pw.Divider(),
 
                     // DETALLES BÁSICOS

@@ -168,8 +168,14 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
             children: [
               TextFormField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Descripción del Compromiso'),
-                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Descripción del Compromiso',
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true, // Alinea la etiqueta arriba si el campo es alto
+                ),
+                maxLines: 3, // Altura visual inicial (3 líneas)
+                minLines: 2, // Mínimo de líneas
+                keyboardType: TextInputType.multiline, // Habilita el teclado con "Enter"                maxLines: 3,
                 validator: (v) => v!.isEmpty ? 'Ingrese la descripción' : null,
               ),
               const SizedBox(height: 15),

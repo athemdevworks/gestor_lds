@@ -40,11 +40,58 @@ class GestorLDSApp extends StatelessWidget {
     return MaterialApp(
       title: 'GestorLDS',
       debugShowCheckedModeBanner: false,
+// --- NUEVO TEMA (REBRANDING v1.2.0) ---
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
         useMaterial3: true,
-      ),
+        scaffoldBackgroundColor: Colors.white, // Fondo Blanco (#FFFFFF)
 
+        // Esquema de Colores
+        colorScheme: const ColorScheme(
+          brightness: Brightness.light,
+          primary: Color(0xFF0089D3),       // Azul Institucional (#0089D3)
+          onPrimary: Colors.white,          // Texto sobre azul
+          secondary: Colors.black,          // Color Secundario (#000000)
+          onSecondary: Colors.white,
+          error: Colors.red,
+          onError: Colors.white,
+          background: Colors.white,         // Fondo (#FFFFFF)
+          onBackground: Colors.black,
+          surface: Colors.white,            // Superficie de tarjetas
+          onSurface: Colors.black,
+          outline: Color(0xFF999999),       // Neutro (#999999) para bordes
+        ),
+
+        // Estilo de AppBars (Barras superiores)
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF0089D3), // Azul
+          foregroundColor: Colors.white,      // Texto Blanco
+          elevation: 0,
+          centerTitle: true,
+        ),
+
+        // Estilo de Botones Elevados
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF0089D3), // Botones Azules
+            foregroundColor: Colors.white,            // Texto Blanco
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+
+        // Estilo de Inputs (Cajas de texto)
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF999999)), // Borde Neutro
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFF0089D3), width: 2), // Borde Azul
+          ),
+
+          labelStyle: const TextStyle(color: Color(0xFF999999)),
+        ),
+      ),
       locale: const Locale('es'), // Idioma por defecto
       supportedLocales: const [
         Locale('es'), // Soportar español

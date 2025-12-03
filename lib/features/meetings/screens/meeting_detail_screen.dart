@@ -84,8 +84,12 @@ class MeetingDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- BLOQUE DE DETALLES BÁSICOS ---
-            _buildHeader(meeting.type.displayName, formattedDate, meeting.time),
-            const Divider(height: 30),
+            _buildHeader(
+                meeting.type.displayName,
+                formattedDate,
+                meeting.time,
+                meeting.organization // <--- Nuevo argumento
+            ),            const Divider(height: 30),
 
             _buildDetailRow(Icons.person, 'Preside', meeting.presidedBy),
             _buildDetailRow(Icons.group, 'Dirige', meeting.directedBy),
@@ -335,11 +339,31 @@ class MeetingDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(String title, String date, String time) {
+  Widget _buildHeader(String title, String date, String time, String? organization) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900)),
+
+        // --- NUEVO: MOSTRAR ORGANIZACIÓN SI EXISTE ---
+        if (organization != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                  organization,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade800)
+              ),
+            ),
+          ),
+        // ---------------------------------------------
+
         const SizedBox(height: 8),
         Row(
           children: [

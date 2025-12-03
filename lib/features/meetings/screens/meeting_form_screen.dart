@@ -55,6 +55,18 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   // Estado de la Regla del Primer Domingo
   bool _isFastAndTestimony = false;
 
+  // --- NUEVAS VARIABLES PARA PRESIDENCIA ---
+  final List<String> _organizations = [
+    'Cuórum de Élderes',
+    'Sociedad de Socorro',
+    'Mujeres Jóvenes',
+    'Primaria',
+    'Escuela Dominical',
+    'Hombres Jóvenes (Aarónico)',
+  ];
+  String? _selectedOrganization;
+  //
+
   @override
   void initState() {
     super.initState();
@@ -66,9 +78,12 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       _timeController.text = meeting.time;
       _presidedByController.text = meeting.presidedBy;
       _directedByController.text = meeting.directedBy;
+      _selectedOrganization = meeting.organization;
 
       // Formatear la fecha para el controlador de texto (YYYY-MM-DD)
       _dateController.text = meeting.date.toLocal().toString().split(' ')[0];
+
+      _timeController.text = meeting.time;
 
       // Cargar agenda dinámica (¡importante!)
       _currentAgendaItems = meeting.agendaItems ?? [];
@@ -170,6 +185,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           await _meetingService.updateMeeting(
             id: meetingId!,
             type: _selectedType,
+            organization: _selectedType == MeetingType.presidency ? _selectedOrganization : null,
             date: selectedDate,
             time: _timeController.text,
             presidedBy: _presidedByController.text,
@@ -182,6 +198,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           // --- LÓGICA DE CREAR (CREATE) ---
           await _meetingService.saveMeeting(
             type: _selectedType,
+            organization: _selectedType == MeetingType.presidency ? _selectedOrganization : null,
             date: selectedDate,
             time: _timeController.text,
             presidedBy: _presidedByController.text,
@@ -255,6 +272,25 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
+
+                // NUEVO SELECTOR CONDICIONAL
+                if (_selectedType == MeetingType.presidency)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0, bottom: 20.0),
+                    child: DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(
+                        labelText: 'Organización',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.people_outline), // Icono opcional
+                      ),
+                      value: _selectedOrganization,
+                      items: _organizations.map((org) {
+                        return DropdownMenuItem(value: org, child: Text(org));
+                      }).toList(),
+                      onChanged: (val) => setState(() => _selectedOrganization = val),
+                      validator: (val) => val == null ? 'Seleccione una organización' : null,
+                    ),
+                  ),
 
                 // 2. CAMPOS COMUNES (Detalles Básicos)
                 const Text('Detalles Básicos', style: TextStyle(
@@ -367,12 +403,16 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         TextFormField(controller: _openingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Apertura')),
         TextFormField(
             controller: _announcementsController,
-            maxLines: 2, // <--- ¡AQUÍ ES DONDE DEBE IR!
+            maxLines: 4, // Altura fija de 4 líneas
+            minLines: 2,
+            keyboardType: TextInputType.multiline,
             decoration: const InputDecoration(
-                labelText: 'Anuncios del Barrio'
-              // Ya no va maxLines aquí
+              labelText: 'Anuncios del Barrio',
+              alignLabelWithHint: true,
+              border: OutlineInputBorder(), // Asegúrate de que tenga borde
             )
-        ),        TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música')),
+        ),
+        TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música')),
         TextFormField(controller: _pianistController, decoration: const InputDecoration(labelText: 'Pianista')),
         const SizedBox(height: 15),
 

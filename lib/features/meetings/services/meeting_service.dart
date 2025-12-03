@@ -15,6 +15,7 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    String? organization,
     SacramentAgendaModel? sacramentAgenda,
 
     List<AgendaItemModel>? agendaItems,
@@ -32,6 +33,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      organization: organization,
       sacramentAgenda: sacramentAgenda, // <-- Asegúrate de pasarlo
       agendaItems: agendaItems,
       commitments: commitments,
@@ -63,6 +65,7 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    String? organization,
     SacramentAgendaModel? sacramentAgenda,
 
     List<AgendaItemModel>? agendaItems,
@@ -76,6 +79,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      organization: organization,
       sacramentAgenda: sacramentAgenda,
       agendaItems: agendaItems,
       commitments: commitments,

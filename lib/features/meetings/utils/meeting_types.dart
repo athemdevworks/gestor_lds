@@ -1,8 +1,10 @@
 enum MeetingType {
-  sacramental, // Para la reunión sacramental, con formato fijo
-  bishopric, // Para el Obispado, se enfocará en compromisos y seguimiento
-  wardCouncil, // Para el Consejo de Barrio, se enfocará en la agenda dinámica
-  other, // Para otras reuniones (conferencia, etc.)
+  sacramental,
+  bishopric,      // Obispado
+  wardCouncil,    // Consejo de Barrio
+  presidency,     // Reunión de Presidencia (General)
+  youthCouncil,   // Consejo de Barrio para la Juventud
+  other,
 }
 
 extension MeetingTypeExtension on MeetingType {
@@ -14,6 +16,10 @@ extension MeetingTypeExtension on MeetingType {
         return 'Reunión de Obispado';
       case MeetingType.wardCouncil:
         return 'Consejo de Barrio';
+      case MeetingType.presidency:
+        return 'Reunión de Presidencia'; // <--- Nuevo
+      case MeetingType.youthCouncil:
+        return 'Consejo de Barrio para la Juventud'; // <--- Nuevo
       case MeetingType.other:
         return 'Otra Reunión';
     }

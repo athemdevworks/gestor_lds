@@ -60,7 +60,13 @@ class _AgendaListEditorState extends State<AgendaListEditor> {
             children: [
               TextField(
                 controller: topicController,
-                decoration: const InputDecoration(labelText: 'Asunto / Tema'),
+                decoration: const InputDecoration(
+                  labelText: 'Asunto / Tema',
+                  border: OutlineInputBorder(), // Añade borde para consistencia
+                ),
+                maxLines: null, // Permite crecimiento infinito
+                minLines: 1,
+                keyboardType: TextInputType.multiline,
               ),
               TextField(
                 controller: assignedController,

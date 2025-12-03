@@ -4,7 +4,6 @@ import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 
 class MeetingModel {
-  // Datos comunes a todas las reuniones
   final String id;
   final MeetingType type;
   final DateTime date;
@@ -12,11 +11,13 @@ class MeetingModel {
   final String presidedBy;
   final String directedBy;
 
-  // Datos para reuniones de Liderazgo (Obispado/Consejo)
-  // Eliminamos String? agendaTopics, ya que se reemplaza por agendaItems
+  // --- NUEVO CAMPO AÑADIDO ---
+  final String? organization;
+  // ---------------------------
+
   final List<AgendaItemModel>? agendaItems;
-  final List<String>? commitments; // Lista de compromisos
-  final SacramentAgendaModel? sacramentAgenda; //Solo existe si type == sacramental
+  final List<String>? commitments;
+  final SacramentAgendaModel? sacramentAgenda;
 
   MeetingModel({
     required this.id,
@@ -25,20 +26,22 @@ class MeetingModel {
     required this.time,
     required this.presidedBy,
     required this.directedBy,
-    this.sacramentAgenda,
+
+    // --- AÑADIR AL CONSTRUCTOR ---
+    this.organization,
+    // ----------------------------
+
     this.agendaItems,
     this.commitments,
+    this.sacramentAgenda,
   });
 
-  // Constructor para crear el objeto desde un mapa de Firestore
   factory MeetingModel.fromMap(Map<String, dynamic> data) {
-    // Convierte el String del tipo de reunión de vuelta al Enum
     MeetingType typeEnum = MeetingType.values.firstWhere(
           (e) => e.toString() == 'MeetingType.${data['type']}',
       orElse: () => MeetingType.other,
     );
 
-    // Mapeo de la lista de Agenda Items
     final List<AgendaItemModel>? mappedAgendaItems = data['agendaItems'] != null
         ? (data['agendaItems'] as List)
         .map((item) => AgendaItemModel.fromMap(item as Map<String, dynamic>))
@@ -54,17 +57,17 @@ class MeetingModel {
       time: data['time'] as String,
       presidedBy: data['presidedBy'] as String,
       directedBy: data['directedBy'] as String,
-      sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
 
-      // Asignamos la lista mapeada
+      // --- AÑADIR AL MAPEO DE LECTURA ---
+      organization: data['organization'] as String?,
+      // ----------------------------------
+
       agendaItems: mappedAgendaItems,
-
-      // Aseguramos que commitments sea una lista de Strings
       commitments: data['commitments'] != null ? List<String>.from(data['commitments']) : null,
+      sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
     );
   }
 
-  // Método para convertir el objeto a un mapa para guardarlo en Firestore
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -74,9 +77,13 @@ class MeetingModel {
       'presidedBy': presidedBy,
       'directedBy': directedBy,
 
-      'sacramentAgenda': sacramentAgenda?.toMap(), // <-- Guardar el sub-mapa
-      'agendaItems': agendaItems?.map((item) => item.toMap()).toList(), // Usamos toMap() en la lista
+      // --- AÑADIR AL MAPEO DE GUARDADO ---
+      'organization': organization,
+      // -----------------------------------
+
+      'agendaItems': agendaItems?.map((item) => item.toMap()).toList(),
       'commitments': commitments,
+      'sacramentAgenda': sacramentAgenda?.toMap(),
       'createdAt': FieldValue.serverTimestamp(),
     };
   }
