@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
-import 'package:intl/intl.dart';
-import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
-import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
-import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:printing/printing.dart';
 import 'meeting_form_screen.dart';
+import 'package:intl/intl.dart';
+
+import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
+import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
+import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:gestor_lds/features/meetings/services/pdf_service.dart';
+import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
+
 import 'package:gestor_lds/features/commitments/widgets/new_commitment_modal.dart';
+import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
+import 'package:gestor_lds/features/commitments/services/commitment_service.dart';
 
 class MeetingDetailScreen extends StatelessWidget {
   final MeetingModel meeting;
@@ -93,41 +97,169 @@ class MeetingDetailScreen extends StatelessWidget {
 
           // LÓGICA CONDICIONAL DE AGENDA
                     if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null)
-                  // A. AGENDA SACRAMENTAL (FIJA)
+                    // A. AGENDA SACRAMENTAL (FIJA)
                   _buildSacramentAgendaView(meeting.sacramentAgenda!)
-              else if (hasAgendaItems)
-              // B. AGENDA DE LIDERAZGO (DINÁMICA)
-              ...meeting.agendaItems!.map((item) => ListTile(
-                  leading: const Icon(Icons.push_pin, color: Colors.indigoAccent),
-                  title: Text(item.topic, style: const TextStyle(fontWeight: FontWeight.w500)),
-                  subtitle: Text('Responsable: ${item.assignedTo}'),
-                // MODIFICAMOS EL TRAILING PARA TENER DOS ACCIONES
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 1. Botón para crear compromiso vinculado a ESTE punto
-                    IconButton(
-                      icon: const Icon(Icons.add_task, color: Colors.blue),
-                      tooltip: 'Asignar Compromiso',
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => NewCommitmentModal(
-                            meetingId: meeting.id,
-                            agendaItems: meeting.agendaItems,
-                            initialAgendaItem: item, // <-- ¡AQUÍ PASAMOS EL ÍTEM ESPECÍFICO!
-                          ),
-                        );
-                      },
-                    ),
+                    // B. AGENDA LIDERAZGO (DINAMICA)
+                    else if (hasAgendaItems)
+                    // Envolvemos la lista en un StreamBuilder para escuchar cambios en los compromisos
+                      StreamBuilder<List<CommitmentModel>>(
+                        stream: CommitmentService().getCommitmentsByMeeting(meeting.id),
+                        builder: (context, snapshot) {
 
-                    // 2. Icono de estado (Completado o Pendiente)
-                    item.isCompleted
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : const Icon(Icons.schedule, color: Colors.orange),
-                  ],
-                ),
-              )).toList(),
+                          // Obtenemos la lista completa de compromisos de esta reunión
+                          final allCommitments = snapshot.data ?? [];
+
+                          return Column(
+                            children: meeting.agendaItems!.map((agendaItem) {
+
+                              // 🧠 FILTRO INTELIGENTE:
+                              // Buscamos solo los compromisos que pertenecen a ESTE punto de agenda
+                              final relatedCommitments = allCommitments
+                                  .where((c) => c.agendaItemId == agendaItem.id)
+                                  .toList();
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // 1. EL PADRE (Punto de Agenda)
+                                  ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 0),
+                                    leading: const Icon(Icons.label_important, color: Colors.indigo),
+                                    title: Text(
+                                      agendaItem.topic,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                    subtitle: Text('Presentado por: ${agendaItem.assignedTo}'),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.add_task, color: Colors.blue),
+                                      tooltip: 'Agregar Compromiso a este tema',
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => NewCommitmentModal(
+                                            meetingId: meeting.id,
+                                            agendaItems: meeting.agendaItems,
+                                            initialAgendaItem: agendaItem, // <-- Pasamos el ítem para pre-seleccionar
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                  // 2. LOS HIJOS (Lista de Compromisos Anidados)
+                                  if (relatedCommitments.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 40.0, bottom: 10.0), // Sangría visual
+                                      child: Column(
+                                        children: relatedCommitments.map((commitment) {
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(vertical: 2.0),
+                                            child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                // Checkbox pequeño (visual o funcional)
+                                                SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child: Checkbox(
+                                                    value: commitment.isCompleted,
+                                                    onChanged: (val) {
+                                                      // Permitimos marcar completado desde aquí también
+                                                      if (val != null) {
+                                                        CommitmentService().toggleCompletion(commitment.id, val);
+                                                      }
+                                                    },
+                                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+
+                                                // Texto del compromiso
+                                                Expanded(
+                                                  child: RichText(
+                                                    text: TextSpan(
+                                                      style: TextStyle(
+                                                        color: commitment.isCompleted ? Colors.grey : Colors.black87,
+                                                        fontSize: 14,
+                                                        decoration: commitment.isCompleted ? TextDecoration.lineThrough : null,
+                                                      ),
+                                                      children: [
+                                                        TextSpan(
+                                                          text: "${commitment.assignedToName}: ",
+                                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                                        ),
+                                                        TextSpan(text: commitment.description),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+
+                                                // <---- MENÚ DE ACCIONES (Editar / Eliminar) ---->
+
+                                                PopupMenuButton<String>(
+                                                  icon: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+                                                  padding: EdgeInsets.zero,
+                                                  // Hacemos el menú más pequeño para que no estorbe
+                                                  constraints: const BoxConstraints(minWidth: 20, maxWidth: 150),
+                                                  onSelected: (value) {
+                                                    if (value == 'edit') {
+                                                      // ABRIR MODAL EN MODO EDICIÓN
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (context) => NewCommitmentModal(
+                                                          meetingId: meeting.id,
+                                                          agendaItems: meeting.agendaItems,
+                                                          commitmentToEdit: commitment, // Pasamos el compromiso a editar
+                                                        ),
+                                                      );
+                                                    } else if (value == 'delete') {
+                                                      // CONFIRMAR Y ELIMINAR
+                                                      showDialog(
+                                                        context: context,
+                                                        builder: (ctx) => AlertDialog(
+                                                          title: const Text('Eliminar Compromiso'),
+                                                          content: const Text('¿Estás seguro de borrar esta asignación?'),
+                                                          actions: [
+                                                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+                                                            TextButton(
+                                                              onPressed: () {
+                                                                CommitmentService().deleteCommitment(commitment.id);
+                                                                Navigator.pop(ctx);
+                                                              },
+                                                              child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    }
+                                                  },
+                                                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                                    const PopupMenuItem<String>(
+                                                      value: 'edit',
+                                                      height: 30,
+                                                      child: Row(children: [Icon(Icons.edit, size: 16), SizedBox(width: 8), Text('Editar', style: TextStyle(fontSize: 13))]),
+                                                    ),
+                                                    const PopupMenuItem<String>(
+                                                      value: 'delete',
+                                                      height: 30,
+                                                      child: Row(children: [Icon(Icons.delete, size: 16, color: Colors.red), SizedBox(width: 8), Text('Eliminar', style: TextStyle(color: Colors.red, fontSize: 13))]),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+
+                                  const Divider(), // Separador entre temas
+                                ],
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
 
               if (!hasAgendaItems && meeting.sacramentAgenda == null)
                 const Padding(

@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
 import 'package:gestor_lds/features/commitments/services/commitment_service.dart';
+import 'package:gestor_lds/features/commitments/models/commitment_model.dart'; // Importar modelo
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
-import 'package:intl/intl.dart';
 
 class NewCommitmentModal extends StatefulWidget {
   final String meetingId;
-  final List<AgendaItemModel>? agendaItems; // Lista completa de la agenda
-  final AgendaItemModel? initialAgendaItem; // Ítem pre-seleccionado (si venimos del botón lateral)
+  final List<AgendaItemModel>? agendaItems;
+  final AgendaItemModel? initialAgendaItem;
+  final CommitmentModel? commitmentToEdit; // <-- NUEVO: Para modo edición
 
   const NewCommitmentModal({
     super.key,
     required this.meetingId,
     this.agendaItems,
     this.initialAgendaItem,
+    this.commitmentToEdit, // <-- Añadir al constructor
   });
 
   @override
@@ -24,32 +27,48 @@ class NewCommitmentModal extends StatefulWidget {
 class _NewCommitmentModalState extends State<NewCommitmentModal> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controladores de Texto
+  // Controladores y Servicios
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _dueDateController = TextEditingController();
-
-  // Servicios
   final UserService _userService = UserService();
   final CommitmentService _commitmentService = CommitmentService();
 
-  // ESTADO - Usamos IDs para los Dropdowns (Más seguro que usar Objetos)
+  // Estado
   DateTime? _selectedDueDate;
   bool _isLoading = false;
-
-  // 1. Estado para el USUARIO (Líder)
   String? _selectedUserId;
-  UserModel? _selectedUserObject; // Guardamos el objeto para sacar el nombre luego
-
-  // 2. Estado para el PUNTO DE AGENDA
+  UserModel? _selectedUserObject;
   String? _selectedAgendaItemId;
-  AgendaItemModel? _selectedAgendaItemObject; // Guardamos el objeto para sacar el tema luego
+  AgendaItemModel? _selectedAgendaItemObject;
+
+  // 1. VARIABLE PARA MANTENER LA CONEXIÓN ESTABLE
+  late Stream<List<UserModel>> _usersStream;
 
   @override
   void initState() {
     super.initState();
 
-    // Si nos pasaron un punto de agenda inicial (desde el botón lateral), lo pre-seleccionamos
-    if (widget.initialAgendaItem != null) {
+    // 2. INICIALIZAMOS EL STREAM UNA SOLA VEZ AL ABRIR
+    // Esto evita que la lista se recargue y borre la selección al hacer clic
+    _usersStream = _userService.streamActiveUsers();
+
+      // 1. Lógica si estamos EDITANDO un compromiso existente
+    if (widget.commitmentToEdit != null) {
+      final c = widget.commitmentToEdit!;
+      _descriptionController.text = c.description;
+      _selectedDueDate = c.dueDate;
+      _dueDateController.text = DateFormat('yyyy-MM-dd').format(c.dueDate);
+
+      // Cargar IDs para los Dropdowns
+      _selectedUserId = c.assignedToUid;
+      // Nota: _selectedUserObject se quedará null hasta que se seleccione otro,
+      // pero usaremos c.assignedToName como respaldo al guardar si no cambia.
+
+      _selectedAgendaItemId = c.agendaItemId;
+      // Lo mismo para el objeto de agenda item.
+    }
+      // 2. Lógica si estamos CREANDO desde un botón de agenda (Solo si no estamos editando)
+    else if (widget.initialAgendaItem != null) {
       _selectedAgendaItemId = widget.initialAgendaItem!.id;
       _selectedAgendaItemObject = widget.initialAgendaItem;
     }
@@ -71,29 +90,64 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
   }
 
   Future<void> _saveCommitment() async {
+    // Validación básica
     if (_formKey.currentState!.validate() && _selectedUserId != null && _selectedDueDate != null) {
       setState(() { _isLoading = true; });
+
       try {
-        await _commitmentService.addCommitment(
-          meetingId: widget.meetingId,
-          description: _descriptionController.text,
+        // Determinar el nombre del usuario (si cambió o se mantiene el original)
+        String finalUserName;
+        if (_selectedUserObject != null) {
+          finalUserName = "${_selectedUserObject!.nombres} ${_selectedUserObject!.apellidos}";
+        } else if (widget.commitmentToEdit != null) {
+          finalUserName = widget.commitmentToEdit!.assignedToName;
+        } else {
+          // Caso raro de fallo
+          finalUserName = "Usuario Desconocido";
+        }
 
-          // Usamos los datos guardados en el estado
-          assignedToUid: _selectedUserId!,
-          assignedToName: "${_selectedUserObject!.nombres} ${_selectedUserObject!.apellidos}",
-          dueDate: _selectedDueDate!,
+        // Determinar el tópico de agenda
+        String? finalTopic;
+        if (_selectedAgendaItemObject != null) {
+          finalTopic = _selectedAgendaItemObject!.topic;
+        } else if (widget.commitmentToEdit != null) {
+          finalTopic = widget.commitmentToEdit!.agendaItemTopic;
+        }
 
-          // Datos opcionales de la agenda
-          agendaItemId: _selectedAgendaItemId,
-          agendaItemTopic: _selectedAgendaItemObject?.topic,
-        );
+        if (widget.commitmentToEdit != null) {
+          // --- MODO EDICIÓN ---
+          final updatedCommitment = CommitmentModel(
+            id: widget.commitmentToEdit!.id, // Mismo ID
+            meetingId: widget.meetingId,
+            description: _descriptionController.text,
+            assignedToUid: _selectedUserId!,
+            assignedToName: finalUserName,
+            dueDate: _selectedDueDate!,
+            isCompleted: widget.commitmentToEdit!.isCompleted, // Mantiene estado
+            createdAt: widget.commitmentToEdit!.createdAt, // Mantiene fecha crea
+            agendaItemId: _selectedAgendaItemId,
+            agendaItemTopic: finalTopic,
+          );
 
-        if (mounted) Navigator.of(context).pop(); // Cerrar modal
+          await _commitmentService.updateCommitment(updatedCommitment);
+
+        } else {
+          // --- MODO CREACIÓN ---
+          await _commitmentService.addCommitment(
+            meetingId: widget.meetingId,
+            description: _descriptionController.text,
+            assignedToUid: _selectedUserId!,
+            assignedToName: finalUserName,
+            dueDate: _selectedDueDate!,
+            agendaItemId: _selectedAgendaItemId,
+            agendaItemTopic: finalTopic,
+          );
+        }
+
+        if (mounted) Navigator.of(context).pop();
 
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
       } finally {
         if (mounted) setState(() { _isLoading = false; });
       }
@@ -102,18 +156,16 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si hay puntos de agenda para mostrar el dropdown
     final bool hasAgendaItems = widget.agendaItems != null && widget.agendaItems!.isNotEmpty;
 
     return AlertDialog(
-      title: const Text('Asignar Nuevo Compromiso'),
+      title: Text(widget.commitmentToEdit != null ? 'Editar Compromiso' : 'Asignar Nuevo Compromiso'),
       content: Form(
         key: _formKey,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // CAMPO 1: DESCRIPCIÓN
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(labelText: 'Descripción del Compromiso'),
@@ -122,20 +174,17 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
               ),
               const SizedBox(height: 15),
 
-              // CAMPO 2: PUNTO DE AGENDA (Opcional)
               if (hasAgendaItems)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 15.0),
                   child: DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Asociar a Punto de Agenda'),
-                    value: _selectedAgendaItemId, // Usamos el ID
+                    value: _selectedAgendaItemId,
                     items: widget.agendaItems!.map((item) {
                       return DropdownMenuItem(
-                        value: item.id, // El valor es el ID (String)
+                        value: item.id,
                         child: Text(
-                          item.topic.length > 30
-                              ? '${item.topic.substring(0, 30)}...'
-                              : item.topic,
+                          item.topic.length > 30 ? '${item.topic.substring(0, 30)}...' : item.topic,
                           overflow: TextOverflow.ellipsis,
                         ),
                       );
@@ -144,16 +193,13 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                       if (newId != null) {
                         setState(() {
                           _selectedAgendaItemId = newId;
-                          // Buscamos el objeto completo para guardar el tema (topic) luego
-                          _selectedAgendaItemObject = widget.agendaItems!
-                              .firstWhere((item) => item.id == newId);
+                          _selectedAgendaItemObject = widget.agendaItems!.firstWhere((item) => item.id == newId);
                         });
                       }
                     },
                   ),
                 ),
 
-              // CAMPO 3: FECHA
               TextFormField(
                 controller: _dueDateController,
                 readOnly: true,
@@ -163,24 +209,32 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
               ),
               const SizedBox(height: 15),
 
-              // CAMPO 4: ASIGNAR A LÍDER (Dropdown por ID)
+              // USAMOS EL STREAM ESTABLE CREADO EN INITSTATE
               StreamBuilder<List<UserModel>>(
-                stream: _userService.streamActiveUsers(),
+                stream: _usersStream,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
+
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Text('No hay líderes activos.', style: TextStyle(color: Colors.red));
                   }
 
-                  final users = snapshot.data!;
+                  final rawUsers = snapshot.data!;
+                  // Limpieza de duplicados por si acaso
+                  final uniqueUsers = <String, UserModel>{};
+                  for (var user in rawUsers) {
+                    uniqueUsers[user.uid] = user;
+                  }
+                  final users = uniqueUsers.values.toList();
+
                   return DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Asignar a Líder'),
-                    value: _selectedUserId, // Usamos el ID
+                    value: _selectedUserId,
                     items: users.map((user) {
                       return DropdownMenuItem(
-                        value: user.uid, // El valor es el UID (String)
+                        value: user.uid,
                         child: Text('${user.nombres} ${user.apellidos} (${user.calling})'),
                       );
                     }).toList(),
@@ -188,7 +242,6 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                       if (newId != null) {
                         setState(() {
                           _selectedUserId = newId;
-                          // Buscamos el objeto completo para guardar el nombre luego
                           _selectedUserObject = users.firstWhere((u) => u.uid == newId);
                         });
                       }

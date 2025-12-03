@@ -53,4 +53,22 @@ class CommitmentService {
       'isCompleted': isCompleted,
     });
   }
+
+  // 4. OBTENER COMPROMISOS DE UNA REUNIÓN ESPECÍFICA
+  Stream<List<CommitmentModel>> getCommitmentsByMeeting(String meetingId) {
+    return _db.collection(_collectionName)
+        .where('meetingId', isEqualTo: meetingId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => CommitmentModel.fromMap(doc.data())).toList());
+  }
+  // 5. ACTUALIZAR un compromiso existente
+  Future<void> updateCommitment(CommitmentModel commitment) async {
+    await _db.collection(_collectionName).doc(commitment.id).update(commitment.toMap());
+  }
+
+  // 6. ELIMINAR un compromiso
+  Future<void> deleteCommitment(String commitmentId) async {
+    await _db.collection(_collectionName).doc(commitmentId).delete();
+  }
+
 }
