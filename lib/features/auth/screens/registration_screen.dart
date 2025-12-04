@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../auth_service.dart'; // Importa tu servicio de autenticación
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
+import 'package:gestor_lds/core/constants/callings_list.dart'; // Asegúrate de la ruta
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -74,7 +75,39 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 // Campos de datos
                 _buildTextField(_nombresController, 'Nombres', false),
                 _buildTextField(_apellidosController, 'Apellidos', false),
-                _buildTextField(_callingController, 'Llamamiento', false),
+                // --- NUEVO: DROPDOWN CON BÚSQUEDA ---
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Usamos LayoutBuilder para que el Dropdown ocupe todo el ancho
+                        return DropdownMenu<String>(
+                          width: constraints.maxWidth, // Ancho completo
+                          controller: _callingController, // Usamos el mismo controlador
+                          label: const Text('Llamamiento'),
+                          hintText: 'Escribe para buscar...', // Cambia el texto para que sepan que pueden escribir
+                          menuHeight: 300, // Limita la altura y activa el scroll
+                          enableFilter: true,
+                          requestFocusOnTap: true,
+                          dropdownMenuEntries: kLdsCallings.map<DropdownMenuEntry<String>>((String calling) {
+                            return DropdownMenuEntry<String>(
+                              value: calling,
+                              label: calling,
+                            );
+                          }).toList(),
+                          inputDecorationTheme: const InputDecorationTheme(
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          ),
+                          onSelected: (String? calling) {
+                            if (calling != null) {
+                              _callingController.text = calling;
+                            }
+                          },
+                        );
+                      }
+                  ),
+                ),
                 _buildTextField(_usernameController, 'Nombre de Usuario Único', false),
 
                 const Divider(height: 30),
@@ -109,7 +142,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, bool isPassword) {
+  Widget _buildTextField(
+      TextEditingController controller,
+      String label,
+      bool isPassword, {
+        String? hintText, // <--- NUEVO PARÁMETRO
+      }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: TextFormField(
@@ -117,6 +155,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         obscureText: isPassword,
         decoration: InputDecoration(
           labelText: label,
+          hintText: hintText, // <--- USAR AQUÍ
+          hintStyle: TextStyle(color: Colors.grey.shade400), // Color suave
           border: const OutlineInputBorder(),
         ),
         validator: (value) {

@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100], // Fondo gris suave fuera de la tarjeta
-      appBar: AppBar(title: const Text('Iniciar Sesión')),
+      appBar: AppBar(title: const Text('GestorLDS Barrio Nuevo Trujillo')),
       // CENTRAMOS TODO EL CONTENIDO
       body: Center(
         child: SingleChildScrollView(
@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
                                 Text(
-                                  'Versión 1.0.0', // Puedes cambiar esto manualmente cuando actualices
+                                  'Versión 1.2.1', // Puedes cambiar esto manualmente cuando actualices
                                   style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
                               ],
