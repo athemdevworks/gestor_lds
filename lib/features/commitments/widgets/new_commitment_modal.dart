@@ -216,35 +216,49 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
               const SizedBox(height: 15),
 
               // USAMOS EL STREAM ESTABLE CREADO EN INITSTATE
+
+              // CAMPO 4: ASIGNAR A LÍDER (Con Búsqueda)
               StreamBuilder<List<UserModel>>(
                 stream: _usersStream,
                 builder: (context, snapshot) {
+                  // 1. Estados de Carga / Error
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Text('No hay líderes activos.', style: TextStyle(color: Colors.red));
                   }
 
+                  // 2. Limpieza de datos (Evitar duplicados)
                   final rawUsers = snapshot.data!;
-                  // Limpieza de duplicados por si acaso
                   final uniqueUsers = <String, UserModel>{};
                   for (var user in rawUsers) {
                     uniqueUsers[user.uid] = user;
                   }
                   final users = uniqueUsers.values.toList();
 
-                  return DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Asignar a Líder'),
-                    value: _selectedUserId,
-                    items: users.map((user) {
-                      return DropdownMenuItem(
+                  // 3. NUEVO WIDGET: DropdownMenu (Searchable)
+                  return DropdownMenu<String>(
+                    // AGREGAMOS ESTO PARA QUE OCUPE TODO EL ANCHO:
+                    expandedInsets: EdgeInsets.zero,
+
+                    label: const Text('Asignar a Líder'),
+                    hintText: 'Escribe para buscar...',
+                    menuHeight: 300,
+                    enableFilter: true,
+                    requestFocusOnTap: true,
+
+                    initialSelection: _selectedUserId,
+
+                    dropdownMenuEntries: users.map((user) {
+                      return DropdownMenuEntry<String>(
                         value: user.uid,
-                        child: Text('${user.nombres} ${user.apellidos} (${user.calling})'),
+                        label: '${user.nombres} ${user.apellidos}',
+                        leadingIcon: const Icon(Icons.person_outline, size: 18),
                       );
                     }).toList(),
-                    onChanged: (String? newId) {
+
+                    onSelected: (String? newId) {
                       if (newId != null) {
                         setState(() {
                           _selectedUserId = newId;
@@ -252,7 +266,11 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                         });
                       }
                     },
-                    validator: (v) => v == null ? 'Seleccione un responsable' : null,
+
+                    inputDecorationTheme: const InputDecorationTheme(
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
                   );
                 },
               ),

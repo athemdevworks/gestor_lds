@@ -57,10 +57,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey[50], // Fondo suave
       appBar: AppBar(title: const Text('Registro de Líder')),
+      // 1. CENTRAMOS
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
+          // 2. LIMITAMOS EL ANCHO
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 550), // Un poco más ancho que el Login
+
+          // 3. TARJETA FLOTANTE
+          child: Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: Colors.white,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
           child: Form(
             key: _formKey,
             child: Column(
@@ -73,8 +86,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 ),
                 const SizedBox(height: 20),
                 // Campos de datos
-                _buildTextField(_nombresController, 'Nombres', false),
-                _buildTextField(_apellidosController, 'Apellidos', false),
+                _buildTextField(_nombresController, 'Nombres', false, hintText: 'Ej: Juan Carlos'),
+                _buildTextField(_apellidosController, 'Apellidos', false, hintText: 'Ej: Pérez López'),
                 // --- NUEVO: DROPDOWN CON BÚSQUEDA ---
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12.0),
@@ -108,13 +121,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       }
                   ),
                 ),
-                _buildTextField(_usernameController, 'Nombre de Usuario Único', false),
+                _buildTextField(_usernameController, 'Nombre de Usuario Único', false, hintText: 'Ej: juanperez'),
 
                 const Divider(height: 30),
 
                 // Campos de autenticación
-                _buildTextField(_emailController, 'Correo Electrónico', false),
-                _buildTextField(_passwordController, 'Contraseña', true),
+                _buildTextField(_emailController, 'Correo Electrónico', false, hintText: 'Ej: jperez@gmail.com'),
+                _buildTextField(_passwordController, 'Contraseña', true, hintText: 'Distinta del correo personal'),
 
                 const SizedBox(height: 30),
                 _isLoading
@@ -138,6 +151,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             ),
           ),
         ),
+      ),),),
       ),
     );
   }

@@ -12,7 +12,14 @@ class PdfService {
   Future<Uint8List> generateAgendaPdf(MeetingModel meeting) async {
     final pdf = pw.Document();
 
-    // Mapeo condicional para el cuerpo del PDF (Agenda Fija o Dinámica)
+  // 1. CARGAR LOGO (Asegúrate que el nombre coincida con tu archivo)
+    final logoData = await rootBundle.load('assets/images/logont.png');
+    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+
+    // Color Azul Intenso para el PDF
+    final PdfColor brandColor = PdfColors.blue800;
+
+    // Mapeo condicional para el cuerpo del PDF...
     final agendaBody = <pw.Widget>[];
 
     if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null) {
@@ -93,15 +100,41 @@ class PdfService {
               return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // CABECERA COMÚN
-                    pw.Text('AGENDA DE REUNIÓN - ${meeting.type.displayName}',
-                        style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                    if (meeting.organization != null)
-                      pw.Text(meeting.organization!, style: pw.TextStyle(fontSize: 18, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold)),
-                    // -------------------
-                    pw.Divider(),
+                    // --- NUEVA CABECERA CON LOGO ---
+                    pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        // Columna de Textos (Izquierda)
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('AGENDA DE REUNIÓN',
+                                  style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold, color: brandColor)),
+                              pw.Text(meeting.type.displayName,
+                                  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                              if (meeting.organization != null)
+                                pw.Text(meeting.organization!,
+                                    style: pw.TextStyle(fontSize: 14, color: PdfColors.grey700)),
+                            ],
+                          ),
+                        ),
+                        // Logo (Derecha)
+                        pw.Container(
+                          height: 60,
+                          width: 60,
+                          child: pw.Image(logoImage),
+                        ),
+                      ],
+                    ),
+                    // -------------------------------
 
-                    // DETALLES BÁSICOS
+                    pw.SizedBox(height: 10),
+                    pw.Divider(color: brandColor, thickness: 2), // Línea azul divisoria
+                    pw.SizedBox(height: 10),
+
+                    // DETALLES BÁSICOS (Alineados)
                     _buildPdfItem('Preside', meeting.presidedBy),
                     _buildPdfItem('Dirige', meeting.directedBy),
                     _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),
@@ -109,7 +142,7 @@ class PdfService {
 
                     pw.SizedBox(height: 20),
 
-                    // CUERPO DE LA AGENDA (Fija o Dinámica)
+                    // CUERPO DE LA AGENDA
                     ...agendaBody,
                   ]
               );
@@ -117,7 +150,7 @@ class PdfService {
         )
     );
 
-    return pdf.save(); // Devuelve el documento como bytes
+    return pdf.save();
   }
 
   pw.Widget _buildPdfItem(String label, String value, {bool bold = false, PdfColor color = PdfColors.black}) {

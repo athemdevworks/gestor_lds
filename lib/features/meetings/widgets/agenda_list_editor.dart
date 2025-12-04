@@ -55,24 +55,40 @@ class _AgendaListEditorState extends State<AgendaListEditor> {
       builder: (context) {
         return AlertDialog(
           title: const Text('Añadir Punto de Agenda'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: topicController,
-                decoration: const InputDecoration(
-                  labelText: 'Asunto / Tema',
-                  border: OutlineInputBorder(), // Añade borde para consistencia
-                ),
-                maxLines: null, // Permite crecimiento infinito
-                minLines: 1,
-                keyboardType: TextInputType.multiline,
+          // 1. Envolvemos el contenido en un ConstrainedBox
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500), // Ancho máximo cómodo para lectura
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 10),
+
+                  TextField(
+                    controller: topicController,
+                    maxLines: null, // Crecimiento vertical
+                    minLines: 1,
+                    keyboardType: TextInputType.multiline, // Permite 'Enter'
+                    decoration: const InputDecoration(
+                      labelText: 'Asunto / Tema',
+                      border: OutlineInputBorder(),
+                      hintText: 'Escribe el tema a tratar...',
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  TextField(
+                    controller: assignedController,
+                    decoration: const InputDecoration(
+                      labelText: 'Responsable',
+                      border: OutlineInputBorder(),
+                      hintText: 'Ej: Hna. García',
+                    ),
+                  ),
+                ],
               ),
-              TextField(
-                controller: assignedController,
-                decoration: const InputDecoration(labelText: 'Responsable'),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(

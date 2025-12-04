@@ -242,8 +242,13 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         appBar: AppBar(
           title: Text(screenTitle),
         ),
-        body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+      // 1. CENTRAMOS EL CONTENIDO
+        body: Center(
+          child: ConstrainedBox(
+            // 2. LIMITAMOS EL ANCHO (Para que en PC se vea como una hoja)
+            constraints: const BoxConstraints(maxWidth: 700),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0), // Un poco más de espacio
             child: Form(
                 key: _formKey,
                 child: Column(
@@ -365,15 +370,15 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                  ),
               ),
             ],
-         ),
+         ),),),
        ),
       ),
+
     );
   }
 
   // Incluye el método _buildSacramentAgendaForm() aquí mismo, después de build
   Widget _buildSacramentAgendaForm() {
-    // TRUE si debe ocultar discursantes y mostrar campo de testimonios
     final bool hideSpeakers = _isFastAndTestimony;
 
     return Column(
@@ -381,11 +386,10 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       children: [
         const Text(
           'Agenda Sacramental (Fija)',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.indigo),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0089D3)),
         ),
         const Divider(height: 20),
 
-        // CHECKBOX PARA DOMINGO DE AYUNO
         SwitchListTile(
           title: const Text('Primer Domingo (Ayuno y Testimonio)'),
           subtitle: const Text('Oculta discursantes y habilita el tiempo de testimonios.'),
@@ -398,57 +402,69 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         ),
         const SizedBox(height: 15),
 
-        // 1. APERTURA
+        // 1. APERTURA (Con espacios añadidos)
         TextFormField(controller: _openingHymnController, decoration: const InputDecoration(labelText: 'Himno de Apertura')),
+        const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
+
         TextFormField(controller: _openingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Apertura')),
+        const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
+
         TextFormField(
-            controller: _announcementsController,
-            maxLines: 4, // Altura fija de 4 líneas
-            minLines: 2,
-            keyboardType: TextInputType.multiline,
-            decoration: const InputDecoration(
-              labelText: 'Anuncios del Barrio',
-              alignLabelWithHint: true,
-              border: OutlineInputBorder(), // Asegúrate de que tenga borde
-            )
+          controller: _announcementsController,
+          maxLines: 2,
+          decoration: const InputDecoration(labelText: 'Anuncios del Barrio', alignLabelWithHint: true),
         ),
-        TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música')),
+        const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
+
+        TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director de Himnos')),
+        const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
+
         TextFormField(controller: _pianistController, decoration: const InputDecoration(labelText: 'Pianista')),
-        const SizedBox(height: 15),
+        const SizedBox(height: 15), // Separación de sección
 
         // 2. LA SANTA CENA
         TextFormField(controller: _sacramentHymnController, decoration: const InputDecoration(labelText: 'Himno Sacramental')),
         const SizedBox(height: 25),
 
-        // 3. SECCIÓN DE DISCURSOS / TESTIMONIOS (LÓGICA CONDICIONAL)
+        // 3. SECCIÓN DE DISCURSOS
         if (hideSpeakers)
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.yellow[100],
+              color: Colors.orange.shade50,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.shade200),
             ),
-            child: const Text('Tiempo de Testimonios (Sin discursantes ni Himno Especial)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange.shade800),
+                const SizedBox(width: 10),
+                const Expanded(child: Text('Tiempo de Testimonios (Sin discursantes)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange))),
+              ],
+            ),
           )
         else
-        // ORDEN DE DISCURSOS REQUERIDO
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('Discursos', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+
               // PRIMER DISCURSO
               TextFormField(controller: _firstSpeakerNameController, decoration: const InputDecoration(labelText: '1er Discursante (Nombre)')),
+              const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
               TextFormField(controller: _firstSpeakerTopicController, decoration: const InputDecoration(labelText: '1er Discursante (Tema)')),
 
               const Divider(height: 30),
 
-              // HIMNO ESPECIAL (INTERMEDIO)
+              // HIMNO ESPECIAL
               TextFormField(controller: _intermediateHymnController, decoration: const InputDecoration(labelText: 'Himno Especial/Intermedio')),
 
               const Divider(height: 30),
 
               // SEGUNDO DISCURSO
               TextFormField(controller: _secondSpeakerNameController, decoration: const InputDecoration(labelText: '2do Discursante (Nombre)')),
+              const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
               TextFormField(controller: _secondSpeakerTopicController, decoration: const InputDecoration(labelText: '2do Discursante (Tema)')),
             ],
           ),
@@ -457,6 +473,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
         // 4. CIERRE
         TextFormField(controller: _closingHymnController, decoration: const InputDecoration(labelText: 'Himno de Cierre')),
+        const SizedBox(height: 12), // <--- ESPACIO AÑADIDO
         TextFormField(controller: _closingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Cierre')),
 
         const SizedBox(height: 20),
