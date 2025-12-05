@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import '../../../core/utils/alert_utils.dart';
 import 'meeting_form_screen.dart';
 import 'package:intl/intl.dart';
 
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
+import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:gestor_lds/features/meetings/services/pdf_service.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
@@ -49,12 +51,13 @@ class MeetingDetailScreen extends StatelessWidget {
 
               } catch (e) {
                 // 3. Si falla, muestra el error en la barra
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error de impresión: ${e.toString()}. Verifique la Consola del Navegador.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
+                if (context.mounted) {
+                  showErrorDialog(
+                      context,
+                      'Error de Impresión',
+                      'No se pudo generar el PDF. Detalle: ${e.toString()}'
+                  );
+                }
               }
             },
           ),
@@ -134,19 +137,48 @@ class MeetingDetailScreen extends StatelessWidget {
                                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                                     subtitle: Text('Presentado por: ${agendaItem.assignedTo}'),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.add_task, color: Colors.blue),
-                                      tooltip: 'Agregar Compromiso a este tema',
-                                      onPressed: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) => NewCommitmentModal(
-                                            meetingId: meeting.id,
-                                            agendaItems: meeting.agendaItems,
-                                            initialAgendaItem: agendaItem, // <-- Pasamos el ítem para pre-seleccionar
-                                          ),
-                                        );
-                                      },
+
+                                    trailing:
+                                      Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        // 1. Botón de Agregar Tarea (Existente)
+                                        IconButton(
+                                          icon: const Icon(Icons.add_task, color: Colors.blue),
+                                          tooltip: 'Agregar Compromiso a este tema',
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => NewCommitmentModal(
+                                                meetingId: meeting.id,
+                                                agendaItems: meeting.agendaItems,
+                                                initialAgendaItem: agendaItem, // <-- Pasamos el ítem para pre-seleccionar
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                        // 2. NUEVO: Menú de Opciones (Editar / Eliminar)
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert, color: Colors.grey),
+                                          onSelected: (value) {
+                                            if (value == 'edit') {
+                                              _editAgendaItem(context, agendaItem);
+                                            } else if (value == 'delete') {
+                                              _deleteAgendaItem(context, agendaItem);
+                                            }
+                                          },
+                                          itemBuilder: (context) => [
+                                            const PopupMenuItem(
+                                              value: 'edit',
+                                              child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Editar Punto')]),
+                                            ),
+                                            const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text('Eliminar Punto', style: TextStyle(color: Colors.red))]),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
 
@@ -433,5 +465,139 @@ class MeetingDetailScreen extends StatelessWidget {
       },
     );
   }
+
+  // DENTRO DE class MeetingDetailScreen extends StatelessWidget
+
+  // FUNCIÓN 1: BORRAR PUNTO DE AGENDA
+  Future<void> _deleteAgendaItem(BuildContext context, AgendaItemModel itemToDelete) async {
+    // 1. Confirmación
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Punto de Agenda'),
+        content: const Text('¿Estás seguro? Los compromisos asociados quedarán desvinculados visualmente.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // 2. Crear nueva lista sin el ítem
+      final updatedList = List<AgendaItemModel>.from(meeting.agendaItems!);
+      updatedList.removeWhere((item) => item.id == itemToDelete.id);
+
+      // 3. Guardar en Firestore usando updateMeeting
+      // Nota: Reutilizamos el método existente, enviando solo lo que cambia implícitamente
+      await MeetingService().updateMeeting(
+        id: meeting.id,
+        type: meeting.type,
+        date: meeting.date,
+        time: meeting.time,
+        presidedBy: meeting.presidedBy,
+        directedBy: meeting.directedBy,
+        organization: meeting.organization,
+        sacramentAgenda: meeting.sacramentAgenda,
+
+        // AQUÍ ESTÁ LA CLAVE: Enviamos la lista actualizada
+        agendaItems: updatedList,
+
+        commitments: meeting.commitments,
+      );
+    }
+  }
+
+  // FUNCIÓN 2: EDITAR PUNTO DE AGENDA
+
+  Future<void> _editAgendaItem(BuildContext context, AgendaItemModel itemToEdit) async {
+    final topicCtrl = TextEditingController(text: itemToEdit.topic);
+    final assignedCtrl = TextEditingController(text: itemToEdit.assignedTo);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar Punto'),
+        // 1. LIMITAMOS EL ANCHO Y PERMITIMOS SCROLL
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SizedBox(
+            width: double.maxFinite, // Obliga a estirarse hasta el límite del padre (500px)
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: topicCtrl,
+                      // 2. CONFIGURACIÓN MULTILÍNEA
+                      maxLines: null,
+                      minLines: 1,
+                      keyboardType: TextInputType.multiline,
+                      decoration: const InputDecoration(
+                        labelText: 'Asunto',
+                        border: OutlineInputBorder(), // Añadimos borde para que se vea mejor
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    TextField(
+                      controller: assignedCtrl,
+                      // 2. CONFIGURACIÓN MULTILÍNEA
+                      maxLines: null,
+                      minLines: 1,
+                      keyboardType: TextInputType.multiline,
+                      decoration: const InputDecoration(
+                        labelText: 'Responsable',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              // ... (Lógica de guardado que ya tienes) ...
+              // 1. Crear ítem actualizado
+              final updatedItem = AgendaItemModel(
+                id: itemToEdit.id,
+                topic: topicCtrl.text,
+                assignedTo: assignedCtrl.text,
+                isCompleted: itemToEdit.isCompleted,
+              );
+
+              // 2. Actualizar lista local
+              final updatedList = List<AgendaItemModel>.from(meeting.agendaItems!);
+              final index = updatedList.indexWhere((i) => i.id == itemToEdit.id);
+              if (index != -1) {
+                updatedList[index] = updatedItem;
+              }
+
+              // 3. Guardar en Firestore
+              await MeetingService().updateMeeting(
+                id: meeting.id,
+                type: meeting.type,
+                date: meeting.date,
+                time: meeting.time,
+                presidedBy: meeting.presidedBy,
+                directedBy: meeting.directedBy,
+                organization: meeting.organization,
+                sacramentAgenda: meeting.sacramentAgenda,
+                agendaItems: updatedList,
+                commitments: meeting.commitments,
+              );
+
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
 
 }

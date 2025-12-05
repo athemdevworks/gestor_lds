@@ -69,7 +69,7 @@ class _UserList extends StatelessWidget {
                   child: Text(user.nombres[0], style: const TextStyle(color: Colors.white)),
                 ),
                 title: Text('${user.apellidos}, ${user.nombres}'),
-                subtitle: Text('${user.calling} (${user.role.name})'),
+                subtitle: Text('${user.calling} (${user.role.displayName})'),
                 trailing: const Icon(Icons.edit),
                 onTap: () {
                   // Abrir diálogo de edición
@@ -114,47 +114,53 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Administrar Acceso'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Usuario: ${widget.user.nombres} ${widget.user.apellidos}'),
-            const SizedBox(height: 20),
+        content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Usuario: ${widget.user.nombres} ${widget.user.apellidos}'),
+                    const SizedBox(height: 20),
 
-            // 1. EDITAR LLAMAMIENTO
-            TextField(
-              controller: _callingController,
-              decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 15),
+                    // 1. EDITAR LLAMAMIENTO
+                    TextField(
+                      controller: _callingController,
+                      decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 15),
 
-            // 2. CAMBIAR ESTADO (Aprobar/Suspender)
-            DropdownButtonFormField<String>(
-              decoration: const InputDecoration(labelText: 'Estado'),
-              value: _selectedStatus,
-              items: const [
-                DropdownMenuItem(value: 'pending', child: Text('Pendiente (Sin Acceso)')),
-                DropdownMenuItem(value: 'active', child: Text('Activo (Aprobado)')),
-                DropdownMenuItem(value: 'suspended', child: Text('Suspendido')),
-              ],
-              onChanged: (v) => setState(() => _selectedStatus = v!),
-            ),
-            const SizedBox(height: 15),
+                    // 2. CAMBIAR ESTADO (Aprobar/Suspender)
+                    DropdownButtonFormField<String>(
+                      decoration: const InputDecoration(labelText: 'Estado'),
+                      value: _selectedStatus,
+                      items: const [
+                        DropdownMenuItem(value: 'pending', child: Text('Pendiente (Sin Acceso)')),
+                        DropdownMenuItem(value: 'active', child: Text('Activo (Aprobado)')),
+                        DropdownMenuItem(value: 'suspended', child: Text('Suspendido')),
+                      ],
+                      onChanged: (v) => setState(() => _selectedStatus = v!),
+                    ),
+                    const SizedBox(height: 15),
 
-            // 3. CAMBIAR ROL (Permisos)
-            DropdownButtonFormField<UserRole>(
-              decoration: const InputDecoration(labelText: 'Rol de Sistema'),
-              value: _selectedRole,
-              items: UserRole.values.map((role) {
-                return DropdownMenuItem(
-                  value: role,
-                  child: Text(role.name.toUpperCase()),
-                );
-              }).toList(),
-              onChanged: (v) => setState(() => _selectedRole = v!),
-            ),
-          ],
-        ),
+                    // 3. CAMBIAR ROL (Permisos)
+                    DropdownButtonFormField<UserRole>(
+                      decoration: const InputDecoration(labelText: 'Rol de Sistema'),
+                      value: _selectedRole,
+                      items: UserRole.values.map((role) {
+                        return DropdownMenuItem(
+                          value: role,
+                          child: Text(role.displayName),
+                        );
+                      }).toList(),
+                      onChanged: (v) => setState(() => _selectedRole = v!),
+                    ),
+                  ],
+                ),
+              ),
+          ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),

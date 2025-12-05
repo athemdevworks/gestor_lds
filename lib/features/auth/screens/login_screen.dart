@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth_service.dart';
 import 'registration_screen.dart'; // Para navegar de vuelta al registro
+import 'package:gestor_lds/core/utils/alert_utils.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,22 +25,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
       try {
         await _authService.signInWithEmailAndPassword(
-          _emailController.text,
-          _passwordController.text,
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
-        // Si el login de Auth tiene éxito, el StreamBuilder en main.dart lo detectará.
+        // Si el login es exitoso, el StreamBuilder en main.dart hará la navegación.
 
       } on FirebaseException catch (e) {
-        // Manejo de errores de login (credenciales incorrectas, etc.)
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de acceso: ${e.message}')),
-        );
+        // CATCH 1: Errores de Firebase (Contraseña mal, usuario no existe)
+        if (mounted) {
+          showErrorDialog(
+              context,
+              'Error de Acceso',
+              _mapFirebaseError(e.code) // O usa e.message si prefieres el texto técnico
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error desconocido: $e')),
-        );
+        // CATCH 2: Errores inesperados (Código roto, null pointer, etc)
+        if (mounted) {
+          showErrorDialog(
+              context,
+              'Error Desconocido',
+              'Ocurrió un problema inesperado: $e'
+          );
+        }
       } finally {
-        setState(() { _isLoading = false; });
+        if (mounted) setState(() { _isLoading = false; });
       }
     }
   }
@@ -51,17 +62,23 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Recuperar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Ingresa tu correo electrónico. Te enviaremos un enlace para crear una nueva contraseña.'),
-            const SizedBox(height: 15),
-            TextField(
-              controller: resetEmailController,
-              decoration: const InputDecoration(labelText: 'Correo Electrónico', border: OutlineInputBorder()),
-              keyboardType: TextInputType.emailAddress,
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SizedBox(
+              width: double.maxFinite,
+                  child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Ingresa tu correo electrónico. Te enviaremos un enlace para crear una nueva contraseña.'),
+                const SizedBox(height: 15),
+                TextField(
+                  controller: resetEmailController,
+                  decoration: const InputDecoration(labelText: 'Correo Electrónico', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -178,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 40), // Espacio para separarlo
                           const Divider(),
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.only(top: 10.0, bottom: 20.0),
                             child: Column(
                               children: [
@@ -190,10 +207,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                   'Desarrollado por ATHEM DevWorks © 2025',
                                   style: TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
-                                Text(
-                                  'Versión 1.2.2', // Puedes cambiar esto manualmente cuando actualices
-                                  style: TextStyle(fontSize: 10, color: Colors.grey),
+
+                                FutureBuilder<PackageInfo>(
+                                  future: PackageInfo.fromPlatform(),
+                                  builder: (context, snapshot) {
+                                    // Si ya cargó, mostramos la versión. Si no, unos puntos suspensivos.
+                                    final String version = snapshot.hasData
+                                        ? snapshot.data!.version
+                                        : '...';
+
+                                    return Text(
+                                      'Versión $version', // Lee directo del pubspec.yaml
+                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    );
+                                  },
                                 ),
+
                               ],
                             ),
                           ),
@@ -236,4 +265,25 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  // Función auxiliar para traducir errores de Firebase a español
+  String _mapFirebaseError(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No existe una cuenta con este correo.';
+      case 'wrong-password':
+        return 'La contraseña es incorrecta.';
+      case 'invalid-email':
+        return 'El formato del correo no es válido.';
+      case 'user-disabled':
+        return 'Esta cuenta ha sido inhabilitada.';
+      case 'too-many-requests':
+        return 'Demasiados intentos fallidos. Intenta más tarde.';
+      case 'network-request-failed':
+        return 'Error de conexión. Revisa tu internet.';
+      default:
+        return 'Error de autenticación: $code';
+    }
+  }
+
 }

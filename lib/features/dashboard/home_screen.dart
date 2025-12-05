@@ -41,7 +41,6 @@ class HomeScreen extends StatelessWidget {
           children: [
             // Saludo y Rol
             Text(greeting, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            Text('Rol: $roleText', style: const TextStyle(fontSize: 16, color: Colors.indigo)),
             const Divider(height: 30),
 
             // 3. MÓDULOS UNIVERSALES (Todos los activos)
