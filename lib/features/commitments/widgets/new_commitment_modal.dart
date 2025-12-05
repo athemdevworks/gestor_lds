@@ -156,125 +156,145 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
 
   @override
   Widget build(BuildContext context) {
+    // Verificamos si hay puntos de agenda para mostrar el dropdown
     final bool hasAgendaItems = widget.agendaItems != null && widget.agendaItems!.isNotEmpty;
 
     return AlertDialog(
       title: Text(widget.commitmentToEdit != null ? 'Editar Compromiso' : 'Asignar Nuevo Compromiso'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción del Compromiso',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true, // Alinea la etiqueta arriba si el campo es alto
-                ),
-                maxLines: 3, // Altura visual inicial (3 líneas)
-                minLines: 2, // Mínimo de líneas
-                keyboardType: TextInputType.multiline, // Habilita el teclado con "Enter"                maxLines: 3,
-                validator: (v) => v!.isEmpty ? 'Ingrese la descripción' : null,
-              ),
-              const SizedBox(height: 15),
 
-              if (hasAgendaItems)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 15.0),
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Asociar a Punto de Agenda'),
-                    value: _selectedAgendaItemId,
-                    items: widget.agendaItems!.map((item) {
-                      return DropdownMenuItem(
-                        value: item.id,
-                        child: Text(
-                          item.topic.length > 30 ? '${item.topic.substring(0, 30)}...' : item.topic,
-                          overflow: TextOverflow.ellipsis,
+      // --- APLICAMOS LA MEJORA DE ANCHO AQUÍ ---
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500), // Límite para PC
+        child: SizedBox(
+          width: double.maxFinite, // Ocupar todo el ancho permitido
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 1. CAMPO DESCRIPCIÓN (Mejorado)
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción del Compromiso',
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true, // Alinea el texto arriba
+                    ),
+                    maxLines: 3, // Altura visual inicial
+                    minLines: 2,
+                    keyboardType: TextInputType.multiline,
+                    validator: (v) => v!.isEmpty ? 'Ingrese la descripción' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  // 2. CAMPO PUNTO DE AGENDA (Opcional)
+                  if (hasAgendaItems)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 15.0),
+                      child: DropdownButtonFormField<String>(
+                        decoration: const InputDecoration(
+                          labelText: 'Asociar a Punto de Agenda',
+                          border: OutlineInputBorder(),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (String? newId) {
-                      if (newId != null) {
-                        setState(() {
-                          _selectedAgendaItemId = newId;
-                          _selectedAgendaItemObject = widget.agendaItems!.firstWhere((item) => item.id == newId);
-                        });
+                        value: _selectedAgendaItemId,
+                        items: widget.agendaItems!.map((item) {
+                          return DropdownMenuItem(
+                            value: item.id,
+                            child: Text(
+                              item.topic.length > 30
+                                  ? '${item.topic.substring(0, 30)}...'
+                                  : item.topic,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newId) {
+                          if (newId != null) {
+                            setState(() {
+                              _selectedAgendaItemId = newId;
+                              _selectedAgendaItemObject = widget.agendaItems!
+                                  .firstWhere((item) => item.id == newId);
+                            });
+                          }
+                        },
+                      ),
+                    ),
+
+                  // 3. CAMPO FECHA
+                  TextFormField(
+                    controller: _dueDateController,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                        labelText: 'Fecha de Vencimiento',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today)
+                    ),
+                    onTap: _selectDate,
+                    validator: (v) => v!.isEmpty ? 'Seleccione la fecha' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  // 4. CAMPO ASIGNAR A LÍDER (Con Búsqueda)
+                  StreamBuilder<List<UserModel>>(
+                    stream: _usersStream,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
                       }
+
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return const Text('No hay líderes activos.', style: TextStyle(color: Colors.red));
+                      }
+
+                      final rawUsers = snapshot.data!;
+                      final uniqueUsers = <String, UserModel>{};
+                      for (var user in rawUsers) {
+                        uniqueUsers[user.uid] = user;
+                      }
+                      final users = uniqueUsers.values.toList();
+
+                      // DropdownMenu con Búsqueda
+                      return LayoutBuilder(
+                          builder: (context, constraints) {
+                            return DropdownMenu<String>(
+                              width: constraints.maxWidth,
+                              label: const Text('Asignar a Líder'),
+                              hintText: 'Escribe para buscar...',
+                              menuHeight: 300,
+                              enableFilter: true,
+                              requestFocusOnTap: true,
+
+                              initialSelection: _selectedUserId,
+
+                              dropdownMenuEntries: users.map((user) {
+                                return DropdownMenuEntry<String>(
+                                  value: user.uid,
+                                  label: '${user.nombres} ${user.apellidos}',
+                                  leadingIcon: const Icon(Icons.person_outline, size: 18),
+                                );
+                              }).toList(),
+
+                              onSelected: (String? newId) {
+                                if (newId != null) {
+                                  setState(() {
+                                    _selectedUserId = newId;
+                                    _selectedUserObject = users.firstWhere((u) => u.uid == newId);
+                                  });
+                                }
+                              },
+                              inputDecorationTheme: const InputDecorationTheme(
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              ),
+                            );
+                          }
+                      );
                     },
                   ),
-                ),
-
-              TextFormField(
-                controller: _dueDateController,
-                readOnly: true,
-                decoration: const InputDecoration(labelText: 'Fecha de Vencimiento', suffixIcon: Icon(Icons.calendar_today)),
-                onTap: _selectDate,
-                validator: (v) => v!.isEmpty ? 'Seleccione la fecha' : null,
+                ],
               ),
-              const SizedBox(height: 15),
-
-              // USAMOS EL STREAM ESTABLE CREADO EN INITSTATE
-
-              // CAMPO 4: ASIGNAR A LÍDER (Con Búsqueda)
-              StreamBuilder<List<UserModel>>(
-                stream: _usersStream,
-                builder: (context, snapshot) {
-                  // 1. Estados de Carga / Error
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Text('No hay líderes activos.', style: TextStyle(color: Colors.red));
-                  }
-
-                  // 2. Limpieza de datos (Evitar duplicados)
-                  final rawUsers = snapshot.data!;
-                  final uniqueUsers = <String, UserModel>{};
-                  for (var user in rawUsers) {
-                    uniqueUsers[user.uid] = user;
-                  }
-                  final users = uniqueUsers.values.toList();
-
-                  // 3. NUEVO WIDGET: DropdownMenu (Searchable)
-                  return DropdownMenu<String>(
-                    // AGREGAMOS ESTO PARA QUE OCUPE TODO EL ANCHO:
-                    expandedInsets: EdgeInsets.zero,
-
-                    label: const Text('Asignar a Líder'),
-                    hintText: 'Escribe para buscar...',
-                    menuHeight: 300,
-                    enableFilter: true,
-                    requestFocusOnTap: true,
-
-                    initialSelection: _selectedUserId,
-
-                    dropdownMenuEntries: users.map((user) {
-                      return DropdownMenuEntry<String>(
-                        value: user.uid,
-                        label: '${user.nombres} ${user.apellidos}',
-                        leadingIcon: const Icon(Icons.person_outline, size: 18),
-                      );
-                    }).toList(),
-
-                    onSelected: (String? newId) {
-                      if (newId != null) {
-                        setState(() {
-                          _selectedUserId = newId;
-                          _selectedUserObject = users.firstWhere((u) => u.uid == newId);
-                        });
-                      }
-                    },
-
-                    inputDecorationTheme: const InputDecorationTheme(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                  );
-                },
-              ),
-            ],
+            ),
           ),
         ),
       ),

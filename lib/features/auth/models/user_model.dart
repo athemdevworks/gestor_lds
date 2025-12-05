@@ -6,6 +6,22 @@ enum UserRole {
   ward_council, // Líderes de consejo
 }
 
+// --- NUEVA EXTENSIÓN PARA TRADUCCIÓN ---
+extension UserRoleExtension on UserRole {
+  String get displayName {
+    switch (this) {
+      case UserRole.bishopric:
+        return 'Obispado';
+      case UserRole.clerk:
+        return 'Presidencia de Org.';
+      case UserRole.ward_council:
+        return 'Consejo de Barrio';
+      case UserRole.pending:
+        return 'Pendiente';
+    }
+  }
+}
+
 class UserModel {
   final String uid;
   final String email;
