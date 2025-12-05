@@ -191,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: TextStyle(fontSize: 12, color: Colors.grey),
                                 ),
                                 Text(
-                                  'Versión 1.2.1', // Puedes cambiar esto manualmente cuando actualices
+                                  'Versión 1.2.2', // Puedes cambiar esto manualmente cuando actualices
                                   style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
                               ],

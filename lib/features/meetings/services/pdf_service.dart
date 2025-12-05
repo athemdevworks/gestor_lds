@@ -17,7 +17,7 @@ class PdfService {
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     // Color Azul Intenso para el PDF
-    final PdfColor brandColor = PdfColors.blue800;
+    final PdfColor brandColor = PdfColor.fromInt(0xFF164772);
 
     // Mapeo condicional para el cuerpo del PDF...
     final agendaBody = <pw.Widget>[];
@@ -122,8 +122,8 @@ class PdfService {
                         ),
                         // Logo (Derecha)
                         pw.Container(
-                          height: 60,
-                          width: 60,
+                          height: 150,
+                          width: 150,
                           child: pw.Image(logoImage),
                         ),
                       ],

@@ -40,7 +40,7 @@ class GestorLDSApp extends StatelessWidget {
     return MaterialApp(
       title: 'GestorLDS',
       debugShowCheckedModeBanner: false,
-// --- NUEVO TEMA (REBRANDING v1.2.0) ---
+// --- NUEVO TEMA (REBRANDING v1.2.3) ---
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white, // Fondo Blanco (#FFFFFF)
@@ -48,7 +48,7 @@ class GestorLDSApp extends StatelessWidget {
         // Esquema de Colores
         colorScheme: const ColorScheme(
           brightness: Brightness.light,
-          primary: Color(0xFF0089D3),       // Azul Institucional (#0089D3)
+          primary: Color(0xFF164772),       // Azul Institucional (#164772)
           onPrimary: Colors.white,          // Texto sobre azul
           secondary: Colors.black,          // Color Secundario (#000000)
           onSecondary: Colors.white,
@@ -63,7 +63,7 @@ class GestorLDSApp extends StatelessWidget {
 
         // Estilo de AppBars (Barras superiores)
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF0089D3), // Azul
+          backgroundColor: Color(0xFF164772), // Azul
           foregroundColor: Colors.white,      // Texto Blanco
           elevation: 0,
           centerTitle: true,
@@ -72,7 +72,7 @@ class GestorLDSApp extends StatelessWidget {
         // Estilo de Botones Elevados
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF0089D3), // Botones Azules
+            backgroundColor: const Color(0xFF164772), // Botones Azules
             foregroundColor: Colors.white,            // Texto Blanco
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -86,7 +86,7 @@ class GestorLDSApp extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF0089D3), width: 2), // Borde Azul
+            borderSide: const BorderSide(color: Color(0xFF164772), width: 2), // Borde Azul
           ),
 
           labelStyle: const TextStyle(color: Color(0xFF999999)),

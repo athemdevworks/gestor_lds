@@ -13,6 +13,11 @@ class UserManagementScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Administración de Usuarios'),
           bottom: const TabBar(
+          // CONFIGURACIÓN DE CONTRASTE
+          labelColor: Colors.white,             // Icono/Texto SELECCIONADO (Blanco puro)
+          unselectedLabelColor: Colors.white60, // Icono/Texto NO SELECCIONADO (Blanco con transparencia)
+          indicatorColor: Colors.white,         // La rayita de abajo
+          indicatorWeight: 3,                   // Un poco más gruesa para que se note
             tabs: [
               Tab(icon: Icon(Icons.person_add), text: 'Pendientes'),
               Tab(icon: Icon(Icons.people), text: 'Activos'),
