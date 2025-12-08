@@ -338,10 +338,37 @@ class MeetingDetailScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text('Protocolo y Música', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        _buildAgendaItem('Anuncios', agenda.announcements, icon: Icons.campaign),
         _buildAgendaItem('Himno Apertura', agenda.openingHymn, icon: Icons.music_note),
         _buildAgendaItem('Oración Apertura', agenda.openingPrayer, icon: Icons.person_outline),
         _buildAgendaItem('Himno Sacramental', agenda.sacramentHymn, icon: Icons.music_note),
-        _buildAgendaItem('Anuncios', agenda.announcements, icon: Icons.campaign),
+        if (agenda.wardBusiness.isNotEmpty) ...[
+          const SizedBox(height: 15),
+          const Text('Asuntos del Barrio', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.indigo)),
+          const Divider(),
+          ...agenda.wardBusiness.map((business) {
+            IconData icon;
+            Color color;
+
+            // Iconos dinámicos según el tipo
+            switch (business.type) {
+              case 'Sostenimiento': icon = Icons.thumb_up; color = Colors.green; break;
+              case 'Relevo': icon = Icons.handshake; color = Colors.orange; break;
+              case 'Adelanto Sacerdotal': icon = Icons.arrow_upward; color = Colors.blue; break;
+              case 'Bautismo': icon = Icons.water_drop; color = Colors.cyan; break;
+              default: icon = Icons.info_outline; color = Colors.grey;
+            }
+
+            return ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(icon, color: color, size: 20),
+              title: Text('${business.type}: ${business.personName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: business.calling != null ? Text(business.calling!) : null,
+            );
+          }).toList(),
+          const SizedBox(height: 15),
+        ],
 
         const Divider(height: 30),
 

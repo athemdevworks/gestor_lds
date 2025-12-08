@@ -6,13 +6,12 @@ import 'package:flutter/services.dart'; // Necesario para cargar fuentes/imágen
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 
-
 class PdfService {
   // Función principal para generar el PDF
   Future<Uint8List> generateAgendaPdf(MeetingModel meeting) async {
     final pdf = pw.Document();
 
-  // 1. CARGAR LOGO (Asegúrate que el nombre coincida con tu archivo)
+    // 1. CARGAR LOGO (Asegúrate que el nombre coincida con tu archivo)
     final logoData = await rootBundle.load('assets/images/logont.png');
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
@@ -30,14 +29,54 @@ class PdfService {
         pw.Text('AGENDA SACRAMENTAL', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo)),
         pw.Divider(),
 
-        // APERTURA
-        _buildPdfItem('Himno Apertura', agenda.openingHymn),
-        _buildPdfItem('Oración Apertura', agenda.openingPrayer),
-        _buildPdfItem('Anuncios del Barrio', agenda.announcements, bold: true),
-        _buildPdfItem('Director de Himnos', agenda.chorister),
-        _buildPdfItem('Pianista', agenda.pianist),
+        // 1. BIENVENIDA (NUEVO)
+        if (agenda.welcome != null && agenda.welcome!.isNotEmpty)
+          _buildPdfItem('Bienvenida', agenda.welcome!, bold: true),
 
-        pw.SizedBox(height: 10),
+        // 2. ANUNCIOS
+        _buildPdfItem('Anuncios del Barrio', agenda.announcements),
+
+        // 3. APERTURA
+        _buildPdfItem('Primer Himno', agenda.openingHymn),
+        _buildPdfItem('Director(a) de Música', agenda.chorister),
+        _buildPdfItem('Pianista', agenda.pianist),
+        _buildPdfItem('Primera Oración', agenda.openingPrayer),
+
+        // 4. ASUNTOS DEL BARRIO (NUEVO - ITERACIÓN)
+        if (agenda.wardBusiness.isNotEmpty) ...[
+          pw.SizedBox(height: 5),
+          pw.Text('Asuntos del Barrio:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.indigo)),
+          pw.SizedBox(height: 2),
+          ...agenda.wardBusiness.map((business) {
+            return pw.Padding(
+              padding: const pw.EdgeInsets.only(left: 10, bottom: 4),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text("• ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Expanded(
+                    child: pw.RichText(
+                      text: pw.TextSpan(
+                        children: [
+                          pw.TextSpan(text: "${business.type}: ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                          pw.TextSpan(text: business.personName),
+                          if (business.calling != null)
+                            pw.TextSpan(text: " (${business.calling})", style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          pw.SizedBox(height: 5),
+        ],
+        // ---------------------------------------------
+
+        pw.SizedBox(height: 5),
+
+        // 5. SANTA CENA
         _buildPdfItem('Himno Sacramental', agenda.sacramentHymn, bold: true),
         pw.SizedBox(height: 15),
 
@@ -57,8 +96,10 @@ class PdfService {
                 _buildPdfItem('Tema', agenda.firstSpeakerTopic ?? 'N/A'),
                 pw.SizedBox(height: 8),
 
-                _buildPdfItem('Himno Especial', agenda.intermediateHymn ?? 'No asignado', bold: true, color: PdfColors.blueGrey700),
-                pw.SizedBox(height: 8),
+                if (agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) ...[
+                  _buildPdfItem('Himno Especial', agenda.intermediateHymn!, bold: true, color: PdfColors.blueGrey700),
+                  pw.SizedBox(height: 8),
+                ],
 
                 _buildPdfItem('2do Discursante', agenda.secondSpeakerName ?? 'No asignado', bold: true),
                 _buildPdfItem('Tema', agenda.secondSpeakerTopic ?? 'N/A'),
@@ -69,8 +110,8 @@ class PdfService {
 
         // CIERRE
         pw.Divider(),
-        _buildPdfItem('Himno Cierre', agenda.closingHymn),
-        _buildPdfItem('Oración Cierre', agenda.closingPrayer),
+        _buildPdfItem('Último Himno', agenda.closingHymn),
+        _buildPdfItem('Última Oración', agenda.closingPrayer),
       ]);
 
     } else if (meeting.agendaItems != null && meeting.agendaItems!.isNotEmpty) {
@@ -82,13 +123,13 @@ class PdfService {
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               _buildPdfItem('Asunto', item.topic, bold: true, color: PdfColors.blue700),
-              _buildPdfItem('Responsable', item.assignedTo), // <-- Ahora 'item' es visible aquí
+              _buildPdfItem('Responsable', item.assignedTo),
               pw.SizedBox(height: 5),
             ]
-        )).toList(), // Convertimos el mapa a una lista de Columnas
+        )).toList(),
       ]);
     } else {
-      agendaBody.add(pw.Text('No hay agenda detallada para esta reunión.', style: pw.TextStyle(fontStyle: pw.FontStyle.italic))); // <-- ¡SIN 'const'!
+      agendaBody.add(pw.Text('No hay agenda detallada para esta reunión.', style: pw.TextStyle(fontStyle: pw.FontStyle.italic)));
     }
 
     // ------------------------------------------------------------------
@@ -100,7 +141,7 @@ class PdfService {
               return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    // --- NUEVA CABECERA CON LOGO ---
+                    // --- CABECERA CON LOGO ---
                     pw.Row(
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -122,7 +163,7 @@ class PdfService {
                         ),
                         // Logo (Derecha)
                         pw.Container(
-                          height: 150,
+                          height: 150, // Ajustado para que no ocupe tanto
                           width: 150,
                           child: pw.Image(logoImage),
                         ),
@@ -153,16 +194,19 @@ class PdfService {
     return pdf.save();
   }
 
-  pw.Widget _buildPdfItem(String label, String value, {bool bold = false, PdfColor color = PdfColors.black}) {
+  pw.Widget _buildPdfItem(String label, String? value, {bool bold = false, PdfColor color = PdfColors.black}) {
     // Oculta el campo si el valor es nulo o vacío
-    if (value.isEmpty || value == 'null') return pw.SizedBox.shrink();
+    if (value == null || value.isEmpty || value == 'null') return pw.SizedBox.shrink();
 
     return pw.Container(
         padding: const pw.EdgeInsets.only(bottom: 5),
         child: pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('$label: ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: color)),
+              pw.SizedBox(
+                width: 130, // Ancho fijo para las etiquetas para que se alineen bonito
+                child: pw.Text('$label:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: color)),
+              ),
               pw.Expanded(
                 child: pw.Text(value, style: bold ? pw.TextStyle(fontWeight: pw.FontWeight.bold, color: color) : pw.TextStyle(color: color)),
               ),
@@ -170,5 +214,4 @@ class PdfService {
         )
     );
   }
-
 }

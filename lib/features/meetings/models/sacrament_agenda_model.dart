@@ -1,12 +1,16 @@
+import 'ward_business_model.dart'; // <--- IMPORTANTE
+
 // En sacrament_agenda_model.dart
 class SacramentAgendaModel {
   // --- Campos Fijos ---
+  final String? welcome; // Bienvenida y Reconocimientos
   final String openingHymn;
   final String openingPrayer;
   final String sacramentHymn;
   final String announcements;
   final String chorister;
   final String pianist;
+  final List<WardBusinessModel> wardBusiness;
 
   // --- Campos Condicionales (Se omiten el 1er domingo) ---
   final String? firstSpeakerTopic;
@@ -23,12 +27,14 @@ class SacramentAgendaModel {
   final bool isFastAndTestimony; // TRUE si es Domingo de Ayuno y Testimonio
 
   SacramentAgendaModel({
+    this.welcome,
     required this.openingHymn,
     required this.openingPrayer,
     required this.sacramentHymn,
     required this.announcements,
     required this.chorister,
     required this.pianist,
+
     this.firstSpeakerTopic,
     this.firstSpeakerName,
     this.secondSpeakerTopic,
@@ -37,11 +43,13 @@ class SacramentAgendaModel {
     required this.closingHymn,
     required this.closingPrayer,
     this.isFastAndTestimony = false,
+    this.wardBusiness = const [],
   });
 
   // Método para convertir a mapa (Firestore)
   Map<String, dynamic> toMap() {
     return {
+      'welcome': welcome,
       'openingHymn': openingHymn,
       'openingPrayer': openingPrayer,
       'sacramentHymn': sacramentHymn,
@@ -56,6 +64,7 @@ class SacramentAgendaModel {
       'closingHymn': closingHymn,
       'closingPrayer': closingPrayer,
       'isFastAndTestimony': isFastAndTestimony,
+      'wardBusiness': wardBusiness.map((x) => x.toMap()).toList(),
     };
   }
 
@@ -64,6 +73,7 @@ class SacramentAgendaModel {
     // ... (Implementación para leer datos de Firestore) ...
     // Lo simplificaremos para ahorrar espacio, asumiendo que el mapeo es directo.
     return SacramentAgendaModel(
+      welcome: map['welcome'],
       openingHymn: map['openingHymn'] as String,
       openingPrayer: map['openingPrayer'] as String, // <-- ERROR CORREGIDO
       sacramentHymn: map['sacramentHymn'] as String, // <-- ERROR CORREGIDO
@@ -83,6 +93,12 @@ class SacramentAgendaModel {
 
       // El estado de la regla del primer domingo
       isFastAndTestimony: map['isFastAndTestimony'] as bool? ?? false,
+
+      // Asuntos de Barrio
+      wardBusiness: map['wardBusiness'] != null
+          ? List<WardBusinessModel>.from(
+          (map['wardBusiness'] as List).map((x) => WardBusinessModel.fromMap(x)))
+          : [],
     );
   }
 }
