@@ -6,6 +6,8 @@ import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
 import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
 import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
 
+import '../calendar/screens/calendar_screen.dart';
+
 class HomeScreen extends StatelessWidget {
   // 1. Añadimos el objeto UserModel como parámetro requerido
   final UserModel user;
@@ -27,6 +29,17 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('GestorLDS - ${user.calling}'), // Título basado en el llamamiento
         actions: [
+          // BOTÓN CALENDARIO
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Calendario',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CalendarScreen()), // Importa el archivo
+              );
+            },
+          ),
           // Botón Mi Perfil
           IconButton(
             icon: const Icon(Icons.account_circle),

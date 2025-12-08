@@ -2,66 +2,60 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CommitmentModel {
   final String id;
-  final String meetingId;
   final String description;
-  final String assignedToUid;
-  final String assignedToName;
   final DateTime dueDate;
-  final bool isCompleted;
-  final DateTime createdAt;
-
-  // NUEVOS CAMPOS (Opcionales)
+  final String assignedTo;       // UID del responsable
+  final String? responsibleName; // Nombre legible (ej: "Juan Pérez")
+  final String? meetingId;       // ID de la reunión donde se creó
   final String? agendaItemId;    // ID del punto de agenda
-  final String? agendaItemTopic; // Nombre del punto de agenda
+  final String? agendaItemTopic; // Título del punto de agenda (ej: "Planeamiento Barrio")
+  final bool isCompleted;
 
   CommitmentModel({
     required this.id,
-    required this.meetingId,
     required this.description,
-    required this.assignedToUid,
-    required this.assignedToName,
     required this.dueDate,
-    this.isCompleted = false,
-    required this.createdAt,
-
-    // Añadimos al constructor
+    required this.assignedTo,
+    this.responsibleName,
+    this.meetingId,
     this.agendaItemId,
-    this.agendaItemTopic,
+    this.agendaItemTopic, // <--- CAMPO AGREGADO
+    this.isCompleted = false,
   });
 
-  // Convertir de Firestore (Mapeo)
-  factory CommitmentModel.fromMap(Map<String, dynamic> data) {
+  // 1. MAPEO DE LECTURA (Firestore -> App)
+  factory CommitmentModel.fromMap(Map<String, dynamic> map, String id) {
     return CommitmentModel(
-      id: data['id'] as String,
-      meetingId: data['meetingId'] as String,
-      description: data['description'] as String,
-      assignedToUid: data['assignedToUid'] as String,
-      assignedToName: data['assignedToName'] as String,
-      dueDate: (data['dueDate'] as Timestamp).toDate(),
-      isCompleted: data['isCompleted'] as bool,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      id: id,
+      description: map['description'] ?? '',
 
-      // Mapear los nuevos campos (pueden ser null)
-      agendaItemId: data['agendaItemId'] as String?,
-      agendaItemTopic: data['agendaItemTopic'] as String?,
+      // Manejo seguro de fechas
+      dueDate: map['dueDate'] is Timestamp
+          ? (map['dueDate'] as Timestamp).toDate()
+          : DateTime.now(),
+
+      // Mapeo de campos opcionales con nombres consistentes
+      assignedTo: map['assignedTo'] ?? map['assignedToUid'] ?? '', // Soporta ambos nombres por si acaso
+      responsibleName: map['responsibleName'] ?? map['assignedToName'],
+      meetingId: map['meetingId'],
+      agendaItemId: map['agendaItemId'],
+      agendaItemTopic: map['agendaItemTopic'], // <--- LECTURA AGREGADA
+
+      isCompleted: map['isCompleted'] ?? false,
     );
   }
 
-  // Convertir a Mapa para Firestore (Guardado)
+  // 2. MAPEO DE ESCRITURA (App -> Firestore)
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'meetingId': meetingId,
       'description': description,
-      'assignedToUid': assignedToUid,
-      'assignedToName': assignedToName,
       'dueDate': Timestamp.fromDate(dueDate),
-      'isCompleted': isCompleted,
-      'createdAt': Timestamp.fromDate(createdAt),
-
-      // Guardar los nuevos campos
+      'assignedTo': assignedTo,
+      'responsibleName': responsibleName,
+      'meetingId': meetingId,
       'agendaItemId': agendaItemId,
-      'agendaItemTopic': agendaItemTopic,
+      'agendaItemTopic': agendaItemTopic, // <--- ESCRITURA AGREGADA
+      'isCompleted': isCompleted,
     };
   }
 }

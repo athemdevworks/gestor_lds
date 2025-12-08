@@ -221,7 +221,7 @@ class MeetingDetailScreen extends StatelessWidget {
                                                       ),
                                                       children: [
                                                         TextSpan(
-                                                          text: "${commitment.assignedToName}: ",
+                                                          text: "${commitment.responsibleName ?? 'Asignado'}: ",
                                                           style: const TextStyle(fontWeight: FontWeight.bold),
                                                         ),
                                                         TextSpan(text: commitment.description),

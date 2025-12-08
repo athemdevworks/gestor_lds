@@ -53,7 +53,7 @@ class MeetingService {
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         // Mapeamos cada documento al MeetingModel
-        return MeetingModel.fromMap(doc.data());
+        return MeetingModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
   }

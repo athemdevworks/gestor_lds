@@ -3,21 +3,21 @@ import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
 import 'package:gestor_lds/features/commitments/services/commitment_service.dart';
-import 'package:gestor_lds/features/commitments/models/commitment_model.dart'; // Importar modelo
+import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 
 class NewCommitmentModal extends StatefulWidget {
   final String meetingId;
   final List<AgendaItemModel>? agendaItems;
   final AgendaItemModel? initialAgendaItem;
-  final CommitmentModel? commitmentToEdit; // <-- NUEVO: Para modo edición
+  final CommitmentModel? commitmentToEdit;
 
   const NewCommitmentModal({
     super.key,
     required this.meetingId,
     this.agendaItems,
     this.initialAgendaItem,
-    this.commitmentToEdit, // <-- Añadir al constructor
+    this.commitmentToEdit,
   });
 
   @override
@@ -41,33 +41,29 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
   String? _selectedAgendaItemId;
   AgendaItemModel? _selectedAgendaItemObject;
 
-  // 1. VARIABLE PARA MANTENER LA CONEXIÓN ESTABLE
+  // Stream para Dropdown
   late Stream<List<UserModel>> _usersStream;
 
   @override
   void initState() {
     super.initState();
 
-    // 2. INICIALIZAMOS EL STREAM UNA SOLA VEZ AL ABRIR
-    // Esto evita que la lista se recargue y borre la selección al hacer clic
     _usersStream = _userService.streamActiveUsers();
 
-      // 1. Lógica si estamos EDITANDO un compromiso existente
+    // 1. Lógica si estamos EDITANDO
     if (widget.commitmentToEdit != null) {
       final c = widget.commitmentToEdit!;
       _descriptionController.text = c.description;
       _selectedDueDate = c.dueDate;
       _dueDateController.text = DateFormat('yyyy-MM-dd').format(c.dueDate);
 
-      // Cargar IDs para los Dropdowns
-      _selectedUserId = c.assignedToUid;
-      // Nota: _selectedUserObject se quedará null hasta que se seleccione otro,
-      // pero usaremos c.assignedToName como respaldo al guardar si no cambia.
+      // --- CAMBIO: Usamos los nombres nuevos del modelo ---
+      _selectedUserId = c.assignedTo;
+      // ---------------------------------------------------
 
       _selectedAgendaItemId = c.agendaItemId;
-      // Lo mismo para el objeto de agenda item.
     }
-      // 2. Lógica si estamos CREANDO desde un botón de agenda (Solo si no estamos editando)
+    // 2. Lógica si estamos CREANDO desde un botón de agenda
     else if (widget.initialAgendaItem != null) {
       _selectedAgendaItemId = widget.initialAgendaItem!.id;
       _selectedAgendaItemObject = widget.initialAgendaItem;
@@ -90,19 +86,18 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
   }
 
   Future<void> _saveCommitment() async {
-    // Validación básica
     if (_formKey.currentState!.validate() && _selectedUserId != null && _selectedDueDate != null) {
       setState(() { _isLoading = true; });
 
       try {
-        // Determinar el nombre del usuario (si cambió o se mantiene el original)
+        // Determinar el nombre del usuario
         String finalUserName;
         if (_selectedUserObject != null) {
           finalUserName = "${_selectedUserObject!.nombres} ${_selectedUserObject!.apellidos}";
         } else if (widget.commitmentToEdit != null) {
-          finalUserName = widget.commitmentToEdit!.assignedToName;
+          // --- CAMBIO: Usamos responsibleName ---
+          finalUserName = widget.commitmentToEdit!.responsibleName ?? "Usuario";
         } else {
-          // Caso raro de fallo
           finalUserName = "Usuario Desconocido";
         }
 
@@ -117,14 +112,18 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
         if (widget.commitmentToEdit != null) {
           // --- MODO EDICIÓN ---
           final updatedCommitment = CommitmentModel(
-            id: widget.commitmentToEdit!.id, // Mismo ID
+            id: widget.commitmentToEdit!.id,
             meetingId: widget.meetingId,
             description: _descriptionController.text,
-            assignedToUid: _selectedUserId!,
-            assignedToName: finalUserName,
+
+            // --- CAMBIO: Usamos los nuevos nombres de campos ---
+            assignedTo: _selectedUserId!,
+            responsibleName: finalUserName,
+            // ---------------------------------------------------
+
             dueDate: _selectedDueDate!,
-            isCompleted: widget.commitmentToEdit!.isCompleted, // Mantiene estado
-            createdAt: widget.commitmentToEdit!.createdAt, // Mantiene fecha crea
+            isCompleted: widget.commitmentToEdit!.isCompleted,
+            // createdAt: Se eliminó del modelo para simplificar
             agendaItemId: _selectedAgendaItemId,
             agendaItemTopic: finalTopic,
           );
@@ -147,7 +146,9 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
         if (mounted) Navigator.of(context).pop();
 
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+        }
       } finally {
         if (mounted) setState(() { _isLoading = false; });
       }
@@ -156,39 +157,36 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
 
   @override
   Widget build(BuildContext context) {
-    // Verificamos si hay puntos de agenda para mostrar el dropdown
     final bool hasAgendaItems = widget.agendaItems != null && widget.agendaItems!.isNotEmpty;
 
     return AlertDialog(
       title: Text(widget.commitmentToEdit != null ? 'Editar Compromiso' : 'Asignar Nuevo Compromiso'),
-
-      // --- APLICAMOS LA MEJORA DE ANCHO AQUÍ ---
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500), // Límite para PC
+        constraints: const BoxConstraints(maxWidth: 500),
         child: SizedBox(
-          width: double.maxFinite, // Ocupar todo el ancho permitido
+          width: double.maxFinite,
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 1. CAMPO DESCRIPCIÓN (Mejorado)
+                  // 1. DESCRIPCIÓN
                   TextFormField(
                     controller: _descriptionController,
                     decoration: const InputDecoration(
                       labelText: 'Descripción del Compromiso',
                       border: OutlineInputBorder(),
-                      alignLabelWithHint: true, // Alinea el texto arriba
+                      alignLabelWithHint: true,
                     ),
-                    maxLines: 3, // Altura visual inicial
+                    maxLines: 3,
                     minLines: 2,
                     keyboardType: TextInputType.multiline,
                     validator: (v) => v!.isEmpty ? 'Ingrese la descripción' : null,
                   ),
                   const SizedBox(height: 15),
 
-                  // 2. CAMPO PUNTO DE AGENDA (Opcional)
+                  // 2. PUNTO DE AGENDA
                   if (hasAgendaItems)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 15.0),
@@ -221,7 +219,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                       ),
                     ),
 
-                  // 3. CAMPO FECHA
+                  // 3. FECHA
                   TextFormField(
                     controller: _dueDateController,
                     readOnly: true,
@@ -235,7 +233,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                   ),
                   const SizedBox(height: 15),
 
-                  // 4. CAMPO ASIGNAR A LÍDER (Con Búsqueda)
+                  // 4. LÍDER (Buscador)
                   StreamBuilder<List<UserModel>>(
                     stream: _usersStream,
                     builder: (context, snapshot) {
@@ -254,7 +252,6 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                       }
                       final users = uniqueUsers.values.toList();
 
-                      // DropdownMenu con Búsqueda
                       return LayoutBuilder(
                           builder: (context, constraints) {
                             return DropdownMenu<String>(

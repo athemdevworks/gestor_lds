@@ -36,12 +36,15 @@ class MeetingModel {
     this.sacramentAgenda,
   });
 
-  factory MeetingModel.fromMap(Map<String, dynamic> data) {
+  factory MeetingModel.fromMap(Map<String, dynamic> data, String id) { // <--- 1. AÑADIR ", String id"
+
+    // Lógica del Enum (igual que tenías)
     MeetingType typeEnum = MeetingType.values.firstWhere(
           (e) => e.toString() == 'MeetingType.${data['type']}',
       orElse: () => MeetingType.other,
     );
 
+    // Lógica de Agenda (igual que tenías)
     final List<AgendaItemModel>? mappedAgendaItems = data['agendaItems'] != null
         ? (data['agendaItems'] as List)
         .map((item) => AgendaItemModel.fromMap(item as Map<String, dynamic>))
@@ -51,19 +54,19 @@ class MeetingModel {
     final sacramentAgendaMap = data['sacramentAgenda'] as Map<String, dynamic>?;
 
     return MeetingModel(
-      id: data['id'] as String,
+      id: id, // <--- 2. USAR EL ID QUE VIENE DE AFUERA (Ya no data['id'])
+
       type: typeEnum,
       date: (data['date'] as Timestamp).toDate(),
       time: data['time'] as String,
       presidedBy: data['presidedBy'] as String,
       directedBy: data['directedBy'] as String,
-
-      // --- AÑADIR AL MAPEO DE LECTURA ---
       organization: data['organization'] as String?,
-      // ----------------------------------
 
       agendaItems: mappedAgendaItems,
+      // Nota: Si commitments son Strings (IDs), esto está bien. Si cambiamos a objetos, habrá que ajustar.
       commitments: data['commitments'] != null ? List<String>.from(data['commitments']) : null,
+
       sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
     );
   }

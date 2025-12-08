@@ -21,7 +21,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 2. Inicializamos los datos de localización para español
-  await initializeDateFormatting('es'); // <-- ¡LÍNEA AÑADIDA!
+  await initializeDateFormatting('es_ES', null);; // <-- ¡LÍNEA AÑADIDA!
 
   // 3. Inicializamos Firebase
   await Firebase.initializeApp(

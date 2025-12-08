@@ -385,7 +385,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Agenda Sacramental (Fija)',
+          'Agenda Sacramental',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0089D3)),
         ),
         const Divider(height: 20),
