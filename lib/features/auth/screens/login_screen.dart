@@ -24,29 +24,35 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() { _isLoading = true; });
 
       try {
-        await _authService.signInWithEmailAndPassword(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
-        );
-        // Si el login es exitoso, el StreamBuilder en main.dart hará la navegación.
+        String input = _emailController.text.trim();
+        String password = _passwordController.text.trim();
+        String? emailToUse;
+
+        // 1. ¿Es un correo?
+        if (input.contains('@')) {
+          emailToUse = input;
+        } else {
+          // 2. Es un usuario -> Buscamos su correo
+          emailToUse = await _authService.getEmailFromUsername(input);
+
+          if (emailToUse == null) {
+            throw FirebaseAuthException(
+                code: 'user-not-found',
+                message: 'No se encontró el nombre de usuario.'
+            );
+          }
+        }
+
+        // 3. Login normal con el correo resultante
+        await _authService.signInWithEmailAndPassword(emailToUse, password);
 
       } on FirebaseException catch (e) {
-        // CATCH 1: Errores de Firebase (Contraseña mal, usuario no existe)
         if (mounted) {
-          showErrorDialog(
-              context,
-              'Error de Acceso',
-              _mapFirebaseError(e.code) // O usa e.message si prefieres el texto técnico
-          );
+          showErrorDialog(context, 'Error de Acceso', _mapFirebaseError(e.code));
         }
       } catch (e) {
-        // CATCH 2: Errores inesperados (Código roto, null pointer, etc)
         if (mounted) {
-          showErrorDialog(
-              context,
-              'Error Desconocido',
-              'Ocurrió un problema inesperado: $e'
-          );
+          showErrorDialog(context, 'Error Desconocido', 'Ocurrió un problema: $e');
         }
       } finally {
         if (mounted) setState(() { _isLoading = false; });
@@ -153,15 +159,28 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // 1. CAMPO EMAIL: Configurado para "Siguiente"
-                          _buildTextField(
-                            _emailController,
-                            'Correo Electrónico',
-                            false,
-                            // Esto hace que el teclado muestre la flecha de "Siguiente"
-                            // en lugar de "Intro" o "Nueva línea".
-                            action: TextInputAction.next,
+                          // 1. CAMPO EMAIL / USUARIO (MODIFICADO)
+                          TextFormField(
+                            controller: _emailController,
+                            textInputAction: TextInputAction.next, // Flecha "Siguiente" en teclado
+                            keyboardType: TextInputType.emailAddress, // Muestra la @ pero permite texto
+                            decoration: const InputDecoration(
+                              labelText: 'Correo o Nombre de Usuario', // <--- Etiqueta Nueva
+                              prefixIcon: Icon(Icons.person),          // <--- Icono Nuevo
+                              border: OutlineInputBorder(),            // Mantenemos el borde
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Ingresa tu usuario o correo';
+                              }
+                              // AQUÍ ESTÁ LA CLAVE:
+                              // Ya no validamos si tiene '@' o regex de email.
+                              // Aceptamos cualquier texto para buscarlo después.
+                              return null;
+                            },
                           ),
+
+                          const SizedBox(height: 20),
 
                           // 2. CAMPO PASSWORD: Configurado para "Enviar/Hecho"
                           _buildTextField(
@@ -217,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
 
                                 const Text(
-                                  'Versión 1.2.4',
+                                  'Versión 1.3.0',
                                   style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
 

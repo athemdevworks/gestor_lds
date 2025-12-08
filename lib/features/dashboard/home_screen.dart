@@ -4,6 +4,7 @@ import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/dashboard/screens/user_management_screen.dart';
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
 import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
+import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   // 1. Añadimos el objeto UserModel como parámetro requerido
@@ -26,6 +27,18 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('GestorLDS - ${user.calling}'), // Título basado en el llamamiento
         actions: [
+          // Botón Mi Perfil
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            tooltip: 'Mi Perfil',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ProfileScreen(user: user)),
+              );
+            },
+          ),
+          // Botón Logout
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {

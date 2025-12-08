@@ -31,4 +31,18 @@ class UserService {
     });
   }
 
+  // 4. ACTUALIZAR PERFIL PROPIO
+  Future<void> updateUserProfile({
+    required String uid,
+    required String nombres,
+    required String apellidos,
+    required String calling,
+  }) async {
+    await _db.collection('users').doc(uid).update({
+      'nombres': nombres,
+      'apellidos': apellidos,
+      'calling': calling,
+    });
+  }
+
 }

@@ -75,4 +75,24 @@ class AuthService {
       throw Exception(e.message);
     }
   }
+
+  // 6. BUSCAR EMAIL POR NOMBRE DE USUARIO
+  Future<String?> getEmailFromUsername(String username) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data()['email'] as String?;
+      }
+      return null; // No existe ese usuario
+    } catch (e) {
+      print('Error buscando usuario: $e');
+      return null;
+    }
+  }
+
 }
