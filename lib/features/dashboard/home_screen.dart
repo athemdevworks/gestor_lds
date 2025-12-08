@@ -54,8 +54,34 @@ class HomeScreen extends StatelessWidget {
           // Botón Logout
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await AuthService().signOut();
+            tooltip: 'Cerrar Sesión',
+            onPressed: () {
+              // --- CONFIRMACIÓN ANTES DE SALIR ---
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Cerrar Sesión'),
+                  content: const Text('¿Estás seguro de que deseas salir?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(), // Cancelar
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.of(ctx).pop(); // Cerrar diálogo
+                        AuthService().signOut(); // <--- ACCIÓN REAL
+                      },
+                      child: const Text('Salir'),
+                    ),
+                  ],
+                ),
+              );
+              // -----------------------------------
             },
           ),
         ],

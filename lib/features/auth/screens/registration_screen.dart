@@ -23,6 +23,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
@@ -127,8 +128,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                 // Campos de autenticación
                 _buildTextField(_emailController, 'Correo Electrónico', false, hintText: 'Ej: jperez@gmail.com'),
-                _buildTextField(_passwordController, 'Contraseña', true, hintText: 'Distinta del correo personal'),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword, // <--- Control dinámico
+                  decoration: InputDecoration(
+                    labelText: 'Contraseña',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
 
+                    // --- ICONO DE VISIBILIDAD ---
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                    // ----------------------------
+                  ),
+                ),
                 const SizedBox(height: 30),
                 _isLoading
                     ? const Center(child: CircularProgressIndicator())

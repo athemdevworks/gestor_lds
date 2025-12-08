@@ -18,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
+  bool _obscurePassword = true; // Comienza oculto
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -183,14 +184,39 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 20),
 
                           // 2. CAMPO PASSWORD: Configurado para "Enviar/Hecho"
-                          _buildTextField(
-                            _passwordController,
-                            'Contraseña',
-                            true,
-                            // Esto hace que el teclado muestre un "Check" o "Ir"
-                            action: TextInputAction.done,
-                            // Esta es la clave: Al presionar Enter, se llama a _login()
-                            onSubmitted: (_) => _login(),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword, // <--- Aquí controlamos si se ve o no
+                            textInputAction: TextInputAction.done, // Botón "Hecho" o "Check" en teclado
+                            onFieldSubmitted: (_) => _login(),     // Al dar Enter, intenta entrar
+                            decoration: InputDecoration(
+                              labelText: 'Contraseña',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              border: const OutlineInputBorder(),
+
+                              // --- AQUÍ ESTÁ EL ICONO DEL OJITO ---
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_outlined      // Ojo abierto
+                                      : Icons.visibility_off_outlined, // Ojo tachado
+                                  color: Colors.grey,
+                                ),
+                                onPressed: () {
+                                  // Al tocar, invertimos el valor y redibujamos
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              // ------------------------------------
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor ingresa tu contraseña';
+                              }
+                              return null;
+                            },
                           ),
 
                           // NUEVO: Botón de Olvidé Contraseña (Alineado a la derecha)
@@ -236,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
 
                                 const Text(
-                                  'Versión 1.3.0',
+                                  'Versión 1.4.0',
                                   style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
 
