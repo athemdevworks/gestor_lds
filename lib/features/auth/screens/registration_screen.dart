@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../auth_service.dart'; // Importa tu servicio de autenticación
-import 'package:gestor_lds/features/auth/screens/login_screen.dart';
-import 'package:gestor_lds/core/constants/callings_list.dart'; // Asegúrate de la ruta
+import 'package:gestor_lds/core/constants/callings_list.dart';
+import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+import 'package:gestor_lds/core/utils/alert_utils.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -13,194 +14,171 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  // 1. Controladores para todos los campos de UserModel
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _nombresController = TextEditingController();
-  final TextEditingController _apellidosController = TextEditingController();
-  final TextEditingController _callingController = TextEditingController();
+  // Controladores
+  final _nombresController = TextEditingController();
+  final _apellidosController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  // Estado de Selección
+  String? _selectedOrganization;
+  String? _selectedCalling;
+  bool _obscurePassword = true;
+  bool _isLoading = false;
 
   final AuthService _authService = AuthService();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
-      setState(() { _isLoading = true; });
-
+      setState(() => _isLoading = true);
       try {
-        await _authService.registerWithEmailAndPassword(
-          _emailController.text,
-          _passwordController.text,
-          _usernameController.text,
-          _nombresController.text,
-          _apellidosController.text,
-          _callingController.text,
+        UserRole assignedRole = UserRole.lider;
+
+        if (_selectedOrganization == 'Obispado') {
+          assignedRole = UserRole.obispado;
+        } else if (_selectedOrganization == 'Barrio') {
+          assignedRole = UserRole.miembro;
+        }
+
+        await _authService.registerUser(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+          nombres: _nombresController.text.trim(),
+          apellidos: _apellidosController.text.trim(),
+          calling: _selectedCalling!,
+          organization: _selectedOrganization!,
+          role: assignedRole,
+          username: _usernameController.text.trim().toLowerCase(),
         );
 
-        // Registro exitoso, pero el usuario está PENDIENTE de aprobación.
-        // Lo redirigimos a una pantalla de espera.
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro exitoso. Esperando aprobación del obispado.')),
-        );
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cuenta creada. Espera aprobación del Obispo.')),
+          );
+        }
 
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error de registro: ${e.toString()}')),
-        );
+        if (mounted) showErrorDialog(context, 'Error de Registro', e.toString());
       } finally {
-        setState(() { _isLoading = false; });
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final organizations = kLdsStructure.keys.toList();
+    final callings = _selectedOrganization != null
+        ? kLdsStructure[_selectedOrganization] ?? []
+        : [];
+
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Fondo suave
-      appBar: AppBar(title: const Text('Registro de Líder')),
-      // 1. CENTRAMOS
+      appBar: AppBar(title: const Text('Solicitud de Acceso')),
       body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          // 2. LIMITAMOS EL ANCHO
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 550), // Un poco más ancho que el Login
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Datos Personales', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 15),
 
-          // 3. TARJETA FLOTANTE
-          child: Card(
-            elevation: 4,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            color: Colors.white,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Solicitud de Acceso',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                // Campos de datos
-                _buildTextField(_nombresController, 'Nombres', false, hintText: 'Ej: Juan Carlos'),
-                _buildTextField(_apellidosController, 'Apellidos', false, hintText: 'Ej: Pérez López'),
-                // --- NUEVO: DROPDOWN CON BÚSQUEDA ---
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12.0),
-                  child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        // Usamos LayoutBuilder para que el Dropdown ocupe todo el ancho
-                        return DropdownMenu<String>(
-                          width: constraints.maxWidth, // Ancho completo
-                          controller: _callingController, // Usamos el mismo controlador
-                          label: const Text('Llamamiento'),
-                          hintText: 'Escribe para buscar...', // Cambia el texto para que sepan que pueden escribir
-                          menuHeight: 300, // Limita la altura y activa el scroll
-                          enableFilter: true,
-                          requestFocusOnTap: true,
-                          dropdownMenuEntries: kLdsCallings.map<DropdownMenuEntry<String>>((String calling) {
-                            return DropdownMenuEntry<String>(
-                              value: calling,
-                              label: calling,
-                            );
-                          }).toList(),
-                          inputDecorationTheme: const InputDecorationTheme(
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          ),
-                          onSelected: (String? calling) {
-                            if (calling != null) {
-                              _callingController.text = calling;
-                            }
-                          },
-                        );
-                      }
+                  Row(children: [
+                    Expanded(child: TextFormField(controller: _nombresController, decoration: const InputDecoration(labelText: 'Nombres', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
+                    const SizedBox(width: 10),
+                    Expanded(child: TextFormField(controller: _apellidosController, decoration: const InputDecoration(labelText: 'Apellidos', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
+                  ]),
+                  const SizedBox(height: 15),
+
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Organización', border: OutlineInputBorder()),
+                    value: _selectedOrganization,
+                    items: organizations.map((org) => DropdownMenuItem(value: org, child: Text(org))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedOrganization = val;
+                        _selectedCalling = null;
+                      });
+                    },
+                    validator: (v) => v == null ? 'Selecciona tu organización' : null,
                   ),
-                ),
-                _buildTextField(_usernameController, 'Nombre de Usuario Único', false, hintText: 'Ej: juanperez'),
+                  const SizedBox(height: 15),
 
-                const Divider(height: 30),
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(labelText: 'Llamamiento Actual', border: OutlineInputBorder()),
+                    value: _selectedCalling,
+                    items: callings.map<DropdownMenuItem<String>>((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (val) => setState(() => _selectedCalling = val),
+                    validator: (v) => v == null ? 'Selecciona tu llamamiento' : null,
+                    disabledHint: const Text('Primero elige Organización'),
+                  ),
+                  const SizedBox(height: 25),
 
-                // Campos de autenticación
-                _buildTextField(_emailController, 'Correo Electrónico', false, hintText: 'Ej: jperez@gmail.com'),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword, // <--- Control dinámico
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.lock_outline),
+                  const Text('Datos de Cuenta', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 15),
 
-                    // --- ICONO DE VISIBILIDAD ---
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                        color: Colors.grey,
+                  TextFormField(
+                    controller: _usernameController,
+                    decoration: const InputDecoration(labelText: 'Usuario (Ej: familia_perez)', prefixIcon: Icon(Icons.person), border: OutlineInputBorder()),
+                    validator: (v) => v!.isEmpty ? 'Requerido' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: const InputDecoration(labelText: 'Correo Electrónico', prefixIcon: Icon(Icons.email), border: OutlineInputBorder()),
+                    validator: (v) => !v!.contains('@') ? 'Correo inválido' : null,
+                  ),
+                  const SizedBox(height: 15),
+
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.lock),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
                     ),
-                    // ----------------------------
+                    validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
                   ),
-                ),
-                const SizedBox(height: 30),
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : ElevatedButton(
-                  onPressed: _register,
-                  child: const Text('Solicitar Acceso'),
-                ),
 
-                const SizedBox(height: 10), // Nuevo espacio
-                TextButton( // Nuevo botón para ir a Login
-                  onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                    );
-                  },
-                  child: const Text('¿Ya tienes cuenta? Iniciar Sesión'),
-                ),
+                  const SizedBox(height: 30),
 
-              ],
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      ElevatedButton(
+                        onPressed: _register,
+                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                        child: const Text('Solicitar Registro', style: TextStyle(fontSize: 18)),
+                      ),
+                      const SizedBox(height: 15),
+
+                      // --- NUEVO BOTÓN DE VOLVER ---
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancelar / Volver', style: TextStyle(color: Colors.grey)),
+                      ),
+                      // -----------------------------
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),),),
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-      TextEditingController controller,
-      String label,
-      bool isPassword, {
-        String? hintText, // <--- NUEVO PARÁMETRO
-      }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12.0),
-      child: TextFormField(
-        controller: controller,
-        obscureText: isPassword,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hintText, // <--- USAR AQUÍ
-          hintStyle: TextStyle(color: Colors.grey.shade400), // Color suave
-          border: const OutlineInputBorder(),
-        ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Por favor, ingrese su $label';
-          }
-          return null;
-        },
       ),
     );
   }

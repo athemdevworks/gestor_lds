@@ -13,21 +13,21 @@ class UserManagementScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('Administración de Usuarios'),
           bottom: const TabBar(
-          // CONFIGURACIÓN DE CONTRASTE
-          labelColor: Colors.white,             // Icono/Texto SELECCIONADO (Blanco puro)
-          unselectedLabelColor: Colors.white60, // Icono/Texto NO SELECCIONADO (Blanco con transparencia)
-          indicatorColor: Colors.white,         // La rayita de abajo
-          indicatorWeight: 3,                   // Un poco más gruesa para que se note
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white60,
+            indicatorColor: Colors.white,
+            indicatorWeight: 3,
             tabs: [
               Tab(icon: Icon(Icons.person_add), text: 'Pendientes'),
-              Tab(icon: Icon(Icons.people), text: 'Activos'),
+              Tab(icon: Icon(Icons.people), text: 'Aprobados'), // Texto cambiado
             ],
           ),
         ),
         body: const TabBarView(
           children: [
-            _UserList(status: 'pending'), // Pestaña 1
-            _UserList(status: 'active'),  // Pestaña 2
+            // Pasamos un booleano en lugar de un string
+            _UserList(showApproved: false), // Pestaña 1: Pendientes (isApproved: false)
+            _UserList(showApproved: true),  // Pestaña 2: Activos (isApproved: true)
           ],
         ),
       ),
@@ -35,26 +35,32 @@ class UserManagementScreen extends StatelessWidget {
   }
 }
 
-// Widget interno para listar usuarios según su estado
+// Widget interno para listar usuarios
 class _UserList extends StatelessWidget {
-  final String status;
-  const _UserList({required this.status});
+  final bool showApproved; // <-- CAMBIO: bool en vez de String
+
+  const _UserList({required this.showApproved});
 
   @override
   Widget build(BuildContext context) {
     final UserService userService = UserService();
 
     return StreamBuilder<List<UserModel>>(
-      stream: userService.streamUsersByStatus(status),
+      // Llama al nuevo método del servicio que filtra por booleano
+      stream: userService.streamUsersByApproval(showApproved),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+
         final users = snapshot.data ?? [];
 
         if (users.isEmpty) {
-          return Center(child: Text('No hay usuarios $status'));
+          return Center(child: Text(showApproved ? 'No hay usuarios activos.' : 'No hay solicitudes pendientes.'));
         }
 
         return ListView.builder(
@@ -65,14 +71,25 @@ class _UserList extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: status == 'pending' ? Colors.orange : Colors.indigo,
-                  child: Text(user.nombres[0], style: const TextStyle(color: Colors.white)),
+                  backgroundColor: !showApproved ? Colors.orange : Colors.indigo,
+                  child: Text(
+                      user.nombres.isNotEmpty ? user.nombres[0] : '?',
+                      style: const TextStyle(color: Colors.white)
+                  ),
                 ),
                 title: Text('${user.apellidos}, ${user.nombres}'),
-                subtitle: Text('${user.calling} (${user.role.displayName})'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.calling),
+                    Text(
+                        user.role.name.toUpperCase(),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[600], fontWeight: FontWeight.bold)
+                    ),
+                  ],
+                ),
                 trailing: const Icon(Icons.edit),
                 onTap: () {
-                  // Abrir diálogo de edición
                   showDialog(
                     context: context,
                     builder: (_) => _EditUserDialog(user: user),
@@ -87,7 +104,7 @@ class _UserList extends StatelessWidget {
   }
 }
 
-// Diálogo para editar Rol, Estado y Llamamiento
+// Diálogo para editar Rol, Aprobación y Llamamiento
 class _EditUserDialog extends StatefulWidget {
   final UserModel user;
   const _EditUserDialog({required this.user});
@@ -98,7 +115,7 @@ class _EditUserDialog extends StatefulWidget {
 
 class _EditUserDialogState extends State<_EditUserDialog> {
   late UserRole _selectedRole;
-  late String _selectedStatus;
+  late bool _isApproved; // <-- CAMBIO: bool
   late TextEditingController _callingController;
   final UserService _userService = UserService();
 
@@ -106,7 +123,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   void initState() {
     super.initState();
     _selectedRole = widget.user.role;
-    _selectedStatus = widget.user.status;
+    _isApproved = widget.user.isApproved; // <-- CAMBIO
     _callingController = TextEditingController(text: widget.user.calling);
   }
 
@@ -114,63 +131,65 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Administrar Acceso'),
-        content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: SizedBox(
-                width: double.maxFinite,
-                child: SingleChildScrollView(
-                  child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Usuario: ${widget.user.nombres} ${widget.user.apellidos}'),
-                    const SizedBox(height: 20),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Usuario: ${widget.user.nombres} ${widget.user.apellidos}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 5),
+                Text('Org: ${widget.user.organization}', style: const TextStyle(fontStyle: FontStyle.italic)),
+                const SizedBox(height: 20),
 
-                    // 1. EDITAR LLAMAMIENTO
-                    TextField(
-                      controller: _callingController,
-                      decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // 2. CAMBIAR ESTADO (Aprobar/Suspender)
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(labelText: 'Estado'),
-                      value: _selectedStatus,
-                      items: const [
-                        DropdownMenuItem(value: 'pending', child: Text('Pendiente (Sin Acceso)')),
-                        DropdownMenuItem(value: 'active', child: Text('Activo (Aprobado)')),
-                        DropdownMenuItem(value: 'suspended', child: Text('Suspendido')),
-                      ],
-                      onChanged: (v) => setState(() => _selectedStatus = v!),
-                    ),
-                    const SizedBox(height: 15),
-
-                    // 3. CAMBIAR ROL (Permisos)
-                    DropdownButtonFormField<UserRole>(
-                      decoration: const InputDecoration(labelText: 'Rol de Sistema'),
-                      value: _selectedRole,
-                      items: UserRole.values.map((role) {
-                        return DropdownMenuItem(
-                          value: role,
-                          child: Text(role.displayName),
-                        );
-                      }).toList(),
-                      onChanged: (v) => setState(() => _selectedRole = v!),
-                    ),
-                  ],
+                // 1. EDITAR LLAMAMIENTO
+                TextField(
+                  controller: _callingController,
+                  decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
                 ),
-              ),
+                const SizedBox(height: 15),
+
+                // 2. CAMBIAR ESTADO (Aprobado SI/NO)
+                DropdownButtonFormField<bool>(
+                  decoration: const InputDecoration(labelText: 'Estado de Acceso', border: OutlineInputBorder()),
+                  value: _isApproved,
+                  items: const [
+                    DropdownMenuItem(value: false, child: Text('Pendiente (Sin Acceso)')),
+                    DropdownMenuItem(value: true, child: Text('Activo (Aprobado)')),
+                  ],
+                  onChanged: (v) => setState(() => _isApproved = v!),
+                ),
+                const SizedBox(height: 15),
+
+                // 3. CAMBIAR ROL (Permisos)
+                DropdownButtonFormField<UserRole>(
+                  decoration: const InputDecoration(labelText: 'Rol de Sistema', border: OutlineInputBorder()),
+                  value: _selectedRole,
+                  items: UserRole.values.map((role) {
+                    return DropdownMenuItem(
+                      value: role,
+                      child: Text(role.name.toUpperCase()),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setState(() => _selectedRole = v!),
+                ),
+              ],
+            ),
           ),
+        ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
+            // Llamamos al método actualizado del servicio
             await _userService.updateUserAccess(
-              widget.user.uid,
-              _selectedRole,
-              _selectedStatus,
-              _callingController.text,
+              uid: widget.user.uid,
+              role: _selectedRole,
+              isApproved: _isApproved, // <-- Pasamos el booleano
+              calling: _callingController.text,
             );
             if (mounted) Navigator.pop(context);
           },

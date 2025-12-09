@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gestor_lds/core/constants/callings_list.dart';
-import 'package:gestor_lds/core/utils/alert_utils.dart'; // Para alertas bonitas
+import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
@@ -19,7 +19,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late TextEditingController _nombresController;
   late TextEditingController _apellidosController;
-  late TextEditingController _callingController;
+
+  // Variables para los Dropdowns
+  late String _fixedOrganization; // <-- AHORA ES FIJA
+  String? _selectedCalling;
 
   final UserService _userService = UserService();
   bool _isLoading = false;
@@ -27,36 +30,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-llenar con datos actuales
     _nombresController = TextEditingController(text: widget.user.nombres);
     _apellidosController = TextEditingController(text: widget.user.apellidos);
-    _callingController = TextEditingController(text: widget.user.calling);
+
+    // Fijamos la organización actual (NO SE PUEDE CAMBIAR AQUÍ)
+    _fixedOrganization = widget.user.organization;
+
+    // Validamos si el llamamiento actual es válido
+    if (kLdsStructure.containsKey(_fixedOrganization)) {
+      final validCallings = kLdsStructure[_fixedOrganization]!;
+      if (validCallings.contains(widget.user.calling)) {
+        _selectedCalling = widget.user.calling;
+      }
+    }
   }
 
   @override
   void dispose() {
     _nombresController.dispose();
     _apellidosController.dispose();
-    _callingController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _selectedCalling != null) {
       setState(() => _isLoading = true);
       try {
+        // Solo actualizamos Nombre, Apellido y Llamamiento.
+        // La Organización y el Rol NO se tocan (seguridad).
         await _userService.updateUserProfile(
           uid: widget.user.uid,
           nombres: _nombresController.text.trim(),
           apellidos: _apellidosController.text.trim(),
-          calling: _callingController.text.trim(),
+          calling: _selectedCalling!,
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Perfil actualizado correctamente. Recarga para ver cambios.')),
+            const SnackBar(content: Text('Perfil actualizado correctamente.')),
           );
-          Navigator.pop(context); // Volver
+          Navigator.pop(context);
         }
       } catch (e) {
         if (mounted) showErrorDialog(context, 'Error', e.toString());
@@ -76,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(ctx); // Cerrar diálogo
+              Navigator.pop(ctx);
               try {
                 await AuthService().sendPasswordResetEmail(widget.user.email);
                 if (mounted) {
@@ -97,11 +110,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Obtenemos SOLO los llamamientos de la organización FIJA del usuario
+    final List<String> callings = kLdsStructure[_fixedOrganization] ?? [];
+
     return Scaffold(
       appBar: AppBar(title: const Text('Mi Perfil')),
       backgroundColor: Colors.grey[50],
-
-      // 1. Diseño Centrado y Limitado (Responsivo)
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -128,6 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 10),
                         Text(widget.user.email, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
                         const SizedBox(height: 5),
+
                         // Badge de Rol
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -137,11 +152,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             border: Border.all(color: Colors.blue.shade200),
                           ),
                           child: Text(
-                            // Usamos la extensión displayName para mostrar "Obispado" en lugar de "bishopric"
-                            widget.user.role.toString().split('.').last.toUpperCase(), // Temporal si no tienes la extensión importada aquí
+                            widget.user.role.name.toUpperCase(),
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade800),
                           ),
                         ),
+                        const SizedBox(height: 5),
+                        Text(_fixedOrganization, style: const TextStyle(fontStyle: FontStyle.italic)),
                       ],
                     ),
                   ),
@@ -149,7 +165,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // FORMULARIO DE EDICIÓN
+                // FORMULARIO BLINDADO
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -177,28 +193,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // Dropdown con Búsqueda (Igual que en Registro)
-                          LayoutBuilder(
-                              builder: (context, constraints) {
-                                return DropdownMenu<String>(
-                                  width: constraints.maxWidth,
-                                  controller: _callingController,
-                                  label: const Text('Llamamiento'),
-                                  hintText: 'Buscar...',
-                                  menuHeight: 300,
-                                  enableFilter: true,
-                                  dropdownMenuEntries: kLdsCallings.map<DropdownMenuEntry<String>>((String c) {
-                                    return DropdownMenuEntry<String>(value: c, label: c);
-                                  }).toList(),
-                                  inputDecorationTheme: const InputDecorationTheme(
-                                    border: OutlineInputBorder(),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                  ),
-                                  onSelected: (String? c) {
-                                    if (c != null) _callingController.text = c;
-                                  },
-                                );
-                              }
+                          // --- ORGANIZACIÓN (SOLO LECTURA / BLOQUEADO) ---
+                          TextFormField(
+                            initialValue: _fixedOrganization,
+                            readOnly: true, // No se puede escribir
+                            enabled: false, // Se ve gris para indicar que es fijo
+                            decoration: const InputDecoration(
+                              labelText: 'Organización (Fija)',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.lock_outline),
+                              helperText: 'Contacta al Admin para cambiar de organización',
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+
+                          // Dropdown Llamamiento (Limitado a su organización)
+                          DropdownButtonFormField<String>(
+                            value: _selectedCalling,
+                            decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
+                            items: callings.map<DropdownMenuItem<String>>((String c) {
+                              return DropdownMenuItem<String>(value: c, child: Text(c));
+                            }).toList(),
+                            onChanged: (val) => setState(() => _selectedCalling = val),
                           ),
 
                           const SizedBox(height: 30),
@@ -216,7 +232,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const Divider(),
                           const SizedBox(height: 10),
 
-                          // Zona de Seguridad
                           TextButton.icon(
                             onPressed: _requestPasswordChange,
                             icon: const Icon(Icons.lock_reset, color: Colors.grey),
