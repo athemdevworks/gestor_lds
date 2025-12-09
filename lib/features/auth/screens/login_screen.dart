@@ -262,7 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
 
                                 const Text(
-                                  'Versión 1.4.0',
+                                  'Versión 1.5.2',
                                   style: TextStyle(fontSize: 10, color: Colors.grey),
                                 ),
 

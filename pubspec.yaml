@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.5.1+1
+version: 1.5.2+1
 environment:
   sdk: ^3.10.1
 
@@ -51,6 +51,22 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  flutter_launcher_icons: "^0.13.1" # Verifica la última versión
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  min_sdk_android: 21 # Importante para soporte moderno
+  # Opcional: Icono Adaptativo (Mejor para Android modernos)
+  adaptive_icon_background: "#164772" # Tu color azul corporativo
+  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  web:
+    generate: true
+    image_path: "assets/icons/app_icon.png"
+    background_color: "#164772"
+    theme_color: "#164772"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
