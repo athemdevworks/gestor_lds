@@ -1,38 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+    <base href="$FLUTTER_BASE_HREF">
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+    <meta charset="UTF-8">
+    <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+    <meta name="description" content="Proyecto de gestion de reuniones y agendas">
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="gestor_lds">
+    <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+    <link rel="icon" type="image/png" href="logo_lds.png" id="dynamic-favicon"/>
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Proyecto de gestion de reuniones y agendas">
+    <title>gestor_lds</title>
+    <link rel="manifest" href="manifest.json">
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="gestor_lds">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+    <script>
+        function updateFavicon() {
+            const favicon = document.getElementById('dynamic-favicon');
+            // Detecta si el usuario prefiere modo oscuro
+            const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="logo_lds.png"/>
+            if (isDarkMode) {
+                // MODO OSCURO: Usamos el logo blanco
+                favicon.href = 'logo_lds_white.png';
+            } else {
+                // MODO CLARO: Usamos el logo original (azul)
+                favicon.href = 'logo_lds.png';
+            }
+        }
 
-  <title>gestor_lds</title>
-  <link rel="manifest" href="manifest.json">
+        // Ejecutar al iniciar
+        updateFavicon();
+
+        // Escuchar cambios en vivo (por si el usuario cambia el tema del sistema)
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateFavicon);
+    </script>
+
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+<script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
