@@ -19,28 +19,46 @@ class HomeScreen extends StatelessWidget {
     final bool isAdmin = user.role == UserRole.obispado;
     final bool isLeader = user.role == UserRole.lider;
 
+    // 2. DETECTOR DE PANTALLA (RESPONSIVE)
+    // Si el ancho es menor a 700px, asumimos que es un móvil o tablet vertical
+    final bool isMobile = MediaQuery.of(context).size.width < 700;
+
     return Scaffold(
       appBar: AppBar(
-        // 1. TEXTO DEL APP A LA IZQUIERDA
-        title: const Text(
-            'GESTORLDS',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)
+        // LÓGICA DE TÍTULO RESPONSIVO:
+        // - En Móvil: Mostramos el Logo del Barrio (logont.png) como título a la izquierda.
+        // - En PC: Mostramos el texto "GestorLDS".
+        title: isMobile
+            ? Image.asset(
+          'assets/images/logont.png',
+          height: 35,
+          fit: BoxFit.contain,
+          alignment: Alignment.centerLeft, // Asegura que empiece a la izquierda
+        )
+            : const Text(
+          'GestorLDS',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
-        centerTitle: false, // Alineado a la izquierda
 
-        // 2. LOGO AL CENTRO (Corregido: Sin Padding extra)
-        flexibleSpace: SafeArea(
+        centerTitle: false,
+
+        // LÓGICA DE LOGO CENTRAL (SOLO PC):
+        // - En Móvil: NULL (Lo quitamos para que no choque con los iconos).
+        // - En PC: Mostramos el logo centrado.
+        flexibleSpace: isMobile
+            ? null
+            : SafeArea(
           child: Center(
             child: Image.asset(
-              'assets/images/logont.png', // Asegúrate que este sea el path correcto
-              height: 40, // Un poquito más grande para que luzca mejor centrado
-              color: Colors.white, // Lo pintamos de blanco puro
-              fit: BoxFit.contain, // Asegura que se vea completo
+              'assets/images/logont.png',
+              height: 45,
+              color: Colors.white,
+              fit: BoxFit.contain,
             ),
           ),
         ),
 
-        // 3. ICONOS A LA DERECHA
+        // ICONOS (Siempre visibles)
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_month),
@@ -103,17 +121,15 @@ class HomeScreen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Saludo con Nombre y Apellido
                 Text(
                     'Bienvenido, ${user.nombres} ${user.apellidos}',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
                 ),
                 const SizedBox(height: 6),
-                // 2. Llamamiento debajo (Destacado)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF164772).withOpacity(0.1), // Fondo azul muy suave
+                    color: const Color(0xFF164772).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: const Color(0xFF164772).withOpacity(0.3)),
                   ),
@@ -122,14 +138,12 @@ class HomeScreen extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF164772) // Azul corporativo
+                          color: Color(0xFF164772)
                       )
                   ),
                 ),
               ],
             ),
-            // ------------------------------------
-
             const Divider(height: 30),
 
             const Text('Módulos Principales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
