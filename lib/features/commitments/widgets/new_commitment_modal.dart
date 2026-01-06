@@ -56,17 +56,20 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
       _descriptionController.text = c.description;
       _selectedDueDate = c.dueDate;
       _dueDateController.text = DateFormat('yyyy-MM-dd').format(c.dueDate);
-
-      // --- CAMBIO: Usamos los nombres nuevos del modelo ---
       _selectedUserId = c.assignedTo;
-      // ---------------------------------------------------
-
       _selectedAgendaItemId = c.agendaItemId;
     }
     // 2. Lógica si estamos CREANDO desde un botón de agenda
     else if (widget.initialAgendaItem != null) {
       _selectedAgendaItemId = widget.initialAgendaItem!.id;
       _selectedAgendaItemObject = widget.initialAgendaItem;
+    } else {
+      // 3. Valor por defecto si es creación genérica
+      // Si hay items, seleccionamos el primero por defecto para evitar NULL
+      if (widget.agendaItems != null && widget.agendaItems!.isNotEmpty) {
+        _selectedAgendaItemId = widget.agendaItems!.first.id;
+        _selectedAgendaItemObject = widget.agendaItems!.first;
+      }
     }
   }
 
@@ -86,7 +89,17 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
   }
 
   Future<void> _saveCommitment() async {
-    if (_formKey.currentState!.validate() && _selectedUserId != null && _selectedDueDate != null) {
+    if (_formKey.currentState!.validate()) {
+      // VALIDACIÓN MANUAL EXTRA:
+      if (_selectedUserId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, asigna un líder.')));
+        return;
+      }
+      if (_selectedDueDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona una fecha.')));
+        return;
+      }
+
       setState(() { _isLoading = true; });
 
       try {
@@ -95,7 +108,6 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
         if (_selectedUserObject != null) {
           finalUserName = "${_selectedUserObject!.nombres} ${_selectedUserObject!.apellidos}";
         } else if (widget.commitmentToEdit != null) {
-          // --- CAMBIO: Usamos responsibleName ---
           finalUserName = widget.commitmentToEdit!.responsibleName ?? "Usuario";
         } else {
           finalUserName = "Usuario Desconocido";
@@ -107,24 +119,33 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
           finalTopic = _selectedAgendaItemObject!.topic;
         } else if (widget.commitmentToEdit != null) {
           finalTopic = widget.commitmentToEdit!.agendaItemTopic;
+        } else if (widget.agendaItems != null && _selectedAgendaItemId != null) {
+          // Intento final de recuperar el topic si solo tenemos el ID
+          try {
+            finalTopic = widget.agendaItems!.firstWhere((i) => i.id == _selectedAgendaItemId).topic;
+          } catch (_) {}
         }
+
+        // --- CORRECCIÓN CRÍTICA: Asegurar IDs ---
+        // Si por alguna razón el ID de agenda es nulo, usamos un string vacío o "general"
+        // para que no rompa el filtro en Firebase
+        final String safeAgendaItemId = _selectedAgendaItemId ?? "general";
 
         if (widget.commitmentToEdit != null) {
           // --- MODO EDICIÓN ---
           final updatedCommitment = CommitmentModel(
             id: widget.commitmentToEdit!.id,
-            meetingId: widget.meetingId,
-            description: _descriptionController.text,
 
-            // --- CAMBIO: Usamos los nuevos nombres de campos ---
+            // 🔥 AQUÍ ESTABA EL PROBLEMA: Aseguramos que meetingId se preserve o use el del widget
+            meetingId: widget.meetingId.isNotEmpty ? widget.meetingId : widget.commitmentToEdit!.meetingId!,
+
+            description: _descriptionController.text,
             assignedTo: _selectedUserId!,
             responsibleName: finalUserName,
-            // ---------------------------------------------------
-
             dueDate: _selectedDueDate!,
             isCompleted: widget.commitmentToEdit!.isCompleted,
-            // createdAt: Se eliminó del modelo para simplificar
-            agendaItemId: _selectedAgendaItemId,
+
+            agendaItemId: safeAgendaItemId, // Usamos el ID seguro
             agendaItemTopic: finalTopic,
           );
 
@@ -132,13 +153,15 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
 
         } else {
           // --- MODO CREACIÓN ---
+          print("DEBUG: Creando compromiso para MeetingID: ${widget.meetingId}"); // Debug
+
           await _commitmentService.addCommitment(
-            meetingId: widget.meetingId,
+            meetingId: widget.meetingId, // Este viene del widget y NO debe ser null
             description: _descriptionController.text,
             assignedToUid: _selectedUserId!,
             assignedToName: finalUserName,
             dueDate: _selectedDueDate!,
-            agendaItemId: _selectedAgendaItemId,
+            agendaItemId: safeAgendaItemId,
             agendaItemTopic: finalTopic,
           );
         }
@@ -146,6 +169,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
         if (mounted) Navigator.of(context).pop();
 
       } catch (e) {
+        print("ERROR AL GUARDAR: $e"); // Debug en consola
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
         }
@@ -157,6 +181,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
 
   @override
   Widget build(BuildContext context) {
+    // Verificamos si hay items para mostrar el dropdown
     final bool hasAgendaItems = widget.agendaItems != null && widget.agendaItems!.isNotEmpty;
 
     return AlertDialog(
@@ -216,6 +241,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                             });
                           }
                         },
+                        validator: (v) => v == null ? 'Seleccione un punto de agenda' : null, // Validación añadida
                       ),
                     ),
 

@@ -7,6 +7,8 @@ import 'package:gestor_lds/features/meetings/screens/meeting_form_screen.dart';
 import 'package:gestor_lds/features/meetings/screens/meeting_detail_screen.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/widgets/empty_state_widget.dart';
+
 class MeetingsListScreen extends StatelessWidget {
   // 1. Recibimos el usuario actual para saber sus permisos
   final UserModel currentUser;
@@ -81,15 +83,10 @@ class MeetingsListScreen extends StatelessWidget {
           // -----------------------------------------------------------
 
           if (filteredMeetings.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text(
-                  'No tienes reuniones asignadas a tu organización.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
-              ),
+            return const EmptyStateWidget(
+              icon: Icons.event_busy,
+              title: 'Nada por aquí',
+              message: 'No hay reuniones programadas para tu organización.',
             );
           }
 

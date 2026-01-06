@@ -19,22 +19,22 @@ class CommitmentService {
 
     final newCommitment = CommitmentModel(
       id: docRef.id,
-      // Asegúrate de que tu modelo tenga este campo o elimínalo si no lo usas
-      // meetingId: meetingId,
+
+      // --- CORRECCIÓN CRÍTICA 1: ¡DESCOMENTADO! ---
+      meetingId: meetingId,
+      // -------------------------------------------
 
       description: description,
-
-      // Nota: Si en tu modelo le pusiste 'assignedTo', cambia esto aquí:
       assignedTo: assignedToUid,
-
-      // Nota: Si en tu modelo le pusiste 'responsibleName', cambia esto aquí:
       responsibleName: assignedToName,
-
       dueDate: dueDate,
       agendaItemId: agendaItemId,
-      // agendaItemTopic: agendaItemTopic, // Si tu modelo no tiene esto, coméntalo
 
-      isCompleted: false, // Valor por defecto
+      // --- CORRECCIÓN CRÍTICA 2: ¡DESCOMENTADO! ---
+      agendaItemTopic: agendaItemTopic,
+      // --------------------------------------------
+
+      isCompleted: false,
     );
 
     await docRef.set(newCommitment.toMap());
@@ -43,15 +43,12 @@ class CommitmentService {
   // 2. OBTENER COMPROMISOS ASIGNADOS A UN LÍDER
   Stream<List<CommitmentModel>> getCommitmentsForUser(String userId) {
     return _db.collection(_collectionName)
-        .where('assignedTo', isEqualTo: userId) // Ojo: verifica si en BD es 'assignedTo' o 'assignedToUid'
+        .where('assignedTo', isEqualTo: userId)
         .orderBy('dueDate', descending: false)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        // --- CORRECCIÓN AQUÍ ---
-        // Pasamos los datos Y el ID por separado
         return CommitmentModel.fromMap(doc.data(), doc.id);
-        // -----------------------
       }).toList();
     });
   }
@@ -66,16 +63,11 @@ class CommitmentService {
   // 4. OBTENER COMPROMISOS DE UNA REUNIÓN ESPECÍFICA
   Stream<List<CommitmentModel>> getCommitmentsByMeeting(String meetingId) {
     return _db.collection(_collectionName)
-    // Ojo: verifica si tu modelo/BD usa 'meetingId'.
-    // Si no lo guardamos en el modelo anterior, esta consulta podría no traer nada
-    // a menos que el campo exista en Firebase.
-        .where('meetingId', isEqualTo: meetingId)
+        .where('meetingId', isEqualTo: meetingId) // Ahora sí encontrará coincidencias
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        // --- CORRECCIÓN AQUÍ ---
         return CommitmentModel.fromMap(doc.data(), doc.id);
-        // -----------------------
       }).toList();
     });
   }

@@ -161,7 +161,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           children: [
             DropdownButtonFormField<String>(
               value: type,
-              items: ['Sostenimiento', 'Relevo', 'Adelanto Sacerdotal', 'Bautismo', 'Otro']
+              items: ['Sostenimiento', 'Relevo', 'Ordenación al Sacerdocio', 'Confirmación', 'Bendición de niño']
                   .map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
               onChanged: (v) => type = v!,
               decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),

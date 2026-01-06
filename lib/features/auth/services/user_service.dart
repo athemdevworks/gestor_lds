@@ -5,76 +5,72 @@ class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final String _collection = 'users';
 
-  // 1. LISTAR USUARIOS POR ESTADO DE APROBACIÓN (Optimizado con Stream)
-  // Usado en: UserManagementScreen
+  // 1. STREAM UNIFICADO POR ESTADO (Para tus Tabs de Pendientes/Aprobados)
   Stream<List<UserModel>> streamUsersByApproval(bool isApproved) {
     return _db
         .collection(_collection)
-        .where('isApproved', isEqualTo: isApproved) // Filtra en el servidor
-        .orderBy('apellidos') // Ordena alfabéticamente
+        .where('isApproved', isEqualTo: isApproved)
+        .orderBy('apellidos') // Orden alfabético
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        // Mapeo seguro
-        return UserModel.fromMap(doc.data());
-      }).toList();
-    });
+        .map((snapshot) => snapshot.docs
+        .map((doc) => UserModel.fromMap(doc.data(), doc.id))
+        .toList());
   }
 
-  // 2. ACTUALIZAR PERMISO DE ACCESO (ADMIN)
-  // Usado en: UserManagementScreen (Diálogo de edición)
+  // 2. STREAM DE ACTIVOS (Para Dropdowns y Modales de Compromisos)
+  Stream<List<UserModel>> streamActiveUsers() {
+    return streamUsersByApproval(true); // Reutilizamos la lógica
+  }
+
+  // 3. ACTUALIZACIÓN MASIVA DE ACCESO (Para tu _EditUserDialog)
   Future<void> updateUserAccess({
     required String uid,
     required UserRole role,
     required bool isApproved,
     required String calling,
+    String? phoneNumber,
   }) async {
-    try {
-      await _db.collection(_collection).doc(uid).update({
-        'role': role.name,
-        'isApproved': isApproved,
-        'calling': calling,
-      });
-    } catch (e) {
-      throw Exception('Error actualizando permisos: $e');
-    }
+    await _db.collection(_collection).doc(uid).update({
+      'role': role.toString().split('.').last, // Convertimos Enum a String
+      'isApproved': isApproved,
+      'calling': calling,
+      'phoneNumber': phoneNumber,
+    });
   }
 
-  // 3. ACTUALIZAR PERFIL PERSONAL
-  // Usado en: ProfileScreen
+  // 4. ACTUALIZAR PERFIL PERSONAL (Para ProfileScreen)
   Future<void> updateUserProfile({
     required String uid,
     required String nombres,
     required String apellidos,
     required String calling,
+    String? phoneNumber,
   }) async {
+    await _db.collection(_collection).doc(uid).update({
+      'nombres': nombres,
+      'apellidos': apellidos,
+      'calling': calling,
+      'phoneNumber': phoneNumber,
+    });
+  }
+
+  // 5. VERIFICAR DUPLICADOS (Para Registro)
+  Future<bool> checkDuplicateUser(String nombres, String apellidos) async {
     try {
-      await _db.collection(_collection).doc(uid).update({
-        'nombres': nombres,
-        'apellidos': apellidos,
-        'calling': calling,
-        // Nota: No actualizamos 'organization' aquí para evitar inconsistencias de seguridad,
-        // pero podrías agregarlo si lo necesitas.
-      });
+      final query = await _db.collection(_collection)
+          .where('nombres', isEqualTo: nombres.trim())
+          .where('apellidos', isEqualTo: apellidos.trim())
+          .limit(1)
+          .get();
+
+      return query.docs.isNotEmpty;
     } catch (e) {
-      throw Exception('Error actualizando perfil: $e');
+      return false;
     }
   }
 
-  // 4. OBTENER DATOS DE UN SOLO USUARIO (Future)
-  // Útil si necesitas consultar datos sin stream
-  Future<UserModel?> getUserById(String uid) async {
-    final doc = await _db.collection(_collection).doc(uid).get();
-    if (doc.exists) {
-      return UserModel.fromMap(doc.data()!);
-    }
-    return null;
+  // 6. ELIMINAR USUARIO (Por si acaso lo necesitas)
+  Future<void> deleteUser(String uid) async {
+    await _db.collection(_collection).doc(uid).delete();
   }
-
-  // 5. HELPER: OBTENER SOLO USUARIOS ACTIVOS
-  // Este es el método que busca el NewCommitmentModal
-  Stream<List<UserModel>> streamActiveUsers() {
-    return streamUsersByApproval(true);
-  }
-
 }

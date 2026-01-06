@@ -4,6 +4,7 @@ import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
+import 'package:gestor_lds/core/utils/avatar_colors.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -20,8 +21,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nombresController;
   late TextEditingController _apellidosController;
 
+  // --- NUEVO CONTROLADOR ---
+  late TextEditingController _phoneController;
+  // -------------------------
+
   // Variables para los Dropdowns
-  late String _fixedOrganization; // <-- AHORA ES FIJA
+  late String _fixedOrganization;
   String? _selectedCalling;
 
   final UserService _userService = UserService();
@@ -33,10 +38,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nombresController = TextEditingController(text: widget.user.nombres);
     _apellidosController = TextEditingController(text: widget.user.apellidos);
 
-    // Fijamos la organización actual (NO SE PUEDE CAMBIAR AQUÍ)
+    // Inicializar con el teléfono actual (si existe)
+    _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
+
     _fixedOrganization = widget.user.organization;
 
-    // Validamos si el llamamiento actual es válido
     if (kLdsStructure.containsKey(_fixedOrganization)) {
       final validCallings = kLdsStructure[_fixedOrganization]!;
       if (validCallings.contains(widget.user.calling)) {
@@ -49,6 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nombresController.dispose();
     _apellidosController.dispose();
+    _phoneController.dispose(); // Limpiar
     super.dispose();
   }
 
@@ -56,13 +63,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_formKey.currentState!.validate() && _selectedCalling != null) {
       setState(() => _isLoading = true);
       try {
-        // Solo actualizamos Nombre, Apellido y Llamamiento.
-        // La Organización y el Rol NO se tocan (seguridad).
         await _userService.updateUserProfile(
           uid: widget.user.uid,
           nombres: _nombresController.text.trim(),
           apellidos: _apellidosController.text.trim(),
           calling: _selectedCalling!,
+
+          // --- ENVIAR TELÉFONO ---
+          phoneNumber: _phoneController.text.trim(),
+          // -----------------------
         );
 
         if (mounted) {
@@ -110,7 +119,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos SOLO los llamamientos de la organización FIJA del usuario
     final List<String> callings = kLdsStructure[_fixedOrganization] ?? [];
 
     return Scaffold(
@@ -133,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          backgroundColor: AvatarColors.getColor(widget.user.nombres),
                           child: Text(
                             widget.user.nombres.isNotEmpty ? widget.user.nombres[0].toUpperCase() : '?',
                             style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
@@ -141,9 +149,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 10),
                         Text(widget.user.email, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-                        const SizedBox(height: 5),
 
-                        // Badge de Rol
+                        // Mostrar Teléfono en la tarjeta si existe
+                        if (widget.user.phoneNumber != null && widget.user.phoneNumber!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.phone, size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(widget.user.phoneNumber!, style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 10),
+
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
@@ -193,11 +215,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // --- ORGANIZACIÓN (SOLO LECTURA / BLOQUEADO) ---
+                          // --- NUEVO CAMPO EDITABLE ---
+                          TextFormField(
+                            controller: _phoneController,
+                            decoration: const InputDecoration(
+                              labelText: 'Celular / WhatsApp',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.phone_android),
+                            ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 15),
+                          // ----------------------------
+
                           TextFormField(
                             initialValue: _fixedOrganization,
-                            readOnly: true, // No se puede escribir
-                            enabled: false, // Se ve gris para indicar que es fijo
+                            readOnly: true,
+                            enabled: false,
                             decoration: const InputDecoration(
                               labelText: 'Organización (Fija)',
                               border: OutlineInputBorder(),
@@ -207,7 +241,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // Dropdown Llamamiento (Limitado a su organización)
                           DropdownButtonFormField<String>(
                             value: _selectedCalling,
                             decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),

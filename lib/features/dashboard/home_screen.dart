@@ -7,6 +7,8 @@ import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.da
 import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
+import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
+import 'package:gestor_lds/features/communications/screens/whatsapp_sender_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final UserModel user;
@@ -15,36 +17,33 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 1. DEFINICIÓN DE PERMISOS
     final bool isAdmin = user.role == UserRole.obispado;
     final bool isLeader = user.role == UserRole.lider;
 
-    // 2. DETECTOR DE PANTALLA (RESPONSIVE)
-    // Si el ancho es menor a 700px, asumimos que es un móvil o tablet vertical
-    final bool isMobile = MediaQuery.of(context).size.width < 700;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 700;
+    final bool isWideScreen = screenWidth > 900;
+
+    // Color Azul Institucional
+    const Color brandBlue = Color(0xFF164772);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFEEF2F6), // Fondo Gris Suave
+
       appBar: AppBar(
-        // LÓGICA DE TÍTULO RESPONSIVO:
-        // - En Móvil: Mostramos el Logo del Barrio (logont.png) como título a la izquierda.
-        // - En PC: Mostramos el texto "GestorLDS".
         title: isMobile
             ? Image.asset(
           'assets/images/logont.png',
           height: 35,
+          color: Colors.white,
           fit: BoxFit.contain,
-          alignment: Alignment.centerLeft, // Asegura que empiece a la izquierda
+          alignment: Alignment.centerLeft,
         )
             : const Text(
           'GestorLDS',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
         ),
-
         centerTitle: false,
-
-        // LÓGICA DE LOGO CENTRAL (SOLO PC):
-        // - En Móvil: NULL (Lo quitamos para que no choque con los iconos).
-        // - En PC: Mostramos el logo centrado.
         flexibleSpace: isMobile
             ? null
             : SafeArea(
@@ -57,19 +56,8 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-
-        // ICONOS (Siempre visibles)
         actions: [
-          IconButton(
-            icon: const Icon(Icons.calendar_month),
-            tooltip: 'Calendario Mensual',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => CalendarScreen(currentUser: user)),
-              );
-            },
-          ),
+          // NOTA: Quité el icono de calendario de aquí porque ya está como Módulo Principal
           IconButton(
             icon: const Icon(Icons.account_circle),
             tooltip: 'Mi Perfil',
@@ -83,32 +71,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar Sesión',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Cerrar Sesión'),
-                  content: const Text('¿Estás seguro de que deseas salir?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('Cancelar'),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        Navigator.of(ctx).pop();
-                        AuthService().signOut();
-                      },
-                      child: const Text('Salir'),
-                    ),
-                  ],
-                ),
-              );
-            },
+            onPressed: () => _showLogoutDialog(context),
           ),
         ],
       ),
@@ -117,86 +80,291 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- CABECERA DE BIENVENIDA ---
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            _buildWelcomeBanner(context),
+            const SizedBox(height: 30),
+
+            // SECCIÓN 1: MÓDULOS PRINCIPALES (Ahora Calendario y Entrevistas)
+            const Text(
+                'MODULOS PRINCIPALES',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+            ),
+            const SizedBox(height: 10),
+
+            _buildGridOrList(
+              isWideScreen,
               children: [
-                Text(
-                    'Bienvenido, ${user.nombres} ${user.apellidos}',
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)
+                // --- CALENDARIO (Movido aquí) ---
+                _DashboardCard(
+                  title: 'CALENDARIO',
+                  subtitle: 'Eventos del mes',
+                  icon: Icons.calendar_month,
+                  iconColor: Colors.deepPurple.shade600,
+                  textColor: Colors.black,
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CalendarScreen(currentUser: user))),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF164772).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFF164772).withOpacity(0.3)),
-                  ),
-                  child: Text(
-                      user.calling,
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF164772)
-                      )
-                  ),
+                // --- ENTREVISTAS (Futuro) ---
+                _DashboardCard(
+                  title: 'ENTREVISTAS',
+                  subtitle: 'Mis citas con el Obispo',
+                  icon: Icons.upcoming,
+                  iconColor: Colors.teal.shade600,
+                  textColor: Colors.black,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => InterviewsScreen(currentUser: user)),
+                    );                  },
                 ),
               ],
             ),
-            const Divider(height: 30),
 
-            const Text('Módulos Principales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-
-            _buildModuleCard(context, Icons.local_activity, 'Actividades', 'Ver y planificar actividades del barrio.'),
-
+            // SECCIÓN 2: GESTIÓN DE REUNIONES (Actividades + Agendas + Compromisos)
             if (isAdmin || isLeader) ...[
-              const Divider(height: 30),
-              const Text('Gestión de Reuniones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              _buildModuleCard(context, Icons.list_alt, 'Crear/Editar Agendas', 'Gestionar reuniones de Obispado y Consejo.'),
-              _buildModuleCard(context, Icons.people, 'Revisar Compromisos', 'Ver todos los compromisos pendientes.'),
+              const SizedBox(height: 30),
+              const Text(
+                  'GESTION DE REUNIONES',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+              ),
+              const SizedBox(height: 10),
+
+              _buildGridOrList(
+                isWideScreen,
+                children: [
+                  // --- ACTIVIDADES (Movido aquí) ---
+                  _DashboardCard(
+                    title: 'ACTIVIDADES',
+                    subtitle: 'Planificación anual',
+                    icon: Icons.local_activity,
+                    iconColor: Colors.orange.shade700,
+                    textColor: Colors.black,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ActivitiesScreen())),
+                  ),
+                  _DashboardCard(
+                    title: 'AGENDAS',
+                    subtitle: 'Consejo y Obispado',
+                    icon: Icons.edit_calendar,
+                    iconColor: Colors.blue.shade700,
+                    textColor: Colors.black,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeetingsListScreen(currentUser: user))),
+                  ),
+                  _DashboardCard(
+                    title: 'COMPROMISOS',
+                    subtitle: 'Mis tareas pendientes',
+                    icon: Icons.task_alt,
+                    iconColor: Colors.green.shade700,
+                    textColor: Colors.black,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MyCommitmentsScreen(currentUser: user))),
+                  ),
+                ],
+              ),
             ],
 
+            // SECCIÓN 3: ADMINISTRACIÓN
             if (isAdmin) ...[
-              const Divider(height: 30),
-              const Text('Administración', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.red)),
-              _buildModuleCard(context, Icons.verified_user, 'Aprobar Usuarios', 'Gestionar y asignar roles a líderes nuevos.'),
+              const SizedBox(height: 30),
+              const Text(
+                  'ADMINISTRACION',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+              ),
+              const SizedBox(height: 10),
+
+              _buildGridOrList(
+                isWideScreen,
+                children: [
+                  _DashboardCard(
+                    title: 'DIRECTORIO',
+                    subtitle: 'Aprobar y editar usuarios',
+                    icon: Icons.verified_user,
+                    iconColor: Colors.indigo.shade700,
+                    textColor: Colors.black,
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UserManagementScreen())),
+                  ),
+                  // --- COMUNICACIONES (Nuevo Módulo) ---
+                  _DashboardCard(
+                    title: 'COMUNICACIONES',
+                    subtitle: 'Enviar citas por WhatsApp',
+                    icon: Icons.send_to_mobile,
+                    iconColor: const Color(0xFF25D366), // Verde WhatsApp
+                    textColor: Colors.black,
+                    onTap: () {
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WhatsAppSenderScreen()));
+                    },
+                  ),
+                ],
+              ),
             ],
+
+            const SizedBox(height: 50),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildModuleCard(BuildContext context, IconData icon, String title, String subtitle) {
+  // --- WIDGETS AUXILIARES ---
+
+  Widget _buildWelcomeBanner(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Theme.of(context).primaryColor, const Color(0xFF164772)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'BIENVENIDO, ${user.nombres.toUpperCase()} ${user.apellidos.toUpperCase()}',
+            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              user.calling,
+              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridOrList(bool isWide, {required List<Widget> children}) {
+    if (isWide) {
+      return Wrap(
+        spacing: 20,
+        runSpacing: 20,
+        children: children.map((child) {
+          return SizedBox(
+            width: 320,
+            height: 110,
+            child: child,
+          );
+        }).toList(),
+      );
+    } else {
+      return Column(children: children);
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Estás seguro de que deseas salir?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              AuthService().signOut();
+            },
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// --- TARJETA DEFINITIVA ---
+class _DashboardCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color iconColor;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _DashboardCard({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.iconColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isWide = MediaQuery.of(context).size.width > 900;
+    const Color brandBlue = Color(0xFF164772);
+
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: ListTile(
-        leading: Icon(icon, size: 30, color: Theme.of(context).primaryColor),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          if (title == 'Actividades') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const ActivitiesScreen()),
-            );
-          } else if (title == 'Crear/Editar Agendas') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => MeetingsListScreen(currentUser: user)),
-            );
-          } else if (title == 'Revisar Compromisos') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => MyCommitmentsScreen(currentUser: user),
+      color: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 10,
+      shadowColor: Colors.black,
+      clipBehavior: Clip.hardEdge,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: isWide ? EdgeInsets.zero : const EdgeInsets.only(bottom: 12),
+
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: brandBlue,
+                width: 6.0,
               ),
-            );
-          } else if (title == 'Aprobar Usuarios') {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const UserManagementScreen()),
-            );
-          }
-        },
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 28, color: iconColor),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isWide)
+                  const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

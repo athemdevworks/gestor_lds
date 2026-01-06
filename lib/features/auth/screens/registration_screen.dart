@@ -3,6 +3,8 @@ import 'package:gestor_lds/core/constants/callings_list.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
+// 1. IMPORTAMOS EL SERVICIO DE USUARIOS
+import 'package:gestor_lds/features/auth/services/user_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -20,6 +22,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   // Estado de Selección
   String? _selectedOrganization;
@@ -28,11 +31,42 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _isLoading = false;
 
   final AuthService _authService = AuthService();
+  // Instancia del servicio de usuario para validaciones
+  final UserService _userService = UserService();
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
+        // --- 2. VALIDACIÓN DE DUPLICADOS ---
+        // Antes de llamar a Firebase Auth, verificamos si el nombre ya existe en Firestore
+        final bool alreadyExists = await _userService.checkDuplicateUser(
+            _nombresController.text.trim(),
+            _apellidosController.text.trim()
+        );
+
+        if (alreadyExists) {
+          // Si existe, detenemos la carga y mostramos alerta
+          if (mounted) {
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.white),
+                    SizedBox(width: 10),
+                    Expanded(child: Text('Ya existe un usuario registrado con este Nombre y Apellido.')),
+                  ],
+                ),
+                backgroundColor: Colors.orange.shade800,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          return; // DETENEMOS EL PROCESO AQUÍ
+        }
+        // -----------------------------------
+
         UserRole assignedRole = UserRole.lider;
 
         if (_selectedOrganization == 'Obispado') {
@@ -50,6 +84,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           organization: _selectedOrganization!,
           role: assignedRole,
           username: _usernameController.text.trim().toLowerCase(),
+          phoneNumber: _phoneController.text.trim(),
         );
 
         if (mounted) {
@@ -94,6 +129,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     const SizedBox(width: 10),
                     Expanded(child: TextFormField(controller: _apellidosController, decoration: const InputDecoration(labelText: 'Apellidos', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
                   ]),
+                  const SizedBox(height: 15),
+
+                  TextFormField(
+                    controller: _phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Celular / WhatsApp',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.phone_android),
+                      helperText: 'Para contacto del barrio',
+                    ),
+                    keyboardType: TextInputType.phone,
+                    validator: (v) {
+                      if (v != null && v.isNotEmpty && v.length < 9) return 'Número muy corto';
+                      return null;
+                    },
+                  ),
                   const SizedBox(height: 15),
 
                   DropdownButtonFormField<String>(
@@ -166,12 +217,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // --- NUEVO BOTÓN DE VOLVER ---
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
                         child: const Text('Cancelar / Volver', style: TextStyle(color: Colors.grey)),
                       ),
-                      // -----------------------------
                     ],
                   ),
                 ],
