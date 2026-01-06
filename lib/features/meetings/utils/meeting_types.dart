@@ -4,7 +4,6 @@ enum MeetingType {
   wardCouncil,    // Consejo de Barrio
   presidency,     // Reunión de Presidencia (General)
   youthCouncil,   // Consejo de Barrio para la Juventud
-  interview,
   other,
 }
 
@@ -18,11 +17,9 @@ extension MeetingTypeExtension on MeetingType {
       case MeetingType.wardCouncil:
         return 'Consejo de Barrio';
       case MeetingType.presidency:
-        return 'Reunión de Presidencia'; // <--- Nuevo
+        return 'Reunión de Presidencia';
       case MeetingType.youthCouncil:
-        return 'Consejo de Barrio para la Juventud'; // <--- Nuevo
-      case MeetingType.interview:
-        return 'Entrevistas';
+        return 'Consejo de Barrio para la Juventud';
       case MeetingType.other:
         return 'Otra Reunión';
     }

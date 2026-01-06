@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:flutter/services.dart'; // Necesario para cargar fuentes/imágenes
 import 'package:intl/intl.dart';

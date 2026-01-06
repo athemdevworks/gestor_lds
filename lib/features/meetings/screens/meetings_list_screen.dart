@@ -138,7 +138,6 @@ class MeetingsListScreen extends StatelessWidget {
       case MeetingType.wardCouncil: return Colors.orange.shade800;
       case MeetingType.presidency: return Colors.green.shade700;
       case MeetingType.sacramental: return Colors.purple.shade700;
-      case MeetingType.interview: return Colors.teal;
       default: return Colors.grey;
     }
   }
@@ -149,7 +148,6 @@ class MeetingsListScreen extends StatelessWidget {
       case MeetingType.wardCouncil: return Icons.groups;
       case MeetingType.presidency: return Icons.assignment_ind;
       case MeetingType.sacramental: return Icons.home; // Icono de capilla
-      case MeetingType.interview: return Icons.record_voice_over;
       default: return Icons.event;
     }
   }

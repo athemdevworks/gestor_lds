@@ -8,7 +8,6 @@ import 'firebase_options.dart';
 
 // Importamos las pantallas y servicios
 import 'package:gestor_lds/features/auth/auth_service.dart';
-import 'package:gestor_lds/features/auth/screens/registration_screen.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
 import 'package:gestor_lds/features/auth/screens/pending_access_screen.dart';
 import 'package:gestor_lds/features/dashboard/home_screen.dart';

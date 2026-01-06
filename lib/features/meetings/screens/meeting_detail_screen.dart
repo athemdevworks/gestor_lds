@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import '../../../core/utils/alert_utils.dart';
-import 'meeting_form_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 
@@ -12,7 +11,7 @@ import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:gestor_lds/features/meetings/services/pdf_service.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
-
+import 'package:gestor_lds/features/meetings/screens/meeting_form_screen.dart';
 import 'package:gestor_lds/features/commitments/widgets/new_commitment_modal.dart';
 import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
 import 'package:gestor_lds/features/commitments/services/commitment_service.dart';

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+// IMPORTANTE: Importamos la pantalla del generador de PDFs
+import 'package:gestor_lds/features/communications/screens/document_generator_screen.dart';
 
 class WhatsAppSenderScreen extends StatefulWidget {
   const WhatsAppSenderScreen({super.key});
@@ -54,8 +56,8 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _topicController.dispose(); // No olvidar limpiar
-    _durationController.dispose(); // No olvidar limpiar
+    _topicController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
@@ -160,7 +162,11 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
     const brandBlue = Color(0xFF164772);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Generar Mensaje')),
+      appBar: AppBar(
+        title: const Text('Comunicaciones'),
+        backgroundColor: brandBlue,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -298,7 +304,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
 
             const SizedBox(height: 30),
 
-            // --- 4. BOTÓN DE ENVÍO ---
+            // --- 4. BOTÓN DE ENVÍO WHATSAPP ---
             ElevatedButton.icon(
               onPressed: _sendWhatsApp,
               icon: const Icon(Icons.send),
@@ -311,6 +317,31 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
+
+            // SEPARADOR
+            const SizedBox(height: 20),
+            const Divider(thickness: 1),
+            const SizedBox(height: 10),
+            const Center(child: Text("O generar documento formal:", style: TextStyle(color: Colors.grey))),
+            const SizedBox(height: 10),
+
+            // --- 5. NUEVO BOTÓN: GENERAR PDF ---
+            ElevatedButton.icon(
+              icon: const Icon(Icons.picture_as_pdf),
+              label: const Text("Generar Documentos PDF"),
+              onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DocumentGeneratorScreen())
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: brandBlue, // Color corporativo
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

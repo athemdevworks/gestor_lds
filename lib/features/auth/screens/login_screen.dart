@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../auth_service.dart';
 import 'registration_screen.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
-// import 'package:package_info_plus/package_info_plus.dart'; // Opcional si usas la librería
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -242,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               style: TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                             Text(
-                              'Versión 1.6.1',
+                              'Versión 1.6.2',
                               style: TextStyle(fontSize: 10, color: Colors.grey),
                             ),
                           ],
