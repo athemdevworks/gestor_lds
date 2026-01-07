@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:printing/printing.dart'; // Importante para cargar fuentes
 import 'package:intl/intl.dart';
 
 class CitationService {
@@ -29,8 +29,16 @@ class CitationService {
     String? duration,
   }) async {
     final pdf = pw.Document();
+
+    // 1. Cargar Recursos (Logo y Fuentes)
     final logoBytes = await _loadLogo();
     final image = logoBytes.isNotEmpty ? pw.MemoryImage(logoBytes) : null;
+
+    // --- CARGA DE FUENTES UNICODE ---
+    final fontRegular = await PdfGoogleFonts.openSansRegular();
+    final fontBold = await PdfGoogleFonts.openSansBold();
+    // --------------------------------
+
     final letterDate = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es_ES').format(DateTime.now());
     final meetingDateStr = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es_ES').format(assignmentDate);
 
@@ -44,6 +52,12 @@ class CitationService {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a5,
+        // --- APLICAR FUENTE AL TEMA ---
+        theme: pw.ThemeData.withFont(
+          base: fontRegular,
+          bold: fontBold,
+        ),
+        // ------------------------------
         margin: const pw.EdgeInsets.all(30),
         build: (pw.Context context) {
           return pw.Column(
@@ -112,8 +126,16 @@ class CitationService {
     required String time,
   }) async {
     final pdf = pw.Document();
+
+    // 1. Cargar Recursos
     final logoBytes = await _loadLogo();
     final image = logoBytes.isNotEmpty ? pw.MemoryImage(logoBytes) : null;
+
+    // --- CARGA DE FUENTES UNICODE ---
+    final fontRegular = await PdfGoogleFonts.openSansRegular();
+    final fontBold = await PdfGoogleFonts.openSansBold();
+    // --------------------------------
+
     final letterDate = DateFormat('d \'de\' MMMM \'de\' yyyy', 'es_ES').format(DateTime.now());
     final interviewDateStr = DateFormat('EEEE d \'de\' MMMM', 'es_ES').format(date);
 
@@ -122,6 +144,12 @@ class CitationService {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a5,
+        // --- APLICAR FUENTE AL TEMA ---
+        theme: pw.ThemeData.withFont(
+          base: fontRegular,
+          bold: fontBold,
+        ),
+        // ------------------------------
         margin: const pw.EdgeInsets.all(30),
         build: (pw.Context context) {
           return pw.Column(

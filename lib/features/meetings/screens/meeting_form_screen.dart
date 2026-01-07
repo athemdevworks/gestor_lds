@@ -378,7 +378,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     );
   }
 
-  // === AQUÍ ESTÁ EL CAMBIO IMPORTANTE: BOTONES AGREGADOS ===
+  // === AQUÍ ESTÁ EL CAMBIO IMPORTANTE: NOMBRES CORREGIDOS ===
   Widget _buildSacramentAgendaForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,23 +407,25 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         ),
         const SizedBox(height: 12),
 
-        TextFormField(controller: _openingHymnController, decoration: const InputDecoration(labelText: 'Himno de Apertura')),
+        // 1. PRIMER HIMNO
+        TextFormField(controller: _openingHymnController, decoration: const InputDecoration(labelText: 'Primer Himno')),
         const SizedBox(height: 12),
 
+        // 2. DIRECTOR DE MÚSICA Y PIANISTA
         Row(children: [
-          Expanded(child: TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director de Himnos'))),
+          Expanded(child: TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música'))),
           const SizedBox(width: 10),
           Expanded(child: TextFormField(controller: _pianistController, decoration: const InputDecoration(labelText: 'Pianista'))),
         ]),
         const SizedBox(height: 12),
 
-        // 1. ORACIÓN DE APERTURA CON BOTÓN
+        // 3. PRIMERA ORACIÓN
         Row(
           children: [
             Expanded(
               child: TextFormField(
                 controller: _openingPrayerController,
-                decoration: const InputDecoration(labelText: 'Oración de Apertura'),
+                decoration: const InputDecoration(labelText: 'Primera Oración'),
               ),
             ),
             const SizedBox(width: 8),
@@ -554,14 +556,15 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           ),
 
         const SizedBox(height: 25),
-        TextFormField(controller: _closingHymnController, decoration: const InputDecoration(labelText: 'Himno de Cierre')),
+        // 4. ÚLTIMO HIMNO
+        TextFormField(controller: _closingHymnController, decoration: const InputDecoration(labelText: 'Último Himno')),
         const SizedBox(height: 12),
 
-        // 4. ORACIÓN DE CIERRE CON BOTÓN
+        // 5. ÚLTIMA ORACIÓN
         Row(
           children: [
             Expanded(
-              child: TextFormField(controller: _closingPrayerController, decoration: const InputDecoration(labelText: 'Oración de Cierre')),
+              child: TextFormField(controller: _closingPrayerController, decoration: const InputDecoration(labelText: 'Última Oración')),
             ),
             const SizedBox(width: 8),
             IconButton(
@@ -585,6 +588,12 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     String? topic,
     String duration = "8",
   }) async {
+    // VALIDACIÓN IMPORTANTE: Si no hay fecha, no podemos imprimir
+    if (_dateController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona primero la fecha de la reunión.')));
+      return;
+    }
+
     if (name.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingrese el nombre primero.')));
       return;

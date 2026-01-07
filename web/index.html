@@ -6,11 +6,15 @@
     <meta charset="UTF-8">
     <meta content="IE=Edge" http-equiv="X-UA-Compatible">
     <meta name="description" content="Proyecto de gestion de reuniones y agendas">
-
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="gestor_lds">
+
     <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
 
     <link rel="icon" type="image/png" href="logo_lds.png" id="dynamic-favicon"/>
 
@@ -20,22 +24,14 @@
     <script>
         function updateFavicon() {
             const favicon = document.getElementById('dynamic-favicon');
-            // Detecta si el usuario prefiere modo oscuro
             const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
-
             if (isDarkMode) {
-                // MODO OSCURO: Usamos el logo blanco
                 favicon.href = 'logo_lds_white.png';
             } else {
-                // MODO CLARO: Usamos el logo original (azul)
                 favicon.href = 'logo_lds.png';
             }
         }
-
-        // Ejecutar al iniciar
         updateFavicon();
-
-        // Escuchar cambios en vivo (por si el usuario cambia el tema del sistema)
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateFavicon);
     </script>
 
@@ -48,7 +44,7 @@
 <style>
     .loader {
         border: 8px solid #f3f3f3;
-        border-top: 8px solid #F57C00; /* Naranja corporativo */
+        border-top: 8px solid #F57C00;
         border-radius: 50%;
         width: 60px;
         height: 60px;
@@ -61,32 +57,33 @@
 </style>
 
 <script>
-    // Este script borra el loading cuando Flutter termina de cargar
     window.addEventListener('load', function(ev) {
-        // Damos un pequeño delay para asegurar que Flutter pintó
         setTimeout(function() {
             var loading = document.getElementById('loading_indicator');
             if (loading) {
                 loading.style.display = 'none';
             }
-        }, 500); // medio segundo extra por seguridad
+        }, 500);
     });
 </script>
-<script src="flutter_bootstrap.js" async></script>
+
+<script src="flutter_bootstrap.js?v=1.6.4" async></script>
+
 <script>
-    // Esperamos a que la ventana cargue
+    // Este bloque asegura que usemos el renderizador HTML (más compatible)
+    // Nota: Si usas flutter_bootstrap.js moderno, a veces esto es redundante,
+    // pero si te funciona bien así, déjalo para no romper nada en el deploy.
     window.addEventListener('load', function(ev) {
-        // Interceptamos el cargador de Flutter
-        _flutter.loader.load({
-            onEntrypointLoaded: async function(engineInitializer) {
-                // Inicializamos el motor forzando HTML
-                const appRunner = await engineInitializer.initializeEngine({
-                    renderer: "html"
-                });
-                // Corremos la app
-                await appRunner.runApp();
-            }
-        });
+        if ("_flutter" in window && "_flutter.loader" in window) {
+            _flutter.loader.load({
+                onEntrypointLoaded: async function(engineInitializer) {
+                    const appRunner = await engineInitializer.initializeEngine({
+                        renderer: "html"
+                    });
+                    await appRunner.runApp();
+                }
+            });
+        }
     });
 </script>
 </body>
