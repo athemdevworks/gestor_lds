@@ -129,14 +129,20 @@ class HomeScreen extends StatelessWidget {
               _buildGridOrList(
                 isWideScreen,
                 children: [
-                  // --- ACTIVIDADES (Movido aquí) ---
+                // --- ACTIVIDADES ---
                   _DashboardCard(
                     title: 'ACTIVIDADES',
                     subtitle: 'Planificación anual',
                     icon: Icons.local_activity,
                     iconColor: Colors.orange.shade700,
                     textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ActivitiesScreen())),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        // 1. Quitamos 'const'
+                        // 2. Pasamos el argumento 'currentUser' con tu variable 'user'
+                        builder: (_) => ActivitiesScreen(currentUser: user),
+                      ),
+                    ),
                   ),
                   _DashboardCard(
                     title: 'AGENDAS',
@@ -147,7 +153,7 @@ class HomeScreen extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeetingsListScreen(currentUser: user))),
                   ),
                   _DashboardCard(
-                    title: 'COMPROMISOS',
+                    title: 'MIS COMPROMISOS',
                     subtitle: 'Mis tareas pendientes',
                     icon: Icons.task_alt,
                     iconColor: Colors.green.shade700,

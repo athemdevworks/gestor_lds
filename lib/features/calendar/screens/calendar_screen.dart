@@ -7,16 +7,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
 import 'package:gestor_lds/features/activities/models/activity_model.dart';
-import 'package:gestor_lds/features/auth/models/user_model.dart'; // <--- Necesario para el rol
-import 'package:gestor_lds/features/meetings/utils/meeting_types.dart'; // Necesario para tipos
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 
-// PANTALLAS DE MÓDULO (Para la redirección)
+// PANTALLAS DE MÓDULO
 import 'package:gestor_lds/features/meetings/screens/meeting_detail_screen.dart';
-import 'package:gestor_lds/features/activities/screens/activities_screen.dart'; // <--- Redirección Actividad
-import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart'; // <--- Redirección Compromiso
+import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
+import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
+
+import '../../activities/screens/activity_form_screen.dart';
+import '../widgets/activity_detail_dialog.dart';
 
 class CalendarScreen extends StatefulWidget {
-  // RECIBIMOS EL USUARIO PARA FILTRAR
   final UserModel currentUser;
 
   const CalendarScreen({super.key, required this.currentUser});
@@ -45,6 +47,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadEvents() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     final Map<DateTime, List<dynamic>> newEvents = {};
@@ -55,25 +58,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
       for (var doc in meetingsSnap.docs) {
         final meeting = MeetingModel.fromMap(doc.data(), doc.id);
 
-        // --- FILTRO DE SEGURIDAD ---
         bool canView = false;
-
         // A. Obispado ve TODO
         if (widget.currentUser.role == UserRole.obispado) {
           canView = true;
         }
         // B. Líderes
         else if (widget.currentUser.role == UserRole.lider) {
-          // No ven Sacramental (Regla nueva)
           if (meeting.type == MeetingType.sacramental) {
             canView = false;
-          }
-          // Ven Consejo de Barrio y lo suyo
-          else if (meeting.type == MeetingType.wardCouncil || meeting.organization == widget.currentUser.organization) {
+          } else if (meeting.type == MeetingType.wardCouncil || meeting.organization == widget.currentUser.organization) {
             canView = true;
           }
         }
-        // C. Miembros (Si ocultamos sacramental, no ven nada aquí)
+        // C. Miembros (Si ocultamos sacramental, no ven nada aquí por ahora)
 
         if (canView) {
           final dateKey = _normalizeDate(meeting.date);
@@ -87,9 +85,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       for (var doc in commitmentsSnap.docs) {
         final commitment = CommitmentModel.fromMap(doc.data(), doc.id);
 
-        // Solo mostramos compromisos asignados al usuario actual (Privacidad)
-        // O si es Obispado podría ver todos, pero en calendario personal mejor solo los suyos.
-        if (commitment.assignedTo == widget.currentUser.uid || widget.currentUser.role == UserRole.obispado) {
+        // Solo mostrar mis compromisos o si soy obispado (opcional)
+        if (commitment.assignedTo == widget.currentUser.uid) {
           final dateKey = _normalizeDate(commitment.dueDate);
           if (newEvents[dateKey] == null) newEvents[dateKey] = [];
           newEvents[dateKey]!.add(commitment);
@@ -128,12 +125,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendario del Barrio')),
+      appBar: AppBar(
+        title: const Text('Calendario del Barrio'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar',
+            onPressed: _loadEvents,
+          )
+        ],
+      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
-          // CALENDARIO (Visual igual)
+          // CALENDARIO
           Card(
             margin: const EdgeInsets.all(12.0),
             elevation: 3,
@@ -152,7 +158,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 onDaySelected: (selectedDay, focusedDay) => setState(() { _selectedDay = selectedDay; _focusedDay = focusedDay; }),
                 eventLoader: _getEventsForDay,
 
-                // BUILDERS (Visual igual)
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (context, day, focusedDay) {
                     if (day.weekday == DateTime.saturday || day.weekday == DateTime.sunday) return _buildGridCell(day, textColor: Colors.grey.shade700);
@@ -191,7 +196,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
           const Divider(),
 
-          // LISTA DE DETALLES CON NUEVA NAVEGACIÓN
+          // LISTA DE DETALLES
           Expanded(
             child: _selectedDay == null
                 ? const Center(child: Text('Selecciona un día'))
@@ -206,7 +211,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   itemBuilder: (context, index) {
                     final event = events[index];
 
-                    // A. REUNIÓN -> Va a Detalle (Correcto)
+                    // A. REUNIÓN -> Va a Detalle
                     if (event is MeetingModel) {
                       return Card(
                         elevation: 2, margin: const EdgeInsets.only(bottom: 10), shape: Border(left: BorderSide(color: colorMeeting, width: 5)),
@@ -215,25 +220,48 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           title: Text(event.type.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('${event.time} - Preside: ${event.presidedBy}'),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () {
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => MeetingDetailScreen(meeting: event)));
+                          onTap: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => MeetingDetailScreen(meeting: event)));
+                            _loadEvents(); // Recargar al volver
                           },
                         ),
                       );
                     }
 
-                    // B. ACTIVIDAD -> Va al Módulo de Actividades (Lista General)
+// B. ACTIVIDAD
                     else if (event is ActivityModel) {
                       return Card(
-                        elevation: 2, margin: const EdgeInsets.only(bottom: 10), shape: Border(left: BorderSide(color: colorActivity, width: 5)),
+                        elevation: 2,
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: Border(left: BorderSide(color: colorActivity, width: 5)),
                         child: ListTile(
                           leading: Icon(Icons.local_activity, color: colorActivity),
                           title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('${event.time} - ${event.location}'),
-                          trailing: const Icon(Icons.open_in_new), // Icono de "Ir a módulo"
-                          onTap: () {
-                            // NAVEGAR AL MÓDULO PRINCIPAL DE ACTIVIDADES
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => const ActivitiesScreen()));
+
+                          // CAMBIO 1: Icono diferente según rol
+                          trailing: widget.currentUser.role == UserRole.miembro
+                              ? const Icon(Icons.visibility, color: Colors.grey) // Ojo para ver
+                              : const Icon(Icons.edit, color: Colors.blue),      // Lápiz para editar
+
+                          onTap: () async {
+                            // CAMBIO 2: Lógica de Navegación por Rol
+
+                            if (widget.currentUser.role == UserRole.miembro) {
+                              // CASO A: MIEMBRO -> Solo ve detalles
+                              showDialog(
+                                  context: context,
+                                  builder: (ctx) => ActivityDetailDialog(activity: event)
+                              );
+                            } else {
+                              // CASO B: LÍDER/OBISPADO -> Puede Editar
+                              // Navegamos directamente al formulario en modo edición
+                              await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => ActivityFormScreen(activityToEdit: event))
+                              );
+                              _loadEvents(); // Recargar al volver por si editó algo
+                            }
                           },
                         ),
                       );
@@ -248,9 +276,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           title: Text(event.description),
                           subtitle: Text('Vence: ${DateFormat('dd/MM').format(event.dueDate)}'),
                           trailing: const Icon(Icons.open_in_new),
-                          onTap: () {
-                            // NAVEGAR AL MÓDULO PRINCIPAL DE COMPROMISOS
-                            Navigator.push(context, MaterialPageRoute(builder: (context) => MyCommitmentsScreen(currentUser: widget.currentUser)));
+                          onTap: () async {
+                            await Navigator.push(context, MaterialPageRoute(builder: (context) => MyCommitmentsScreen(currentUser: widget.currentUser)));
+                            _loadEvents(); // Recargar al volver
                           },
                         ),
                       );
@@ -266,6 +294,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  // --- WIDGETS AUXILIARES (Visuales) ---
   Widget _buildGridCell(DateTime day, {Color? backColor, Color? textColor}) {
     return Container(
       margin: const EdgeInsets.all(0), decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300, width: 0.5)),

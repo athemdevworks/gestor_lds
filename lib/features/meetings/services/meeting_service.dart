@@ -6,9 +6,9 @@ import '../models/agenda_item_model.dart';
 
 class MeetingService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  static const String _collectionName = 'meetings'; // El nombre de la colección
+  static const String _collectionName = 'meetings';
 
-  // 1. CREAR / GUARDAR una nueva reunión
+  // 1. CREAR / GUARDAR
   Future<void> saveMeeting({
     required MeetingType type,
     required DateTime date,
@@ -17,49 +17,77 @@ class MeetingService {
     required String directedBy,
     String? organization,
     SacramentAgendaModel? sacramentAgenda,
-
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
-
   }) async {
-    // 1. Creamos una referencia al documento para obtener el ID antes de guardar
     final docRef = _db.collection(_collectionName).doc();
 
-    // 2. Creamos el objeto MeetingModel
     final newMeeting = MeetingModel(
-      id: docRef.id, // Asignamos el ID del documento al modelo
+      id: docRef.id,
       type: type,
       date: date,
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
       organization: organization,
-      sacramentAgenda: sacramentAgenda, // <-- Asegúrate de pasarlo
+      sacramentAgenda: sacramentAgenda,
       agendaItems: agendaItems,
       commitments: commitments,
     );
 
-    // 3. Guardamos el mapa en Firestore
     await docRef.set(newMeeting.toMap());
   }
 
-  // 2. OBTENER todas las reuniones (en stream para reactividad)
+  // --- NUEVOS MÉTODOS DE CONSULTA (Próximas vs Historial) ---
+
+  // A. OBTENER PRÓXIMAS REUNIONES (Desde Hoy en adelante)
+  Stream<List<MeetingModel>> getUpcomingMeetings() {
+    final now = DateTime.now();
+    // Normalizamos a las 00:00:00 horas para no perder reuniones de hoy
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    return _db
+        .collection(_collectionName)
+        .where('date', isGreaterThanOrEqualTo: todayStart)
+        .orderBy('date', descending: false) // La más cercana primero (Ascendente)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .toList());
+  }
+
+  // B. OBTENER HISTORIAL (Pasadas, con límite de fecha)
+  Stream<List<MeetingModel>> getHistoryMeetings(DateTime limitDate) {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    return _db
+        .collection(_collectionName)
+        .where('date', isLessThan: todayStart) // Solo pasadas
+        .where('date', isGreaterThanOrEqualTo: limitDate) // Límite del filtro (ej: 1 mes)
+        .orderBy('date', descending: true) // La más reciente primero
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .toList());
+  }
+
+  // (Mantenemos el general por si acaso, aunque usaremos los de arriba)
   Stream<List<MeetingModel>> getMeetings() {
     return _db
         .collection(_collectionName)
-    // Ordenamos por fecha, las más recientes primero
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
-        // Mapeamos cada documento al MeetingModel
         return MeetingModel.fromMap(doc.data(), doc.id);
       }).toList();
     });
   }
 
+  // 2. ACTUALIZAR
   Future<void> updateMeeting({
-    required String id, // <-- Id necesario para saber qué documento modificar
+    required String id,
     required MeetingType type,
     required DateTime date,
     required String time,
@@ -67,11 +95,9 @@ class MeetingService {
     required String directedBy,
     String? organization,
     SacramentAgendaModel? sacramentAgenda,
-
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
   }) async {
-    // 1. Creamos el objeto MeetingModel con los nuevos datos
     final updatedMeeting = MeetingModel(
       id: id,
       type: type,
@@ -85,20 +111,16 @@ class MeetingService {
       commitments: commitments,
     );
 
-    // 2. Referencia al documento existente
-    final docRef = _db.collection('meetings').doc(id); // <--- USAR '_db'
+    final docRef = _db.collection(_collectionName).doc(id);
 
-    // 3. Modificamos el documento usando el metodo set con merge: true
-    // Merge asegura que solo los campos proporcionados se actualicen.
     await docRef.set(
         updatedMeeting.toMap(),
         SetOptions(merge: true)
     );
   }
 
-  // 3. ELIMINAR una reunión por su ID
+  // 3. ELIMINAR
   Future<void> deleteMeeting(String meetingId) async {
     await _db.collection(_collectionName).doc(meetingId).delete();
   }
-
 }

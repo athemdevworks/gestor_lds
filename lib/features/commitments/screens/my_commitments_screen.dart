@@ -4,132 +4,184 @@ import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
 import 'package:gestor_lds/features/commitments/services/commitment_service.dart';
 
-class MyCommitmentsScreen extends StatelessWidget {
+class MyCommitmentsScreen extends StatefulWidget {
   final UserModel currentUser;
 
-  // Instanciamos el servicio como propiedad de la clase
-  final CommitmentService _commitmentService = CommitmentService();
+  const MyCommitmentsScreen({super.key, required this.currentUser});
 
-  MyCommitmentsScreen({super.key, required this.currentUser});
+  @override
+  State<MyCommitmentsScreen> createState() => _MyCommitmentsScreenState();
+}
+
+class _MyCommitmentsScreenState extends State<MyCommitmentsScreen> with SingleTickerProviderStateMixin {
+  final CommitmentService _commitmentService = CommitmentService();
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   @override
   Widget build(BuildContext context) {
+    // Color corporativo (puedes usar Theme.of(context).primaryColor si prefieres)
+    const brandBlue = Color(0xFF164772);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mis Compromisos'),
+        backgroundColor: brandBlue,
+        foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: Colors.orange, // Un toque de color para resaltar la selección
+          tabs: const [
+            Tab(text: 'PENDIENTES', icon: Icon(Icons.assignment_late_outlined)),
+            Tab(text: 'HISTORIAL', icon: Icon(Icons.assignment_turned_in_outlined)),
+          ],
+        ),
       ),
       body: StreamBuilder<List<CommitmentModel>>(
-        // Llama al servicio filtrando por el UID del usuario actual
-        stream: _commitmentService.getCommitmentsForUser(currentUser.uid),
+        stream: _commitmentService.getCommitmentsForUser(widget.currentUser.uid),
         builder: (context, snapshot) {
 
-          // 1. Estado de Carga
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // 2. Estado de Error
           if (snapshot.hasError) {
-            return Center(child: Text('Error al cargar datos: ${snapshot.error}'));
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final commitments = snapshot.data ?? [];
+          final allCommitments = snapshot.data ?? [];
 
-          // 3. Estado Vacío
-          if (commitments.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.thumb_up_alt_outlined, size: 60, color: Colors.green.shade300),
-                  const SizedBox(height: 20),
-                  const Text(
-                    '¡Estás al día! No tienes compromisos pendientes.',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                ],
-              ),
-            );
-          }
+          // Separamos la lista en dos
+          final pendingList = allCommitments.where((c) => !c.isCompleted).toList();
+          final completedList = allCommitments.where((c) => c.isCompleted).toList();
 
-          // 4. Lista de Compromisos
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: commitments.length,
-            separatorBuilder: (context, index) => const Divider(),
-            itemBuilder: (context, index) {
-              final commitment = commitments[index];
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              // PESTAÑA 1: PENDIENTES
+              _buildCommitmentList(pendingList, isHistory: false),
 
-              // Verificamos si está vencido y aún no se completa
-              final isOverdue = commitment.dueDate.isBefore(DateTime.now())
-                  && !commitment.isCompleted;
-
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Checkbox(
-                  value: commitment.isCompleted,
-                  activeColor: Theme.of(context).primaryColor,
-                  onChanged: (bool? value) {
-                    // Actualizar estado en Firestore
-                    if (value != null) {
-                      _commitmentService.toggleCompletion(commitment.id, value);
-                    }
-                  },
-                ),
-                title: Text(
-                  commitment.description,
-                  style: TextStyle(
-                    decoration: commitment.isCompleted ? TextDecoration.lineThrough : null,
-                    color: commitment.isCompleted ? Colors.grey : Colors.black87,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    // Mostrar Referencia al Tema (Si existe)
-                    if (commitment.agendaItemTopic != null && commitment.agendaItemTopic!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4.0),
-                        child: Text(
-                          'Ref: ${commitment.agendaItemTopic}',
-                          style: TextStyle(fontSize: 12, color: Theme.of(context).primaryColor),
-                        ),
-                      ),
-
-                    // Fecha de Vencimiento
-                    Row(
-                      children: [
-                        Icon(
-                            Icons.calendar_today,
-                            size: 14,
-                            color: isOverdue ? Colors.red : Colors.grey
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Vence: ${DateFormat('dd/MM/yyyy').format(commitment.dueDate)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isOverdue ? Colors.red : Colors.grey.shade700,
-                            fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: isOverdue
-                    ? const Tooltip(
-                  message: 'Compromiso Vencido',
-                  child: Icon(Icons.warning_amber_rounded, color: Colors.red),
-                )
-                    : null,
-              );
-            },
+              // PESTAÑA 2: HISTORIAL
+              _buildCommitmentList(completedList, isHistory: true),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildCommitmentList(List<CommitmentModel> list, {required bool isHistory}) {
+    if (list.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+                isHistory ? Icons.history : Icons.thumb_up_alt_outlined,
+                size: 60,
+                color: Colors.grey.shade300
+            ),
+            const SizedBox(height: 20),
+            Text(
+              isHistory
+                  ? 'No tienes tareas completadas aún.'
+                  : '¡Estás al día! No tienes pendientes.',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: list.length,
+      separatorBuilder: (context, index) => const Divider(),
+      itemBuilder: (context, index) {
+        final commitment = list[index];
+
+        // Lógica de vencimiento (solo importa si no está completado)
+        final isOverdue = !commitment.isCompleted &&
+            commitment.dueDate.isBefore(DateTime.now().subtract(const Duration(days: 1)));
+
+        return ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Transform.scale(
+            scale: 1.2,
+            child: Checkbox(
+              value: commitment.isCompleted,
+              activeColor: Colors.green,
+              shape: const CircleBorder(),
+              onChanged: (bool? value) {
+                if (value != null) {
+                  _commitmentService.toggleCompletion(commitment.id, value);
+                }
+              },
+            ),
+          ),
+          title: Text(
+            commitment.description,
+            style: TextStyle(
+              decoration: commitment.isCompleted ? TextDecoration.lineThrough : null,
+              color: commitment.isCompleted ? Colors.grey : Colors.black87,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              // Referencia al tema
+              if (commitment.agendaItemTopic != null && commitment.agendaItemTopic!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Ref: ${commitment.agendaItemTopic}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                  ),
+                ),
+
+              const SizedBox(height: 4),
+
+              // Fecha
+              Row(
+                children: [
+                  Icon(
+                      Icons.calendar_today,
+                      size: 13,
+                      color: isOverdue ? Colors.red : Colors.grey
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Vence: ${DateFormat('dd/MM/yyyy').format(commitment.dueDate)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isOverdue ? Colors.red : Colors.grey.shade700,
+                      fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  if (isOverdue)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8.0),
+                      child: Text("(Vencido)", style: TextStyle(color: Colors.red, fontSize: 12, fontStyle: FontStyle.italic)),
+                    )
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
