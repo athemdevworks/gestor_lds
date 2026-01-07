@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Para Clipboard
 import 'package:intl/intl.dart';
-import 'package:add_2_calendar/add_2_calendar.dart'; // ¡Importante!
-
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:flutter/foundation.dart'; // Para detectar kIsWeb
+import 'package:url_launcher/url_launcher.dart'; // Para abrir enlaces en Web
 import 'package:gestor_lds/features/activities/models/activity_model.dart';
 import 'package:gestor_lds/features/activities/services/activity_service.dart';
 import 'package:gestor_lds/features/activities/screens/activity_form_screen.dart';
@@ -327,7 +328,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
   }
 
   // Lógica de Calendario
-  void _addToCalendar(ActivityModel activity) {
+  void _addToCalendar(ActivityModel activity) async {
     DateTime startDate = activity.date;
     try {
       final timeParts = DateFormat.jm().parse(activity.time); // Intenta "10:00 AM"
@@ -337,12 +338,37 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
       startDate = DateTime(activity.date.year, activity.date.month, activity.date.day, 19, 0);
     }
 
+    // Duración por defecto 2 horas
+    final DateTime endDate = startDate.add(const Duration(hours: 2));
+
+    // ---------------------------------------------
+    // 🌐 LÓGICA WEB: Abrir Google Calendar en pestaña
+    // ---------------------------------------------
+    if (kIsWeb) {
+      final String googleUrl = 'https://www.google.com/calendar/render?action=TEMPLATE'
+          '&text=${Uri.encodeComponent(activity.title)}'
+          '&details=${Uri.encodeComponent(activity.description)}'
+          '&location=${Uri.encodeComponent(activity.location)}'
+          '&dates=${DateFormat("yyyyMMdd'T'HHmmss").format(startDate)}/${DateFormat("yyyyMMdd'T'HHmmss").format(endDate)}';
+
+      final Uri uri = Uri.parse(googleUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se pudo abrir el calendario web")));
+      }
+      return; // ¡Importante! Salimos aquí para no ejecutar código móvil
+    }
+
+    // ---------------------------------------------
+    // 📱 LÓGICA MÓVIL (Android/iOS): Usar app nativa
+    // ---------------------------------------------
     final Event event = Event(
       title: activity.title,
       description: activity.description,
       location: activity.location,
       startDate: startDate,
-      endDate: startDate.add(const Duration(hours: 2)),
+      endDate: endDate,
     );
     Add2Calendar.addEvent2Cal(event);
   }
