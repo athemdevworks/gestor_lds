@@ -9,6 +9,8 @@ import '../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
 import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
 import 'package:gestor_lds/features/communications/screens/whatsapp_sender_screen.dart';
+import 'package:gestor_lds/features/members/screens/members_screen.dart';
+import 'package:gestor_lds/features/dashboard//widgets/birthdays_card.dart';
 
 class HomeScreen extends StatelessWidget {
   final UserModel user;
@@ -82,6 +84,14 @@ class HomeScreen extends StatelessWidget {
           children: [
             _buildWelcomeBanner(context),
             const SizedBox(height: 30),
+
+            //Cumpleaños
+            SizedBox(
+              height: 250, // Altura para la lista de cumples
+              width: double.infinity,
+              child: BirthdaysCard(),
+            ),
+            const SizedBox(height: 20),
 
             // SECCIÓN 1: MÓDULOS PRINCIPALES (Ahora Calendario y Entrevistas)
             const Text(
@@ -195,6 +205,21 @@ class HomeScreen extends StatelessWidget {
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WhatsAppSenderScreen()));
                     },
                   ),
+
+                  _DashboardCard(
+                    title: 'DIRECTORIO',
+                    subtitle: 'Listado de Miembros',
+                    icon: Icons.people_alt_rounded,
+                    iconColor: Colors.deepOrange,
+                    textColor: Colors.black,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MembersScreen()),
+                      );
+                    },
+                  ),
+
                 ],
               ),
             ],

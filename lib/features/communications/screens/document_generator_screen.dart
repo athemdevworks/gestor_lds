@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
+// 1. IMPORTAMOS EL NUEVO WIDGET
+import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
 
 class DocumentGeneratorScreen extends StatefulWidget {
   const DocumentGeneratorScreen({super.key});
@@ -27,7 +29,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   String _selectedLeader = 'OBISPO';
 
   // Estado
-  bool _isMale = false;
+  bool _isMale = false; // Se actualizará solo al seleccionar miembro
 
   @override
   void initState() {
@@ -73,14 +75,14 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  // --- FORMULARIO DE ASIGNACIONES (Discursos/Oraciones) ---
+  // --- FORMULARIO DE ASIGNACIONES ---
   Widget _buildAssignmentForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildCommonFields(),
+          _buildCommonFields(), // Aquí adentro está la magia ahora
           const SizedBox(height: 20),
 
           const Text('Detalles de Asignación', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -153,20 +155,38 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  // --- CAMPOS COMUNES (Nombre, Género, Fecha, Hora) ---
+  // --- CAMPOS COMUNES (Ahora con Autocompletado Inteligente) ---
   Widget _buildCommonFields() {
     return Column(
       children: [
-        TextField(
+        // 2. REEMPLAZO DEL TEXTFIELD POR EL AUTOCOMPLETE
+        MemberAutocompleteField(
+          label: 'Nombre del Miembro',
           controller: _nameController,
-          decoration: const InputDecoration(labelText: 'Nombre del Miembro', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
+          icon: Icons.person_search,
+          // 3. MAGIA: Detectar Género Automáticamente
+          onMemberSelected: (member) {
+            setState(() {
+              // Si el miembro es 'M' (Male), isMale es true. Si es 'F', es false.
+              _isMale = member.gender == 'M';
+            });
+
+            // Feedback visual opcional
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Seleccionado: ${member.fullName} (${member.gender == 'M' ? "Hermano" : "Hermana"})'),
+              duration: const Duration(seconds: 1),
+            ));
+          },
         ),
+
         const SizedBox(height: 15),
 
         Row(
           children: [
             const Text('Género: ', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 10),
+            // Mantenemos el ToggleButtons por si quieres cambiarlo manualmente después
             ToggleButtons(
               isSelected: [!_isMale, _isMale],
               onPressed: (index) => setState(() => _isMale = index == 1),
@@ -207,7 +227,10 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   }
 
   void _generateAssignmentPdf() async {
-    if (_nameController.text.isEmpty) return;
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+      return;
+    }
     await _citationService.generateSacramentAssignment(
       name: _nameController.text,
       isMale: _isMale,
@@ -220,7 +243,10 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   }
 
   void _generateInterviewPdf() async {
-    if (_nameController.text.isEmpty) return;
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+      return;
+    }
     await _citationService.generateInterviewCitation(
       name: _nameController.text,
       isMale: _isMale,

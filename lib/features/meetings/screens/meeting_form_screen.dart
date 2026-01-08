@@ -8,6 +8,7 @@ import 'package:gestor_lds/features/meetings/widgets/agenda_list_editor.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 import 'package:gestor_lds/features/meetings/models/ward_business_model.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
+import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
 
 class MeetingFormScreen extends StatefulWidget {
   final MeetingModel? meetingToEdit;
@@ -342,9 +343,9 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                     readOnly: true, onTap: _selectTime, validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(controller: _presidedByController, decoration: const InputDecoration(labelText: 'Preside', border: OutlineInputBorder())),
+                  MemberAutocompleteField( label: 'Preside', controller: _presidedByController, icon: Icons.person_outline, ),
                   const SizedBox(height: 12),
-                  TextFormField(controller: _directedByController, decoration: const InputDecoration(labelText: 'Dirige', border: OutlineInputBorder())),
+                  MemberAutocompleteField( label: 'Dirige', controller: _directedByController, icon: Icons.person_outline, ),
                   const SizedBox(height: 30),
 
                   if (isSacramentalMeeting)
@@ -413,20 +414,18 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
         // 2. DIRECTOR DE MÚSICA Y PIANISTA
         Row(children: [
-          Expanded(child: TextFormField(controller: _choristerController, decoration: const InputDecoration(labelText: 'Director(a) de Música'))),
+          Expanded(child: MemberAutocompleteField( label: 'Director(a) de Música', controller: _choristerController, icon: Icons.person_outline, ),
+          ),
           const SizedBox(width: 10),
-          Expanded(child: TextFormField(controller: _pianistController, decoration: const InputDecoration(labelText: 'Pianista'))),
+          Expanded(child: MemberAutocompleteField( label: 'Pianista', controller: _pianistController, icon: Icons.person_outline, ),
+          ),
         ]),
         const SizedBox(height: 12),
 
         // 3. PRIMERA ORACIÓN
         Row(
           children: [
-            Expanded(
-              child: TextFormField(
-                controller: _openingPrayerController,
-                decoration: const InputDecoration(labelText: 'Primera Oración'),
-              ),
+            Expanded(child: MemberAutocompleteField( label: 'Primera Oración', controller: _openingPrayerController, icon: Icons.person_outline, ),
             ),
             const SizedBox(width: 8),
             IconButton(
@@ -509,8 +508,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
               // 2. PRIMER DISCURSANTE CON BOTÓN
               Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(controller: _firstSpeakerNameController, decoration: const InputDecoration(labelText: '1er Discursante')),
+                  Expanded(child: MemberAutocompleteField( label: '1er Discursante', controller: _firstSpeakerNameController, icon: Icons.person_outline, ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
@@ -534,8 +532,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
               // 3. SEGUNDO DISCURSANTE CON BOTÓN
               Row(
                 children: [
-                  Expanded(
-                    child: TextFormField(controller: _secondSpeakerNameController, decoration: const InputDecoration(labelText: '2do Discursante')),
+                  Expanded(child: MemberAutocompleteField( label: '2do Discursante', controller: _secondSpeakerNameController, icon: Icons.person_outline, ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
@@ -563,8 +560,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         // 5. ÚLTIMA ORACIÓN
         Row(
           children: [
-            Expanded(
-              child: TextFormField(controller: _closingPrayerController, decoration: const InputDecoration(labelText: 'Última Oración')),
+            Expanded(child: MemberAutocompleteField( label: 'Última Oración', controller: _closingPrayerController, icon: Icons.person_outline, ),
             ),
             const SizedBox(width: 8),
             IconButton(
