@@ -65,6 +65,7 @@
             if (splash) {
                 // 1. Iniciar la transición de opacidad a transparente (0)
                 splash.style.opacity = "0";
+                splash.style.pointerEvents = "none";
 
                 // 2. Esperar 500ms (lo que dura la animación CSS) antes de destruir el elemento
                 setTimeout(function() {
@@ -86,6 +87,13 @@
 <script src="flutter_bootstrap.js?v=1.7.0" async=""></script>
 
 <script>
+    // 1. Iniciamos un "Seguro de Vida": Si en 4 segundos no se ha ido el splash, lo forzamos.
+    // Esto previene que el usuario se quede pegado al recargar con F5.
+    var safetyTimer = setTimeout(function() {
+        console.log("⚠️ Forzando retiro del Splash por tiempo límite.");
+        removeSplashFromWeb();
+    }, 2000);
+
     window.addEventListener('load', function(ev) {
         _flutter.loader.load({
             onEntrypointLoaded: async function(engineInitializer) {
@@ -93,12 +101,11 @@
                     renderer: "html"
                 });
 
-                // Arranca la App
                 await appRunner.runApp();
 
-                // --- SOLUCIÓN ---
-                // Una vez que la app arrancó, llamamos manualmente a la función de quitar el splash
-                // Esto ejecutará tu animación de "Disolver" definida arriba.
+                // 2. Si la app cargó bien antes de los 4 seg, cancelamos el seguro
+                // y quitamos el splash normalmente.
+                clearTimeout(safetyTimer);
                 removeSplashFromWeb();
             }
         });
