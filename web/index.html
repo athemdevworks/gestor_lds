@@ -35,54 +35,82 @@
 
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 
-    <style id="splash-screen-style">
-        html { height: 100% }
-        body { margin: 0; min-height: 100%; background-color: #FFFFFF; background-size: 100% 100%; }
-        .center { margin: 0; position: absolute; top: 50%; left: 50%; -ms-transform: translate(-50%, -50%); transform: translate(-50%, -50%); }
-        .contain { display:block; width:100%; height:100%; object-fit: contain; }
-        .stretch { display:block; width:100%; height:100%; }
-        .cover { display:block; width:100%; height:100%; object-fit: cover; }
-        .bottom { position: absolute; bottom: 0; left: 50%; -ms-transform: translate(-50%, 0); transform: translate(-50%, 0); }
-        .bottomLeft { position: absolute; bottom: 0; left: 0; }
-        .bottomRight { position: absolute; bottom: 0; right: 0; }
-        #splash {
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            z-index: 9999;
-            background-color: #FFFFFF; /* Fondo blanco para que tape la app mientras carga */
-            transition: opacity 0.4s ease-out; /* La magia: tarda medio segundo en cambiar opacidad */
-            opacity: 1;
-        }
-    </style>
+    
 
-    <script id="splash-screen-script">
-        function removeSplashFromWeb() {
-            const splash = document.getElementById("splash");
+    
+  <style id="splash-screen-style">
+    html {
+      height: 100%
+    }
 
-            if (splash) {
-                // 1. Iniciar la transición de opacidad a transparente (0)
-                splash.style.opacity = "0";
-                splash.style.pointerEvents = "none";
+    body {
+      margin: 0;
+      min-height: 100%;
+      background-color: #FFFFFF;
+          background-size: 100% 100%;
+    }
 
-                // 2. Esperar 500ms (lo que dura la animación CSS) antes de destruir el elemento
-                setTimeout(function() {
-                    splash.remove();
-                    document.getElementById("splash-branding")?.remove();
-                    document.body.style.background = "transparent";
-                }, 500);
-            }
-        }
-    </script>
+    .center {
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
+    }
+
+    .contain {
+      display:block;
+      width:100%; height:100%;
+      object-fit: contain;
+    }
+
+    .stretch {
+      display:block;
+      width:100%; height:100%;
+    }
+
+    .cover {
+      display:block;
+      width:100%; height:100%;
+      object-fit: cover;
+    }
+
+    .bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      -ms-transform: translate(-50%, 0);
+      transform: translate(-50%, 0);
+    }
+
+    .bottomLeft {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    .bottomRight {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+    }
+  </style>
+  <script id="splash-screen-script">
+    function removeSplashFromWeb() {
+      document.getElementById("splash")?.remove();
+      document.getElementById("splash-branding")?.remove();
+      document.body.style.background = "transparent";
+    }
+  </script>
 </head>
 <body>
-<picture id="splash">
-    <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
-    <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
-    <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
-</picture>
+  <picture id="splash">
+      <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
+      <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
+      <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
+  </picture>
+
 
 <script src="flutter_bootstrap.js?v=1.7.0" async=""></script>
 
