@@ -3,11 +3,12 @@ import '../models/member_model.dart';
 
 class MemberService {
   final CollectionReference _membersRef = FirebaseFirestore.instance.collection('members');
+  final CollectionReference _usersRef = FirebaseFirestore.instance.collection('users');
 
   // Crear o Actualizar Miembro
   Future<void> saveMember(MemberModel member) async {
+    // Si el ID viene vacío, dejamos que Firestore genere uno, si no, usamos el ID que traemos
     final docRef = member.id.isEmpty ? _membersRef.doc() : _membersRef.doc(member.id);
-
     await docRef.set(member.toMap(), SetOptions(merge: true));
   }
 
@@ -20,12 +21,8 @@ class MemberService {
     });
   }
 
-  // Buscar miembros por nombre (para el Autocomplete)
+  // Buscar miembros (Filtro en cliente por ahora)
   Future<List<MemberModel>> searchMembers(String query) async {
-    // Nota: Firestore es limitado en búsquedas de texto parcial.
-    // Una técnica simple es traer todo y filtrar en memoria si son < 500 miembros.
-    // O usar un campo "keywords". Por ahora, filtramos en cliente para v1.
-
     final snapshot = await _membersRef.get();
     final allMembers = snapshot.docs.map((doc) => MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
 
@@ -41,77 +38,96 @@ class MemberService {
     await _membersRef.doc(id).delete();
   }
 
+  // --- FUNCIÓN DE IMPORTACIÓN CORREGIDA ---
   Future<void> importUsersToMembers() async {
-    final usersSnapshot = await FirebaseFirestore.instance.collection('users').get();
-
+    final usersSnapshot = await _usersRef.get();
     int count = 0;
 
     for (var userDoc in usersSnapshot.docs) {
-      final userData = userDoc.data();
+      final userData = userDoc.data() as Map<String, dynamic>;
       final userId = userDoc.id;
       final email = userData['email'] as String? ?? '';
 
-      // 1. Evitar duplicados
-      final existingCheck = await _membersRef.where('email', isEqualTo: email).get();
-      if (existingCheck.docs.isNotEmpty) continue;
+      // 1. EVITAR DUPLICADOS (Mejorado)
+      // Primero verificamos si ya existe un miembro con este ID (es lo ideal)
+      final docCheck = await _membersRef.doc(userId).get();
+      if (docCheck.exists) continue;
 
-      // 2. OBTENER DATOS REALES (Ya no adivinamos)
-      // Nota: Uso 'firstName' y 'lastName' asumiendo que así se llaman en Firebase
-      // Si en tu BD se llaman 'nombres' y 'apellidos', cámbialo aquí abajo.
-      String firstName = userData['firstName'] ?? userData['nombres'] ?? '';
-      String lastName = userData['lastName'] ?? userData['apellidos'] ?? '';
+      // Por seguridad, verificamos también por email si el ID no coincidió
+      if (email.isNotEmpty) {
+        final emailCheck = await _membersRef.where('email', isEqualTo: email).get();
+        if (emailCheck.docs.isNotEmpty) continue;
+      }
 
-      // Fallback: Si por alguna razón están vacíos, intentamos separar el 'name' completo
+      // 2. OBTENER DATOS (Mapeo corregido)
+      // Priorizamos 'nombres' y 'apellidos' que es lo que usa tu Registro
+      String firstName = userData['nombres'] ?? userData['firstName'] ?? '';
+      String lastName = userData['apellidos'] ?? userData['lastName'] ?? '';
+
+      // Fallback: Si están vacíos, intentamos separar el 'name'
       if (firstName.isEmpty && userData['name'] != null) {
         List<String> parts = (userData['name'] as String).split(' ');
         firstName = parts.isNotEmpty ? parts[0] : '-';
         lastName = parts.length > 1 ? parts.sublist(1).join(' ') : '';
       }
 
-      String phone = userData['phone'] ?? userData['celular'] ?? '';
-      String calling = userData['calling'] ?? userData['llamamiento'] ?? '';
-      String organization = userData['organization'] ?? userData['organizacion'] ?? 'Sin Asignar';
+      // CORRECCIÓN TELÉFONO: El registro usa 'phoneNumber'
+      String phone = userData['phoneNumber'] ?? userData['phone'] ?? userData['celular'] ?? '';
 
-      // 3. DEFINIR GÉNERO (Esto sí hay que deducirlo o poner default)
-      // Si la organización es de mujeres, ponemos F, si no, asumimos M y luego se edita.
-      String gender = 'M';
-      if (organization.toLowerCase().contains('socorro') ||
-          organization.toLowerCase().contains('mujeres') ||
-          organization.toLowerCase().contains('primaria') || // Usualmente hermanas
-          calling.toLowerCase().contains('hermana') ||
-          calling.toLowerCase().contains('presidenta') ||
-          calling.toLowerCase().contains('consejera') ||
-          calling.toLowerCase().contains('maestra')) {
+      String calling = userData['calling'] ?? userData['llamamiento'] ?? '';
+      String organization = userData['organization'] ?? userData['organizacion'] ?? 'Barrio';
+
+      // CORRECCIÓN FECHA: Convertir Timestamp a DateTime
+      DateTime? birthDate;
+      if (userData['birthDate'] != null) {
+        // Validación de seguridad por si no es Timestamp
+        if (userData['birthDate'] is Timestamp) {
+          birthDate = (userData['birthDate'] as Timestamp).toDate();
+        }
+      }
+
+      // 3. DEFINIR GÉNERO
+      String gender = 'M'; // Default
+      // Lógica automática básica
+      final orgLower = organization.toLowerCase();
+      final callLower = calling.toLowerCase();
+
+      if (orgLower.contains('socorro') ||
+          orgLower.contains('mujeres') ||
+          orgLower.contains('primaria') ||
+          callLower.contains('hermana') ||
+          callLower.contains('presidenta') ||
+          callLower.contains('consejera') ||
+          callLower.contains('maestra')) {
         gender = 'F';
       }
 
       // 4. CREAR EL MIEMBRO
       final newMember = MemberModel(
-        id: '',
+        id: userId, // Usamos el mismo ID del usuario para vincularlos
         firstName: firstName,
         lastName: lastName,
-        fullName: '$firstName $lastName', // Armamos el nombre completo para búsquedas
+        fullName: '$firstName $lastName',
         gender: gender,
         email: email,
-        phone: phone.isNotEmpty ? phone : null,
+        phone: phone, // Ahora sí lleva el teléfono
+        birthDate: birthDate, // Ahora sí lleva la fecha
         organization: organization,
         calling: calling.isNotEmpty ? calling : null,
-        relatedUserId: userId, // ¡Vinculado!
+        relatedUserId: userId,
       );
 
       await saveMember(newMember);
       count++;
     }
 
-    print("Migración Inteligente completada: $count miembros creados.");
+    print("Migración completada: $count miembros importados.");
   }
 
-  // Obtener cumpleañeros de la semana actual
+  // Obtener cumpleañeros de la semana (Lógica mantenida)
   Stream<List<MemberModel>> getBirthdaysThisWeek() {
     return _membersRef.snapshots().map((snapshot) {
       final now = DateTime.now();
-      // Calculamos el rango de la semana (Lunes a Domingo o Hoy a 7 días)
-      // Vamos a hacerlo simple: Próximos 7 días incluyendo hoy.
 
       final members = snapshot.docs.map((doc) {
         return MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
@@ -121,29 +137,22 @@ class MemberService {
         if (m.birthDate == null) return false;
 
         final dob = m.birthDate!;
-        // Creamos una fecha de "cumpleaños este año"
         final birthdayThisYear = DateTime(now.year, dob.month, dob.day);
-
-        // Ajuste por si el cumple ya pasó este año pero es en los próximos días del año siguiente (ej: estamos 30 dic y cumple es 2 ene)
         final birthdayNextYear = DateTime(now.year + 1, dob.month, dob.day);
 
         final diff = birthdayThisYear.difference(now).inDays;
         final diffNext = birthdayNextYear.difference(now).inDays;
 
-        // Si es hoy (0) o en los próximos 7 días
+        // Rango: Hoy (0) hasta próximos 7 días
         return (diff >= 0 && diff <= 7) || (diffNext >= 0 && diffNext <= 7);
       }).toList()
         ..sort((a, b) {
-          // Ordenar por quién cumple primero
           final dobA = a.birthDate!;
           final dobB = b.birthDate!;
-          // Comparar solo mes y día
           final dateA = DateTime(2000, dobA.month, dobA.day);
           final dateB = DateTime(2000, dobB.month, dobB.day);
           return dateA.compareTo(dateB);
         });
     });
-
   }
-
 }

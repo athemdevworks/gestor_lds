@@ -5,6 +5,7 @@ import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
 import 'package:gestor_lds/core/utils/avatar_colors.dart';
+import 'package:intl/intl.dart'; // <--- IMPORTANTE: Para formatear la fecha
 
 class ProfileScreen extends StatefulWidget {
   final UserModel user;
@@ -20,14 +21,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late TextEditingController _nombresController;
   late TextEditingController _apellidosController;
-
-  // --- NUEVO CONTROLADOR ---
   late TextEditingController _phoneController;
-  // -------------------------
 
-  // Variables para los Dropdowns
+  // Variables para los Dropdowns y Fecha
   late String _fixedOrganization;
   String? _selectedCalling;
+  DateTime? _selectedBirthDate; // <--- NUEVO: Variable de estado para la fecha
 
   final UserService _userService = UserService();
   bool _isLoading = false;
@@ -37,9 +36,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _nombresController = TextEditingController(text: widget.user.nombres);
     _apellidosController = TextEditingController(text: widget.user.apellidos);
-
-    // Inicializar con el teléfono actual (si existe)
     _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
+
+    // Inicializar fecha con lo que tenga el usuario (o null)
+    _selectedBirthDate = widget.user.birthDate;
 
     _fixedOrganization = widget.user.organization;
 
@@ -55,23 +55,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nombresController.dispose();
     _apellidosController.dispose();
-    _phoneController.dispose(); // Limpiar
+    _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate() && _selectedCalling != null) {
+
+      // Validación opcional: Fecha obligatoria
+      if (_selectedBirthDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor indica tu fecha de nacimiento')));
+        return;
+      }
+
       setState(() => _isLoading = true);
       try {
+        // Llamamos al servicio enviando TAMBIÉN la fecha
         await _userService.updateUserProfile(
           uid: widget.user.uid,
           nombres: _nombresController.text.trim(),
           apellidos: _apellidosController.text.trim(),
           calling: _selectedCalling!,
-
-          // --- ENVIAR TELÉFONO ---
           phoneNumber: _phoneController.text.trim(),
-          // -----------------------
+          birthDate: _selectedBirthDate, // <--- ENVIAMOS LA FECHA
         );
 
         if (mounted) {
@@ -150,7 +156,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(height: 10),
                         Text(widget.user.email, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
 
-                        // Mostrar Teléfono en la tarjeta si existe
                         if (widget.user.phoneNumber != null && widget.user.phoneNumber!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 4.0),
@@ -160,6 +165,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Icon(Icons.phone, size: 16, color: Colors.grey[600]),
                                 const SizedBox(width: 4),
                                 Text(widget.user.phoneNumber!, style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+
+                        // Mostrar Fecha en la tarjeta también
+                        if (widget.user.birthDate != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.cake, size: 16, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(DateFormat('dd MMM yyyy', 'es').format(widget.user.birthDate!), style: TextStyle(color: Colors.grey[800])),
                               ],
                             ),
                           ),
@@ -187,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 20),
 
-                // FORMULARIO BLINDADO
+                // FORMULARIO DE EDICIÓN
                 Card(
                   elevation: 2,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -215,7 +234,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // --- NUEVO CAMPO EDITABLE ---
                           TextFormField(
                             controller: _phoneController,
                             decoration: const InputDecoration(
@@ -226,7 +244,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             keyboardType: TextInputType.phone,
                           ),
                           const SizedBox(height: 15),
-                          // ----------------------------
+
+                          // --- CAMPO DE FECHA ---
+                          InkWell(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedBirthDate ?? DateTime(2000),
+                                firstDate: DateTime(1920),
+                                lastDate: DateTime.now(),
+                                locale: const Locale('es', 'ES'),
+                              );
+                              if (picked != null) {
+                                setState(() => _selectedBirthDate = picked);
+                              }
+                            },
+                            child: InputDecorator(
+                              decoration: const InputDecoration(
+                                labelText: 'Fecha de Nacimiento',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.calendar_month),
+                              ),
+                              child: Text(
+                                _selectedBirthDate != null
+                                    ? DateFormat('dd/MM/yyyy').format(_selectedBirthDate!)
+                                    : 'Toca para seleccionar',
+                                style: TextStyle(color: _selectedBirthDate != null ? Colors.black : Colors.grey[600]),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          // ----------------------
 
                           TextFormField(
                             initialValue: _fixedOrganization,

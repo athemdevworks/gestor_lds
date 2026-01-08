@@ -47,6 +47,7 @@ class AuthService {
     required String organization,
     required UserRole role,
     String? phoneNumber,
+    DateTime? birthDate, // <--- NUEVO CAMPO AGREGADO
   }) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -68,8 +69,10 @@ class AuthService {
           role: role,
           isApproved: false, // Siempre nace desaprobado
           phoneNumber: phoneNumber,
+          birthDate: birthDate, // <--- LO GUARDAMOS EN EL MODELO
         );
 
+        // Al llamar a toMap(), el UserModel se encarga de convertir DateTime a Timestamp
         await _db.collection('users').doc(user.uid).set(newUser.toMap());
         return user;
       }

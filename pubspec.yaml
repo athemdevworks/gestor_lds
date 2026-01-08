@@ -3,7 +3,7 @@ description: "Proyecto de gestion de reuniones y agendas"
 publish_to: 'none'
 
 # CAMBIO 1: Actualizamos versión para el despliegue
-version: 1.7.0+1
+version: 1.7.1
 
 environment:
   sdk: ^3.10.1

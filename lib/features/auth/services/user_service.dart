@@ -45,12 +45,14 @@ class UserService {
     required String apellidos,
     required String calling,
     String? phoneNumber,
+    DateTime? birthDate, // <--- 1. Recibimos el dato
   }) async {
     await _db.collection(_collection).doc(uid).update({
       'nombres': nombres,
       'apellidos': apellidos,
       'calling': calling,
       'phoneNumber': phoneNumber,
+      'birthDate': birthDate != null ? Timestamp.fromDate(birthDate) : null,
     });
   }
 

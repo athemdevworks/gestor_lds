@@ -3,8 +3,9 @@ import 'package:gestor_lds/core/constants/callings_list.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
-// 1. IMPORTAMOS EL SERVICIO DE USUARIOS
 import 'package:gestor_lds/features/auth/services/user_service.dart';
+import 'package:intl/intl.dart'; // Importa intl para formatear la fecha bonita
+import 'package:gestor_lds/features/auth/screens/login_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -27,53 +28,50 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   // Estado de Selección
   String? _selectedOrganization;
   String? _selectedCalling;
+  DateTime? _selectedBirthDate; // <--- NUEVO: Variable para la fecha
   bool _obscurePassword = true;
   bool _isLoading = false;
 
   final AuthService _authService = AuthService();
-  // Instancia del servicio de usuario para validaciones
   final UserService _userService = UserService();
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
+
+      // VALIDACIÓN NUEVA: Fecha obligatoria
+      if (_selectedBirthDate == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Por favor ingresa tu fecha de nacimiento'),
+              backgroundColor: Colors.orange,
+            )
+        );
+        return;
+      }
+
       setState(() => _isLoading = true);
       try {
-        // --- 2. VALIDACIÓN DE DUPLICADOS ---
-        // Antes de llamar a Firebase Auth, verificamos si el nombre ya existe en Firestore
         final bool alreadyExists = await _userService.checkDuplicateUser(
             _nombresController.text.trim(),
             _apellidosController.text.trim()
         );
 
         if (alreadyExists) {
-          // Si existe, detenemos la carga y mostramos alerta
           if (mounted) {
             setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: const Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.white),
-                    SizedBox(width: 10),
-                    Expanded(child: Text('Ya existe un usuario registrado con este Nombre y Apellido.')),
-                  ],
-                ),
+                content: const Row(children: [Icon(Icons.warning, color: Colors.white), SizedBox(width: 10), Expanded(child: Text('Ya existe un usuario con este Nombre.'))]),
                 backgroundColor: Colors.orange.shade800,
-                duration: const Duration(seconds: 4),
               ),
             );
           }
-          return; // DETENEMOS EL PROCESO AQUÍ
+          return;
         }
-        // -----------------------------------
 
         UserRole assignedRole = UserRole.lider;
-
-        if (_selectedOrganization == 'Obispado') {
-          assignedRole = UserRole.obispado;
-        } else if (_selectedOrganization == 'Barrio') {
-          assignedRole = UserRole.miembro;
-        }
+        if (_selectedOrganization == 'Obispado') assignedRole = UserRole.obispado;
+        else if (_selectedOrganization == 'Barrio') assignedRole = UserRole.miembro;
 
         await _authService.registerUser(
           email: _emailController.text.trim(),
@@ -85,13 +83,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           role: assignedRole,
           username: _usernameController.text.trim().toLowerCase(),
           phoneNumber: _phoneController.text.trim(),
+          birthDate: _selectedBirthDate,
         );
 
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cuenta creada. Espera aprobación del Obispo.')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cuenta creada. Espera aprobación del Obispo.')));
         }
 
       } catch (e) {
@@ -105,9 +102,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   @override
   Widget build(BuildContext context) {
     final organizations = kLdsStructure.keys.toList();
-    final callings = _selectedOrganization != null
-        ? kLdsStructure[_selectedOrganization] ?? []
-        : [];
+    final callings = _selectedOrganization != null ? kLdsStructure[_selectedOrganization] ?? [] : [];
 
     return Scaffold(
       appBar: AppBar(title: const Text('Solicitud de Acceso')),
@@ -133,19 +128,40 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                   TextFormField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(
-                      labelText: 'Celular / WhatsApp',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone_android),
-                      helperText: 'Para contacto del barrio',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Celular / WhatsApp', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone_android), helperText: 'Para contacto del barrio'),
                     keyboardType: TextInputType.phone,
-                    validator: (v) {
-                      if (v != null && v.isNotEmpty && v.length < 9) return 'Número muy corto';
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 15),
+
+                  // --- NUEVO CAMPO DE FECHA ---
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime(2000), // Fecha sugerida razonable
+                        firstDate: DateTime(1920),
+                        lastDate: DateTime.now(),
+                        locale: const Locale('es', 'ES'),
+                      );
+                      if (picked != null) setState(() => _selectedBirthDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Fecha de Nacimiento',
+                        prefixIcon: Icon(Icons.cake),
+                        border: OutlineInputBorder(),
+                        helperText: 'Para el recordatorio de cumpleaños',
+                      ),
+                      child: Text(
+                        _selectedBirthDate == null
+                            ? 'Toca para seleccionar'
+                            : DateFormat('dd/MM/yyyy').format(_selectedBirthDate!),
+                        style: TextStyle(color: _selectedBirthDate == null ? Colors.grey : Colors.black87),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  // ----------------------------
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Organización', border: OutlineInputBorder()),
@@ -176,7 +192,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(labelText: 'Usuario (Ej: familia_perez)', prefixIcon: Icon(Icons.person), border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Usuario', prefixIcon: Icon(Icons.person), border: OutlineInputBorder()),
                     validator: (v) => v!.isEmpty ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 15),
@@ -195,10 +211,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       labelText: 'Contraseña',
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
+                      suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off), onPressed: () => setState(() => _obscurePassword = !_obscurePassword)),
                     ),
                     validator: (v) => v!.length < 6 ? 'Mínimo 6 caracteres' : null,
                   ),
@@ -217,9 +230,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       const SizedBox(height: 15),
 
+                      // --- BOTÓN CANCELAR CORREGIDO ---
                       TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancelar / Volver', style: TextStyle(color: Colors.grey)),
+                        onPressed: () {
+                          // En lugar de cerrar (pop), recargamos la pantalla de Login
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          );
+                        },
+                        child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
                       ),
                     ],
                   ),
