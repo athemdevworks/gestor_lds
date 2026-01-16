@@ -138,20 +138,17 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   }
 
   Future<void> _selectTime() async {
-    final TimeOfDay? pickedTime = await showTimePicker(
+    final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: (BuildContext context, Widget? child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-          child: child!,
-        );
-      },
     );
-    if (pickedTime != null) {
-      final now = DateTime.now();
-      final dt = DateTime(now.year, now.month, now.day, pickedTime.hour, pickedTime.minute);
-      _timeController.text = DateFormat.jm().format(dt);
+
+    if (picked != null) {
+      setState(() {
+        // Formateamos la hora a texto y la guardamos en el controlador DIRECTAMENTE
+        final localizations = MaterialLocalizations.of(context);
+        _timeController.text = localizations.formatTimeOfDay(picked, alwaysUse24HourFormat: false);
+      });
     }
   }
 
@@ -615,7 +612,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         isMale: isMale,
         assignmentType: type,
         assignmentDate: DateTime.parse(_dateController.text),
-        time: '10:30 de la mañana', // Puedes parametrizarlo si cambia
+        // Botón de imprimir
+        time: _timeController.text.isNotEmpty ? _timeController.text : "10:00 AM",
         topic: topic,
         duration: duration,
       );

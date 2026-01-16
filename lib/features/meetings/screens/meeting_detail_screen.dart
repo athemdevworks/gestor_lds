@@ -124,7 +124,7 @@ class MeetingDetailScreen extends StatelessWidget {
             const SizedBox(height: 30),
             const Text('Agenda de Reunión', style: TextStyle(fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.indigo)),
+                color: Color(0xFF164772))),
             const Divider(),
 
             if (meeting.type == MeetingType.sacramental &&
@@ -232,7 +232,7 @@ class MeetingDetailScreen extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(
-                                  Icons.add_task, color: Colors.blue),
+                                  Icons.add_task, color: Color(0xFF164772)),
                               onPressed: () =>
                                   _showAddCommitmentDialog(context, agendaItem),
                             ),
@@ -299,7 +299,7 @@ class MeetingDetailScreen extends StatelessWidget {
         if (agenda.wardBusiness.isNotEmpty) ...[
           const SizedBox(height: 15),
           const Text('Asuntos del Barrio', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.indigo)),
+              fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
           const Divider(),
           ...agenda.wardBusiness.map((b) {
             // Mostramos "Sostenimiento: Juan Perez (Secretario)"
@@ -314,11 +314,19 @@ class MeetingDetailScreen extends StatelessWidget {
           }),
           const SizedBox(height: 15),
         ],
+        const Text('Asuntos de Estaca', style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
+        const Divider(),
+
+        const Text('Bendición y Reparto de la Santa Cena', style: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
+        const Divider(),
+        const Text('(Si reparte solo Sacerdocio Aarónico se indica que está a cargo del Sacerdocio Aarónico. De lo contrario, se indica que está a cargo del Sacerdocio del Barrio.)', style: TextStyle(
+            fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF164772), fontStyle: FontStyle.italic)),
 
         _buildSimpleItem(
             'Himno Sacramental', agenda.sacramentHymn, icon: Icons.music_note),
 
-        const Divider(),
 
         if (agenda.isFastAndTestimony)
           const Padding(
@@ -328,14 +336,31 @@ class MeetingDetailScreen extends StatelessWidget {
           )
         else
           Column(
+            crossAxisAlignment: CrossAxisAlignment.start, // <--- 1. ESTO ALINEA TODO A LA IZQUIERDA
             children: [
+              // 2. Agregamos un poco de padding vertical para que no se pegue al himno anterior
+              const Padding(
+                padding: EdgeInsets.only(top: 10, bottom: 5),
+                child: Text(
+                  'Tiempo para los mensajes',
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF164772) // Tu azul corporativo
+                  ),
+                ),
+              ),
+              const Divider(),
+
               _buildPrintableItem(context, service, '1er Discurso',
                   agenda.firstSpeakerName ?? '', 'PRIMER DISCURSO', date,
                   topic: agenda.firstSpeakerTopic,
                   icon: Icons.mic,
                   duration: "5"),
+
               _buildSimpleItem('Himno Especial', agenda.intermediateHymn ?? '',
                   icon: Icons.music_video),
+
               _buildPrintableItem(context, service, '2do Discurso',
                   agenda.secondSpeakerName ?? '', 'ULTIMO DISCURSO', date,
                   topic: agenda.secondSpeakerTopic,
@@ -363,7 +388,7 @@ class MeetingDetailScreen extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       visualDensity: compact ? VisualDensity.compact : null,
-      leading: Icon(icon, color: Colors.indigo.shade300),
+      leading: Icon(icon, color: Color(0xFF164772)),
       title: Text(title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 14)),
@@ -376,7 +401,7 @@ class MeetingDetailScreen extends StatelessWidget {
     if (personName.isEmpty) return const SizedBox.shrink();
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: Colors.indigo.shade300),
+      leading: Icon(icon, color: Color(0xFF164772)),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text('$personName ${topic != null ? "($topic)" : ""}'),
       trailing: IconButton(
@@ -426,7 +451,7 @@ class MeetingDetailScreen extends StatelessWidget {
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
         if(organization != null) Chip(label: Text(organization)),
         Text("$date - $time",
-            style: const TextStyle(fontSize: 16, color: Colors.grey)),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF164772))),
       ],
     );
   }

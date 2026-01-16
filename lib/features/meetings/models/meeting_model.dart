@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
+import 'package:intl/intl.dart';
 
 class MeetingModel {
   final String id;
@@ -36,39 +37,68 @@ class MeetingModel {
     this.sacramentAgenda,
   });
 
-  factory MeetingModel.fromMap(Map<String, dynamic> data, String id) { // <--- 1. AÑADIR ", String id"
+  factory MeetingModel.fromMap(Map<String, dynamic> data, String id) {
+    try {
+      // 1. Enum
+      MeetingType typeEnum = MeetingType.values.firstWhere(
+            (e) => e.toString() == 'MeetingType.${data['type']}',
+        orElse: () => MeetingType.other,
+      );
 
-    // Lógica del Enum (igual que tenías)
-    MeetingType typeEnum = MeetingType.values.firstWhere(
-          (e) => e.toString() == 'MeetingType.${data['type']}',
-      orElse: () => MeetingType.other,
-    );
+      // 2. Agenda Items
+      final List<AgendaItemModel>? mappedAgendaItems = data['agendaItems'] != null
+          ? (data['agendaItems'] as List)
+          .map((item) => AgendaItemModel.fromMap(item as Map<String, dynamic>))
+          .toList()
+          : null;
 
-    // Lógica de Agenda (igual que tenías)
-    final List<AgendaItemModel>? mappedAgendaItems = data['agendaItems'] != null
-        ? (data['agendaItems'] as List)
-        .map((item) => AgendaItemModel.fromMap(item as Map<String, dynamic>))
-        .toList()
-        : null;
+      final sacramentAgendaMap = data['sacramentAgenda'] as Map<String, dynamic>?;
 
-    final sacramentAgendaMap = data['sacramentAgenda'] as Map<String, dynamic>?;
+      // 3. --- ZONA DE REPARACIÓN DE FECHA/HORA ---
+      DateTime parsedDate = (data['date'] as Timestamp).toDate();
+      String parsedTime;
 
-    return MeetingModel(
-      id: id, // <--- 2. USAR EL ID QUE VIENE DE AFUERA (Ya no data['id'])
+      // A) ¿Tiene el formato nuevo?
+      if (data['time'] != null && data['time'] is String) {
+        parsedTime = data['time'];
+      } else {
+        // B) Es formato viejo -> APLICAMOS PARCHE
+        print("🔧 Reparando reunión antigua ID: $id (Fecha: $parsedDate)"); // <--- CHISMOSO
 
-      type: typeEnum,
-      date: (data['date'] as Timestamp).toDate(),
-      time: data['time'] as String,
-      presidedBy: data['presidedBy'] as String,
-      directedBy: data['directedBy'] as String,
-      organization: data['organization'] as String?,
+        if (parsedDate.hour != 0) {
+          parsedTime = DateFormat('h:mm a', 'es_ES').format(parsedDate);
+        } else {
+          parsedTime = "10:00 AM";
+        }
+        print("   -> Hora asignada: $parsedTime"); // <--- CHISMOSO
+      }
 
-      agendaItems: mappedAgendaItems,
-      // Nota: Si commitments son Strings (IDs), esto está bien. Si cambiamos a objetos, habrá que ajustar.
-      commitments: data['commitments'] != null ? List<String>.from(data['commitments']) : null,
-
-      sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
-    );
+      return MeetingModel(
+        id: id,
+        type: typeEnum,
+        date: parsedDate,
+        time: parsedTime, // Variable segura
+        presidedBy: data['presidedBy'] as String? ?? '',
+        directedBy: data['directedBy'] as String? ?? '',
+        organization: data['organization'] as String?,
+        agendaItems: mappedAgendaItems,
+        commitments: data['commitments'] != null ? List<String>.from(data['commitments']) : null,
+        sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
+      );
+    } catch (e) {
+      // Si una reunión específica está muy corrupta, esto evita que la app explote
+      print("❌ ERROR FATAL en reunión $id: $e");
+      // Retornamos una reunión 'vacía' de emergencia para que la lista cargue igual
+      return MeetingModel(
+        id: id,
+        type: MeetingType.other,
+        date: DateTime.now(),
+        time: "Error",
+        presidedBy: "Error de datos",
+        directedBy: "",
+        organization: "",
+      );
+    }
   }
 
   Map<String, dynamic> toMap() {

@@ -6,29 +6,26 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
-import 'package:printing/printing.dart'; // <--- IMPORTANTE: Para cargar fuentes
+import 'package:printing/printing.dart';
 
 class PdfService {
+
+  // Color Azul Corporativo (Definido globalmente para consistencia)
+  final PdfColor brandColor = PdfColor.fromInt(0xFF164772);
 
   // Función principal para generar el PDF
   Future<Uint8List> generateAgendaPdf(MeetingModel meeting) async {
     final pdf = pw.Document();
 
-    // 1. CARGAR RECURSOS (Logo y Fuentes)
+    // 1. CARGAR RECURSOS
     final logoData = await rootBundle.load('assets/images/logont.png');
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
-    // --- CORRECCIÓN DE FUENTES (UNICODE) ---
-    // Usamos OpenSans que soporta tildes, ñ y viñetas
     final fontRegular = await PdfGoogleFonts.openSansRegular();
     final fontBold = await PdfGoogleFonts.openSansBold();
     final fontItalic = await PdfGoogleFonts.openSansItalic();
-    // ---------------------------------------
 
-    // Color Azul Intenso para el PDF
-    final PdfColor brandColor = PdfColor.fromInt(0xFF164772);
-
-    // 2. RECUPERAR COMPROMISOS
+    // 2. RECUPERAR COMPROMISOS (Si aplica)
     List<CommitmentModel> meetingCommitments = [];
     try {
       if (meeting.type != MeetingType.sacramental) {
@@ -48,50 +45,47 @@ class PdfService {
     final agendaBody = <pw.Widget>[];
 
     if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null) {
+      // ==========================================
       // A. AGENDA SACRAMENTAL
+      // ==========================================
       final agenda = meeting.sacramentAgenda!;
 
       agendaBody.addAll([
-        pw.Text('AGENDA SACRAMENTAL', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo)),        pw.Divider(),
+        // TÍTULO PRINCIPAL
+        pw.Text('AGENDA SACRAMENTAL',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandColor)),
+        pw.SizedBox(height: 2),
+        pw.Divider(color: brandColor, thickness: 1.5), // Línea principal gruesa
+        pw.SizedBox(height: 5),
 
         if (agenda.welcome != null && agenda.welcome!.isNotEmpty)
-          _buildPdfItem('Bienvenida', agenda.welcome!, bold: true),
-
-        _buildPdfItem('Anuncios del Barrio', agenda.announcements),
-        // Nombres corregidos
-        _buildPdfItem('Primer Himno', agenda.openingHymn),
-        _buildPdfItem('Director(a) de Música', agenda.chorister),
-        _buildPdfItem('Pianista', agenda.pianist),
-        _buildPdfItem('Primera Oración', agenda.openingPrayer),
+          _buildPdfItem('Bienvenida', agenda.welcome),
+          _buildPdfItem('Anuncios del Barrio', agenda.announcements),
+          _buildPdfItem('Primer Himno', agenda.openingHymn),
+          _buildPdfItem('Director(a) de Música', agenda.chorister),
+          _buildPdfItem('Pianista', agenda.pianist),
+          _buildPdfItem('Primera Oración', agenda.openingPrayer),
 
         if (agenda.wardBusiness.isNotEmpty) ...[
-          pw.SizedBox(height: 5),
-          // Título de la sección (ya estaba en 10)
-          pw.Text('Asuntos del Barrio:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.indigo)),
+          pw.SizedBox(height: 4),
+          pw.Text('Asuntos del Barrio:',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12, color: brandColor)),
+          pw.Divider(color: brandColor, thickness: 1.5),
           pw.SizedBox(height: 2),
-
           ...agenda.wardBusiness.map((business) {
             return pw.Padding(
               padding: const pw.EdgeInsets.only(left: 10, bottom: 4),
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // 1. CORRECCIÓN: Bullet con tamaño 10
                   pw.Text("• ", style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-
                   pw.Expanded(
                     child: pw.RichText(
                       text: pw.TextSpan(
-                        // 2. CORRECCIÓN: Estilo base con tamaño 10 para todo el renglón
                         style: const pw.TextStyle(fontSize: 10, color: PdfColors.black),
                         children: [
-                          // Tipo (Sostenimiento, Relevo, etc.)
                           pw.TextSpan(text: "${business.type}: ", style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-
-                          // Nombre de la persona (hereda el tamaño 10 base)
                           pw.TextSpan(text: business.personName),
-
-                          // Llamamiento (lo mantenemos un pelín más pequeño, en 9, o lo subes a 10 si prefieres)
                           if (business.calling != null)
                             pw.TextSpan(
                                 text: " (${business.calling})",
@@ -105,13 +99,39 @@ class PdfService {
               ),
             );
           }),
-          pw.SizedBox(height: 5),
         ],
 
-        pw.SizedBox(height: 5),
-        _buildPdfItem('Himno Sacramental', agenda.sacramentHymn, bold: true),
-        pw.SizedBox(height: 15),
+        // --- SECCIÓN: ASUNTOS DE ESTACA (Añadido) ---
+        pw.SizedBox(height: 8),
+        pw.Text('Asuntos de Estaca', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brandColor)),
+        pw.Divider(color: brandColor, thickness: 1.5),
+        pw.SizedBox(height: 12),
+        // Líneas para escribir (Finas y Azules)
+        pw.Divider(color: brandColor, thickness: 0.5),
+        pw.SizedBox(height: 12),
+        pw.Divider(color: brandColor, thickness: 0.5),
+        pw.SizedBox(height: 8),
 
+        // --- SECCIÓN: BENDICIÓN Y REPARTO (Añadido) ---
+        pw.Text('Bendición y Reparto de la Santa Cena', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brandColor)),
+        pw.Divider(color: brandColor, thickness: 1.5),
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10),
+          child: pw.Text(
+            "(Si reparte solo Sacerdocio Aarónico se indica que está a cargo del Sacerdocio Aarónico. De lo contrario, se indica que está a cargo del Sacerdocio del Barrio.)",
+            textAlign: pw.TextAlign.left,
+            style: pw.TextStyle(
+                fontSize: 8,
+                fontStyle: pw.FontStyle.italic,
+                color: PdfColors.grey800
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 6),
+        // HIMNO SACRAMENTAL (Continúa normal)
+        _buildPdfItem('Himno Sacramental', agenda.sacramentHymn, bold: true),
+        pw.SizedBox(height: 2),
+        pw.Divider(color: brandColor, thickness: 1.5),
         if (agenda.isFastAndTestimony)
           pw.Container(
             padding: const pw.EdgeInsets.all(10),
@@ -127,7 +147,7 @@ class PdfService {
                 pw.SizedBox(height: 8),
 
                 if (agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) ...[
-                  _buildPdfItem('Himno Especial', agenda.intermediateHymn!, bold: true, color: PdfColors.blueGrey700),
+                  _buildPdfItem('Himno Especial', agenda.intermediateHymn),
                   pw.SizedBox(height: 8),
                 ],
 
@@ -136,17 +156,22 @@ class PdfService {
               ]
           ),
 
-        pw.SizedBox(height: 15),
-        pw.Divider(),
+        pw.SizedBox(height: 10),
+        // Línea final antes del cierre
+        pw.Divider(color: brandColor, thickness: 1.5),
+        pw.SizedBox(height: 10),
+
         _buildPdfItem('Último Himno', agenda.closingHymn),
         _buildPdfItem('Última Oración', agenda.closingPrayer),
       ]);
 
     } else if (meeting.agendaItems != null && meeting.agendaItems!.isNotEmpty) {
+      // ==========================================
       // B. AGENDA DE LIDERAZGO
+      // ==========================================
       agendaBody.addAll([
-        pw.Text('PUNTOS DE AGENDA', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.indigo)),
-        pw.Divider(),
+        pw.Text('PUNTOS DE AGENDA', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: brandColor)),
+        pw.Divider(color: brandColor, thickness: 1.5),
         pw.SizedBox(height: 10),
 
         ...meeting.agendaItems!.map((item) {
@@ -233,17 +258,15 @@ class PdfService {
       agendaBody.add(pw.Text('No hay agenda detallada para esta reunión.', style: pw.TextStyle(fontStyle: pw.FontStyle.italic)));
     }
 
-    // 4. CREAR PÁGINA
+    // 4. CREAR PÁGINA FINAL
     pdf.addPage(
         pw.Page(
             pageFormat: PdfPageFormat.a4,
-            // --- AQUÍ APLICAMOS LA FUENTE ---
             theme: pw.ThemeData.withFont(
               base: fontRegular,
               bold: fontBold,
               italic: fontItalic,
             ),
-            // --------------------------------
             build: (pw.Context context) {
               return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -268,18 +291,16 @@ class PdfService {
                           ),
                         ),
                         pw.Container(
-                          height: 150, // Ajusté el tamaño del logo para que no sea tan invasivo
+                          height: 150, // Logo ajustado
                           width: 150,
                           child: pw.Image(logoImage),
                         ),
                       ],
                     ),
 
-                    pw.SizedBox(height: 10),
                     pw.Divider(color: brandColor, thickness: 2),
-                    pw.SizedBox(height: 10),
 
-                    // DETALLES
+                    // DETALLES GENERALES
                     _buildPdfItem('Preside', meeting.presidedBy),
                     _buildPdfItem('Dirige', meeting.directedBy),
                     _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),
@@ -298,14 +319,15 @@ class PdfService {
     return pdf.save();
   }
 
-  pw.Widget _buildPdfItem(String label, String? value, {bool bold = false, PdfColor color = PdfColors.black}) {
+  // Helper para items normales (Label: Value)
+  pw.Widget _buildPdfItem(String label, String? value, {bool bold = false, PdfColor? color}) {
     if (value == null || value.isEmpty || value == 'null') return pw.SizedBox.shrink();
-
-    // TAMAÑO DE FUENTE GENERAL PARA LOS ITEMS
     const double fontSize = 10.0;
+    // Si no se especifica color, usa negro
+    final textColor = color ?? PdfColors.black;
 
     return pw.Container(
-        padding: const pw.EdgeInsets.only(bottom: 4), // Reduje el padding de 5 a 4
+        padding: const pw.EdgeInsets.only(bottom: 4),
         child: pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -313,19 +335,38 @@ class PdfService {
                 width: 130,
                 child: pw.Text(
                     '$label:',
-                    style: pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold, color: color)
+                    style: pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold, color: textColor)
                 ),
               ),
               pw.Expanded(
                 child: pw.Text(
                     value,
                     style: bold
-                        ? pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold, color: color)
-                        : pw.TextStyle(fontSize: fontSize, color: color)
+                        ? pw.TextStyle(fontSize: fontSize, fontWeight: pw.FontWeight.bold, color: textColor)
+                        : pw.TextStyle(fontSize: fontSize, color: textColor)
                 ),
               ),
             ]
         )
+    );
+  }
+
+  // Helper para las barras azules de título
+  pw.Widget _buildBlueSectionHeader(String title) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(vertical: 4, horizontal: 5),
+      color: brandColor, // Usa el azul corporativo
+      child: pw.Center(
+        child: pw.Text(
+          title.toUpperCase(),
+          style: pw.TextStyle(
+            color: PdfColors.white,
+            fontWeight: pw.FontWeight.bold,
+            fontSize: 10,
+          ),
+        ),
+      ),
     );
   }
 }
