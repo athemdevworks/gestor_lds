@@ -291,6 +291,7 @@ class MeetingDetailScreen extends StatelessWidget {
         // --- CORRECCIÓN 2: CAMBIO DE NOMBRES ---
         _buildSimpleItem(
             'Primer Himno', agenda.openingHymn, icon: Icons.music_note),
+
         _buildPrintableItem(
             context, service, 'Primera Oración', agenda.openingPrayer,
             'PRIMERA ORACIÓN', date, icon: Icons.person_outline),

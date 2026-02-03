@@ -5,6 +5,7 @@ import 'package:gestor_lds/features/dashboard/screens/user_management_screen.dar
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
 import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
 import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
+import '../budget/screens/budget_list_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
 import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
@@ -170,6 +171,16 @@ class HomeScreen extends StatelessWidget {
                     textColor: Colors.black,
                     onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MyCommitmentsScreen(currentUser: user))),
                   ),
+                  _DashboardCard(
+                    title: 'PRESUPUESTO',
+                    subtitle: 'Planificar y solicitar fondos',
+                    icon: Icons.monetization_on_outlined, // Icono de dinero
+                    iconColor: Colors.green.shade700,
+                    textColor: Colors.black,
+                    onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BudgetListScreen())
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -187,7 +198,7 @@ class HomeScreen extends StatelessWidget {
                 isWideScreen,
                 children: [
                   _DashboardCard(
-                    title: 'DIRECTORIO',
+                    title: 'USUARIOS',
                     subtitle: 'Aprobar y editar usuarios',
                     icon: Icons.verified_user,
                     iconColor: Colors.indigo.shade700,

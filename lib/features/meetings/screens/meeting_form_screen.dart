@@ -10,6 +10,8 @@ import 'package:gestor_lds/features/meetings/models/ward_business_model.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
 import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
 
+import '../../../core/widgets/hymn_autocomplete.dart';
+
 class MeetingFormScreen extends StatefulWidget {
   final MeetingModel? meetingToEdit;
 
@@ -406,8 +408,13 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         const SizedBox(height: 12),
 
         // 1. PRIMER HIMNO
-        TextFormField(controller: _openingHymnController, decoration: const InputDecoration(labelText: 'Primer Himno')),
+        HymnAutocomplete(
+          label: 'Primer Himno',
+          controller: _openingHymnController,
+          icon: Icons.music_note,
+        ),
         const SizedBox(height: 12),
+
 
         // 2. DIRECTOR DE MÚSICA Y PIANISTA
         Row(children: [
@@ -489,7 +496,12 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
         const SizedBox(height: 20),
 
-        TextFormField(controller: _sacramentHymnController, decoration: const InputDecoration(labelText: 'Himno Sacramental')),
+        HymnAutocomplete(
+          label: 'Himno Sacramental',
+          controller: _sacramentHymnController,
+          icon: Icons.music_note,
+        ),
+
         const SizedBox(height: 25),
 
         // DISCURSANTES
@@ -523,7 +535,11 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
               TextFormField(controller: _firstSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 1')),
               const Divider(),
-              TextFormField(controller: _intermediateHymnController, decoration: const InputDecoration(labelText: 'Himno Especial (Opcional)')),
+              HymnAutocomplete(
+                label: 'Himno Especial (Opcional)',
+                controller: _intermediateHymnController,
+                icon: Icons.music_note,
+              ),
               const Divider(),
 
               // 3. SEGUNDO DISCURSANTE CON BOTÓN
@@ -549,9 +565,13 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             ],
           ),
 
-        const SizedBox(height: 25),
+        const SizedBox(height: 12),
         // 4. ÚLTIMO HIMNO
-        TextFormField(controller: _closingHymnController, decoration: const InputDecoration(labelText: 'Último Himno')),
+        HymnAutocomplete(
+          label: 'Himno Final',
+          controller: _closingHymnController,
+          icon: Icons.music_note,
+        ),
         const SizedBox(height: 12),
 
         // 5. ÚLTIMA ORACIÓN
