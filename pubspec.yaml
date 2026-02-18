@@ -3,7 +3,7 @@ description: "Proyecto de gestion de reuniones y agendas"
 publish_to: 'none'
 
 # CAMBIO 1: Actualizamos versión para el despliegue
-version: 1.8.0+1
+version: 1.8.1+25  # El +25 es el número de compilación (incrementalo en 1 respecto al anterior)
 
 environment:
   sdk: ^3.10.1

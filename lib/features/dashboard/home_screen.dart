@@ -20,7 +20,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isAdmin = user.role == UserRole.obispado;
+    final bool isAdmin = user.role == UserRole.obispado|| user.role == UserRole.admin;
     final bool isLeader = user.role == UserRole.lider;
 
     final double screenWidth = MediaQuery.of(context).size.width;

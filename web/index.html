@@ -51,12 +51,17 @@
     }
 
     .center {
-      margin: 0;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      -ms-transform: translate(-50%, -50%);
-      transform: translate(-50%, -50%);
+        margin: 0;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        -ms-transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%);
+
+        max-width: 90%;  /* Nunca ocupes más del 90% del ancho de la pantalla */
+        max-height: 90%; /* Nunca ocupes más del 90% del alto */
+        height: auto;    /* Mantén la proporción original (no te estires) */
+        width: auto;     /* Mantén la proporción original */
     }
 
     .contain {

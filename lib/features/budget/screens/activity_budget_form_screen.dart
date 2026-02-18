@@ -5,10 +5,13 @@ import 'package:gestor_lds/features/budget/models/budget_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../../../core/widgets/hymn_autocomplete.dart';
+import '../../activities/models/activity_model.dart';
 import '../services/budget_pdf_service.dart';
 
 class ActivityBudgetFormScreen extends StatefulWidget {
-  const ActivityBudgetFormScreen({super.key});
+  final ActivityModel? fromActivity;
+
+  const ActivityBudgetFormScreen({super.key, this.fromActivity});
 
   @override
   State<ActivityBudgetFormScreen> createState() => _ActivityBudgetFormScreenState();
@@ -25,6 +28,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   final _activityNameController = TextEditingController();
   final _purposeController = TextEditingController();
   final _applicantController = TextEditingController();
+
 
   // Fechas
   DateTime? _activityDate;
@@ -49,6 +53,25 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   final _securityController = TextEditingController();
 
   bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Si recibimos una actividad, llenamos los campos automáticamente
+    if (widget.fromActivity != null) {
+      final act = widget.fromActivity!;
+
+      // NOTA: Ajusta '.title', '.description', etc. si tu ActivityModel tiene otros nombres
+      _activityNameController.text = act.title;
+      _purposeController.text = act.description;
+      _activityDate = act.date;
+      _organizationController.text = act.organization ?? '';
+
+      // La fecha de presentación por defecto es hoy
+      _presentationDate = DateTime.now();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

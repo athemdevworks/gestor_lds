@@ -6,16 +6,14 @@ class MemberAutocompleteField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData? icon;
-
-  // 1. CAMBIO: Agregamos este parámetro para devolver el objeto completo
-  final Function(MemberModel)? onMemberSelected;
+  final Function(MemberModel)? onMemberSelected; // Callback para devolver todo el objeto
 
   const MemberAutocompleteField({
     super.key,
     required this.label,
     required this.controller,
     this.icon,
-    this.onMemberSelected, // <--- Agregado al constructor
+    this.onMemberSelected,
   });
 
   @override
@@ -24,104 +22,144 @@ class MemberAutocompleteField extends StatefulWidget {
 
 class _MemberAutocompleteFieldState extends State<MemberAutocompleteField> {
   final MemberService _memberService = MemberService();
+  List<MemberModel> _allMembers = [];
+  bool _isLoading = true;
 
-  // Cache local para no llamar a Firebase en cada letra si la lista es pequeña
-  List<MemberModel>? _cachedMembers;
+  @override
+  void initState() {
+    super.initState();
+    _loadMembers();
+  }
 
-  Future<List<MemberModel>> _getSuggestions(String query) async {
-    if (query.isEmpty) return [];
+  // Carga inicial optimizada: Traemos la lista una vez y filtramos en memoria
+  void _loadMembers() {
+    _memberService.getMembers().listen((members) {
+      if (mounted) {
+        setState(() {
+          _allMembers = members;
+          _isLoading = false;
+        });
+      }
+    });
+  }
 
-    // Si no hemos cargado la lista, la traemos toda una vez (optimización para < 500 miembros)
-    if (_cachedMembers == null) {
-      final snapshot = await _memberService.getMembers().first; // Trae la lista actual
-      _cachedMembers = snapshot;
-    }
-
+  // Lógica de filtrado local (Súper rápida)
+  List<MemberModel> _getSuggestions(String query) {
     final lowerQuery = query.toLowerCase();
-    return _cachedMembers!.where((member) {
-      return member.fullName.toLowerCase().contains(lowerQuery);
+    return _allMembers.where((member) {
+      return member.fullName.toLowerCase().contains(lowerQuery) ||
+          (member.calling?.toLowerCase().contains(lowerQuery) ?? false);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Autocomplete<MemberModel>(
-      // 1. Qué mostramos en el campo de texto cuando se selecciona alguien
-      displayStringForOption: (MemberModel option) => option.fullName,
+    if (_isLoading) {
+      return const LinearProgressIndicator(minHeight: 2); // Feedback visual de carga
+    }
 
-      // 2. Lógica de búsqueda
-      optionsBuilder: (TextEditingValue textEditingValue) {
-        return _getSuggestions(textEditingValue.text);
-      },
+    return LayoutBuilder(
+        builder: (context, constraints) {
+          return Autocomplete<MemberModel>(
+            // 1. Qué mostramos en el Input tras seleccionar
+            displayStringForOption: (MemberModel option) => option.fullName,
 
-      // 3. Qué hacer cuando se selecciona
-      onSelected: (MemberModel selection) {
-        widget.controller.text = selection.fullName;
+            // 2. Lógica de búsqueda
+            optionsBuilder: (TextEditingValue textEditingValue) {
+              if (textEditingValue.text.isEmpty) {
+                return const Iterable<MemberModel>.empty();
+              }
+              return _getSuggestions(textEditingValue.text);
+            },
 
-        // 2. CAMBIO: Si nos pasaron una función, la ejecutamos y le damos el miembro
-        if (widget.onMemberSelected != null) {
-          widget.onMemberSelected!(selection);
-        }
-      },
+            // 3. Acción al seleccionar
+            onSelected: (MemberModel selection) {
+              widget.controller.text = selection.fullName;
+              if (widget.onMemberSelected != null) {
+                widget.onMemberSelected!(selection);
+              }
+            },
 
-      // 4. Personalización del Campo de Texto (Input)
-      fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-        // Sincronizamos con el controlador externo si ya tiene texto (ej: al editar)
-        if (widget.controller.text.isNotEmpty && textController.text.isEmpty) {
-          textController.text = widget.controller.text;
-        }
+            // 4. Input Field Personalizado
+            fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+              // Sincronización inicial si venimos de editar
+              if (widget.controller.text.isNotEmpty && textController.text.isEmpty) {
+                textController.text = widget.controller.text;
+              }
 
-        // Listener para que si el usuario escribe a mano, también se guarde en tu controller
-        textController.addListener(() {
-          widget.controller.text = textController.text;
-        });
+              // Listener bidireccional seguro
+              textController.addListener(() {
+                // Solo actualizamos si es diferente para evitar loops
+                if (widget.controller.text != textController.text) {
+                  widget.controller.text = textController.text;
+                }
+              });
 
-        return TextFormField(
-          controller: textController,
-          focusNode: focusNode,
-          onFieldSubmitted: (String value) {
-            onFieldSubmitted();
-          },
-          decoration: InputDecoration(
-            labelText: widget.label,
-            prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
-            border: const OutlineInputBorder(),
-            suffixIcon: const Icon(Icons.arrow_drop_down_circle_outlined, size: 18, color: Colors.grey),
-          ),
-          validator: (val) => val != null && val.isEmpty ? 'Requerido' : null,
-        );
-      },
+              return TextFormField(
+                controller: textController,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: widget.label,
+                  prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
+                  border: const OutlineInputBorder(),
+                  suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                ),
+                validator: (val) => val != null && val.isEmpty ? 'Requerido' : null,
+              );
+            },
 
-      // 5. Personalización de la Lista de Sugerencias (Dropdown)
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4.0,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final MemberModel option = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(
-                        option.gender == 'M' ? Icons.face : Icons.face_3,
-                        color: option.gender == 'M' ? Colors.indigo : Colors.pink
+            // 5. Lista Desplegable Personalizada
+            optionsViewBuilder: (context, onSelected, options) {
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 4.0,
+                  color: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: 250, // Altura máxima de la lista
+                      maxWidth: constraints.maxWidth, // Ancho igual al del input
                     ),
-                    title: Text(option.fullName),
-                    subtitle: Text(option.organization, style: const TextStyle(fontSize: 10)),
-                    onTap: () => onSelected(option),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
-      },
+                    child: ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        final MemberModel option = options.elementAt(index);
+                        final isMale = option.gender == 'M';
+
+                        // Construimos subtítulo
+                        String subText = option.primaryOrganization;
+                        if (option.calling != null) {
+                          subText += " • ${option.calling}";
+                        }
+
+                        return ListTile(
+                          dense: true,
+                          leading: CircleAvatar(
+                            radius: 14,
+                            backgroundColor: isMale ? Colors.blue.shade100 : Colors.pink.shade100,
+                            child: Icon(
+                              isMale ? Icons.person : Icons.person_2,
+                              size: 16,
+                              color: isMale ? Colors.blue.shade800 : Colors.pink.shade800,
+                            ),
+                          ),
+                          title: Text(option.fullName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(subText, style: const TextStyle(fontSize: 11)),
+                          onTap: () => onSelected(option),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }
     );
   }
 }
