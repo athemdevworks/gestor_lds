@@ -1,4 +1,4 @@
-import 'ward_business_model.dart'; // <--- IMPORTANTE
+import 'ward_business_model.dart';
 
 // En sacrament_agenda_model.dart
 class SacramentAgendaModel {
@@ -18,6 +18,11 @@ class SacramentAgendaModel {
   final String? secondSpeakerTopic;
   final String? secondSpeakerName;
   final String? intermediateHymn; // Himno Especial
+
+  // --- NUEVOS CAMPOS: Tercer Discursante ---
+  final bool hasThirdSpeaker; // TRUE si se activó la opción del tercer discursante
+  final String? thirdSpeakerTopic;
+  final String? thirdSpeakerName;
 
   // --- Campo de Cierre ---
   final String closingHymn;
@@ -40,6 +45,12 @@ class SacramentAgendaModel {
     this.secondSpeakerTopic,
     this.secondSpeakerName,
     this.intermediateHymn,
+
+    // Inicializamos el booleano en false por defecto
+    this.hasThirdSpeaker = false,
+    this.thirdSpeakerTopic,
+    this.thirdSpeakerName,
+
     required this.closingHymn,
     required this.closingPrayer,
     this.isFastAndTestimony = false,
@@ -61,6 +72,12 @@ class SacramentAgendaModel {
       'secondSpeakerTopic': secondSpeakerTopic,
       'secondSpeakerName': secondSpeakerName,
       'intermediateHymn': intermediateHymn,
+
+      // Guardamos los nuevos campos
+      'hasThirdSpeaker': hasThirdSpeaker,
+      'thirdSpeakerTopic': thirdSpeakerTopic,
+      'thirdSpeakerName': thirdSpeakerName,
+
       'closingHymn': closingHymn,
       'closingPrayer': closingPrayer,
       'isFastAndTestimony': isFastAndTestimony,
@@ -70,28 +87,30 @@ class SacramentAgendaModel {
 
   // Método para crear desde mapa (Firestore)
   factory SacramentAgendaModel.fromMap(Map<String, dynamic> map) {
-    // ... (Implementación para leer datos de Firestore) ...
-    // Lo simplificaremos para ahorrar espacio, asumiendo que el mapeo es directo.
     return SacramentAgendaModel(
       welcome: map['welcome'],
       openingHymn: map['openingHymn'] as String,
-      openingPrayer: map['openingPrayer'] as String, // <-- ERROR CORREGIDO
-      sacramentHymn: map['sacramentHymn'] as String, // <-- ERROR CORREGIDO
-      announcements: map['announcements'] as String, // <-- ERROR CORREGIDO
-      chorister: map['chorister'] as String, // <-- ERROR CORREGIDO
-      pianist: map['pianist'] as String, // <-- ERROR CORREGIDO
+      openingPrayer: map['openingPrayer'] as String,
+      sacramentHymn: map['sacramentHymn'] as String,
+      announcements: map['announcements'] as String,
+      chorister: map['chorister'] as String,
+      pianist: map['pianist'] as String,
 
-      // Mapeo de campos opcionales (si no existen en Firestore, serán null)
+      // Mapeo de campos opcionales
       firstSpeakerTopic: map['firstSpeakerTopic'] as String?,
       firstSpeakerName: map['firstSpeakerName'] as String?,
       secondSpeakerTopic: map['secondSpeakerTopic'] as String?,
       secondSpeakerName: map['secondSpeakerName'] as String?,
       intermediateHymn: map['intermediateHymn'] as String?,
 
-      closingHymn: map['closingHymn'] as String, // <-- ERROR CORREGIDO
-      closingPrayer: map['closingPrayer'] as String, // <-- ERROR CORREGIDO
+      // Recuperamos los nuevos campos (con fallback seguro por si son reuniones antiguas)
+      hasThirdSpeaker: map['hasThirdSpeaker'] as bool? ?? false,
+      thirdSpeakerTopic: map['thirdSpeakerTopic'] as String?,
+      thirdSpeakerName: map['thirdSpeakerName'] as String?,
 
-      // El estado de la regla del primer domingo
+      closingHymn: map['closingHymn'] as String,
+      closingPrayer: map['closingPrayer'] as String,
+
       isFastAndTestimony: map['isFastAndTestimony'] as bool? ?? false,
 
       // Asuntos de Barrio

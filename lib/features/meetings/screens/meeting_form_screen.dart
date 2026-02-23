@@ -49,6 +49,9 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   final TextEditingController _intermediateHymnController = TextEditingController();
   final TextEditingController _secondSpeakerNameController = TextEditingController();
   final TextEditingController _secondSpeakerTopicController = TextEditingController();
+  final TextEditingController _thirdSpeakerNameController = TextEditingController();
+  final TextEditingController _thirdSpeakerTopicController = TextEditingController();
+  bool _hasThirdSpeaker = false;
   final TextEditingController _closingHymnController = TextEditingController();
   final TextEditingController _closingPrayerController = TextEditingController();
 
@@ -97,6 +100,9 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           _intermediateHymnController.text = ag.intermediateHymn ?? '';
           _secondSpeakerNameController.text = ag.secondSpeakerName ?? '';
           _secondSpeakerTopicController.text = ag.secondSpeakerTopic ?? '';
+          _hasThirdSpeaker = ag.hasThirdSpeaker;
+          _thirdSpeakerNameController.text = ag.thirdSpeakerName ?? '';
+          _thirdSpeakerTopicController.text = ag.thirdSpeakerTopic ?? '';
         }
 
         _wardBusinessList = List.from(ag.wardBusiness);
@@ -122,6 +128,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     _intermediateHymnController.dispose();
     _secondSpeakerNameController.dispose();
     _secondSpeakerTopicController.dispose();
+    _thirdSpeakerNameController.dispose();
+    _thirdSpeakerTopicController.dispose();
     _closingHymnController.dispose();
     _closingPrayerController.dispose();
     super.dispose();
@@ -246,6 +254,9 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             intermediateHymn: _isFastAndTestimony ? null : _intermediateHymnController.text,
             secondSpeakerName: _isFastAndTestimony ? null : _secondSpeakerNameController.text,
             secondSpeakerTopic: _isFastAndTestimony ? null : _secondSpeakerTopicController.text,
+            hasThirdSpeaker: _isFastAndTestimony ? false : _hasThirdSpeaker,
+            thirdSpeakerName: (_isFastAndTestimony || !_hasThirdSpeaker) ? null : _thirdSpeakerNameController.text,
+            thirdSpeakerTopic: (_isFastAndTestimony || !_hasThirdSpeaker) ? null : _thirdSpeakerTopicController.text,
           );
         }
 
@@ -514,7 +525,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         else
           Column(
             children: [
-              // 2. PRIMER DISCURSANTE CON BOTÓN
+              // --- 1. PRIMER DISCURSANTE ---
               Row(
                 children: [
                   Expanded(child: MemberAutocompleteField( label: '1er Discursante', controller: _firstSpeakerNameController, icon: Icons.person_outline, ),
@@ -532,17 +543,22 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-
               TextFormField(controller: _firstSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 1')),
-              const Divider(),
-              HymnAutocomplete(
-                label: 'Himno Especial (Opcional)',
-                controller: _intermediateHymnController,
-                icon: Icons.music_note,
-              ),
-              const Divider(),
 
-              // 3. SEGUNDO DISCURSANTE CON BOTÓN
+              // ---------------------------------------------------------
+              // 🎶 LÓGICA: SI SOLO HAY 2 DISCURSANTES, EL HIMNO VA AQUÍ
+              // ---------------------------------------------------------
+              if (!_hasThirdSpeaker) ...[
+                const SizedBox(height: 20),
+                HymnAutocomplete(
+                  label: 'Himno Especial (Opcional)',
+                  controller: _intermediateHymnController,
+                  icon: Icons.music_note,
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              // --- 2. SEGUNDO DISCURSANTE ---
               Row(
                 children: [
                   Expanded(child: MemberAutocompleteField( label: '2do Discursante', controller: _secondSpeakerNameController, icon: Icons.person_outline, ),
@@ -552,16 +568,60 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                     icon: const Icon(Icons.print, color: Colors.blueGrey),
                     onPressed: () => _printAssignment(
                       name: _secondSpeakerNameController.text,
-                      type: 'ULTIMO DISCURSO',
+                      type: _hasThirdSpeaker ? 'SEGUNDO DISCURSO' : 'ÚLTIMO DISCURSO', // Cambia el título de la esquela
                       topic: _secondSpeakerTopicController.text,
-                      duration: '8',
+                      duration: _hasThirdSpeaker ? '8' : '15', // Si hay 3, es más corto
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-
               TextFormField(controller: _secondSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 2')),
+
+              const SizedBox(height: 15),
+
+              // --- INTERRUPTOR PARA 3ER DISCURSANTE ---
+              SwitchListTile(
+                title: const Text('Añadir Tercer Discursante', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('Mueve el Himno Especial y añade un orador final'),
+                value: _hasThirdSpeaker,
+                activeColor: Theme.of(context).primaryColor,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) => setState(() => _hasThirdSpeaker = v),
+              ),
+
+              // --- 3. TERCER DISCURSANTE (SI ESTÁ ACTIVO) ---
+              if (_hasThirdSpeaker) ...[
+                // ---------------------------------------------------------
+                // 🎶 LÓGICA: SI HAY 3 DISCURSANTES, EL HIMNO SE MUEVE AQUÍ
+                // ---------------------------------------------------------
+                const SizedBox(height: 20),
+                HymnAutocomplete(
+                  label: 'Himno Especial (Opcional)',
+                  controller: _intermediateHymnController,
+                  icon: Icons.music_note,
+                ),
+                const SizedBox(height: 20),
+
+                Row(
+                  children: [
+                    Expanded(child: MemberAutocompleteField( label: '3er Discursante', controller: _thirdSpeakerNameController, icon: Icons.person_outline, ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.print, color: Colors.blueGrey),
+                      onPressed: () => _printAssignment(
+                        name: _thirdSpeakerNameController.text,
+                        type: 'ÚLTIMO DISCURSO',
+                        topic: _thirdSpeakerTopicController.text,
+                        duration: '15',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextFormField(controller: _thirdSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 3')),
+              ],
             ],
           ),
 

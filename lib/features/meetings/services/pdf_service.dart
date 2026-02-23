@@ -142,17 +142,38 @@ class PdfService {
           pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                _buildPdfItem('1er Discursante', agenda.firstSpeakerName ?? 'No asignado', bold: true),
-                _buildPdfItem('Tema', agenda.firstSpeakerTopic ?? 'N/A'),
+                // --- 1. PRIMER DISCURSANTE ---
+                _buildPdfItem('1er Discursante', agenda.firstSpeakerName, bold: true),
+                _buildPdfItem('Tema', agenda.firstSpeakerTopic),
                 pw.SizedBox(height: 8),
 
-                if (agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) ...[
+                // ---------------------------------------------------------
+                // 🎶 LÓGICA: SI SOLO HAY 2 DISCURSANTES, EL HIMNO VA AQUÍ
+                // ---------------------------------------------------------
+                if (!agenda.hasThirdSpeaker && agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) ...[
                   _buildPdfItem('Himno Especial', agenda.intermediateHymn),
                   pw.SizedBox(height: 8),
                 ],
 
-                _buildPdfItem('2do Discursante', agenda.secondSpeakerName ?? 'No asignado', bold: true),
-                _buildPdfItem('Tema', agenda.secondSpeakerTopic ?? 'N/A'),
+                // --- 2. SEGUNDO DISCURSANTE ---
+                _buildPdfItem('2do Discursante', agenda.secondSpeakerName, bold: true),
+                _buildPdfItem('Tema', agenda.secondSpeakerTopic),
+                pw.SizedBox(height: 8),
+
+                // --- 3. TERCER DISCURSANTE (SI ESTÁ ACTIVO) ---
+                if (agenda.hasThirdSpeaker) ...[
+                  // ---------------------------------------------------------
+                  // 🎶 LÓGICA: SI HAY 3 DISCURSANTES, EL HIMNO SE MUEVE AQUÍ
+                  // ---------------------------------------------------------
+                  if (agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) ...[
+                    _buildPdfItem('Himno Especial', agenda.intermediateHymn),
+                    pw.SizedBox(height: 8),
+                  ],
+
+                  _buildPdfItem('3er Discursante', agenda.thirdSpeakerName, bold: true),
+                  _buildPdfItem('Tema', agenda.thirdSpeakerTopic),
+                  pw.SizedBox(height: 8),
+                ],
               ]
           ),
 
@@ -258,62 +279,84 @@ class PdfService {
       agendaBody.add(pw.Text('No hay agenda detallada para esta reunión.', style: pw.TextStyle(fontStyle: pw.FontStyle.italic)));
     }
 
-    // 4. CREAR PÁGINA FINAL
+    // 4. CREAR PÁGINAS MÚLTIPLES
     pdf.addPage(
-        pw.Page(
-            pageFormat: PdfPageFormat.a4,
-            theme: pw.ThemeData.withFont(
-              base: fontRegular,
-              bold: fontBold,
-              italic: fontItalic,
-            ),
-            build: (pw.Context context) {
-              return pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // CABECERA
-                    pw.Row(
-                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.only(left: 60, top: 32, right: 32, bottom: 32), // Márgenes recomendados para perforar
+        theme: pw.ThemeData.withFont(
+          base: fontRegular,
+          bold: fontBold,
+          italic: fontItalic,
+        ),
+
+        // Cabecera que se repite (opcional) o se dibuja solo en la primera página
+        header: (pw.Context context) {
+          if (context.pageNumber > 1) {
+            return pw.SizedBox.shrink(); // Solo mostrar cabecera en pag 1
+          }
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // CABECERA
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Expanded(
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              pw.Text('AGENDA DE REUNIÓN',
-                                  style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: brandColor)),
-                              pw.Text(meeting.type.displayName,
-                                  style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                              if (meeting.organization != null)
-                                pw.Text(meeting.organization!,
-                                    style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
-                            ],
-                          ),
-                        ),
-                        pw.Container(
-                          height: 150, // Logo ajustado
-                          width: 150,
-                          child: pw.Image(logoImage),
-                        ),
+                        pw.Text('AGENDA DE REUNIÓN',
+                            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: brandColor)),
+                        pw.Text(meeting.type.displayName,
+                            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                        if (meeting.organization != null)
+                          pw.Text(meeting.organization!,
+                              style: pw.TextStyle(fontSize: 12, color: PdfColors.grey700)),
                       ],
                     ),
+                  ),
+                  pw.Container(
+                    height: 150, // Ajustado para que no ocupe tanto
+                    width: 150,
+                    child: pw.Image(logoImage),
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Divider(color: brandColor, thickness: 2),
 
-                    pw.Divider(color: brandColor, thickness: 2),
+              // DETALLES GENERALES
+              _buildPdfItem('Preside', meeting.presidedBy),
+              _buildPdfItem('Dirige', meeting.directedBy),
+              _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),
+              _buildPdfItem('Hora', meeting.time, bold: true),
 
-                    // DETALLES GENERALES
-                    _buildPdfItem('Preside', meeting.presidedBy),
-                    _buildPdfItem('Dirige', meeting.directedBy),
-                    _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),
-                    _buildPdfItem('Hora', meeting.time, bold: true),
+              pw.SizedBox(height: 20),
+            ],
+          );
+        },
 
-                    pw.SizedBox(height: 20),
+        // CUERPO DEL DOCUMENTO (Aquí Flutter cortará la página automáticamente)
+        build: (pw.Context context) {
+          return [
+            ...agendaBody, // Desplegamos la lista de widgets de la agenda
+          ];
+        },
 
-                    // CUERPO DE AGENDA
-                    ...agendaBody,
-                  ]
-              );
-            }
-        )
+        // Pie de página (Opcional, para poner "Página 1 de 2")
+        footer: (pw.Context context) {
+          return pw.Container(
+            alignment: pw.Alignment.centerRight,
+            margin: const pw.EdgeInsets.only(top: 10),
+            child: pw.Text(
+              'Página ${context.pageNumber} de ${context.pagesCount}',
+              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+            ),
+          );
+        },
+      ),
     );
 
     return pdf.save();

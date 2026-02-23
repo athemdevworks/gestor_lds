@@ -168,11 +168,12 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
         final allMeetings = snapshot.data ?? [];
 
         // -----------------------------------------------------------
-        // 🧠 LÓGICA DE FILTRADO POR ROL Y ORGANIZACIÓN (INTACTA)
+        // 🧠 LÓGICA DE FILTRADO POR ROL Y ORGANIZACIÓN
         // -----------------------------------------------------------
         final filteredMeetings = allMeetings.where((meeting) {
-          // CASO 1: Obispado ve TODO
-          if (widget.currentUser.role == UserRole.obispado) {
+          // CASO 1: Obispado y Admin ven TODO
+          if (widget.currentUser.role == UserRole.obispado ||
+              widget.currentUser.role == UserRole.admin) {
             return true;
           }
           // CASO 2: Líder de Organización
@@ -180,7 +181,7 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
             if (meeting.type == MeetingType.wardCouncil) return true;
             if (meeting.organization == widget.currentUser.organization) return true;
           }
-          // CASO 3: Miembro
+          // CASO 3: Miembro (Solo ve las Sacramentales)
           if (widget.currentUser.role == UserRole.miembro) {
             if (meeting.type == MeetingType.sacramental) return true;
           }

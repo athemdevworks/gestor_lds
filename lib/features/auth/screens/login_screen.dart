@@ -255,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               Text(
                                 // 4. Versión actualizada
-                                'Versión 1.8.1',
+                                'Versión 1.8.2',
                                 style: TextStyle(fontSize: 10, color: Colors.grey),
                               ),
                             ],

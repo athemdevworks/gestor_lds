@@ -105,7 +105,7 @@ class UserModel {
   // 3. ¿Tiene algún liderazgo? (Admin, Obispo o Líder)
   // Úsalo para: Ver presupuestos, crear agendas.
   bool get isLeaderOrBetter =>
-      role == UserRole.admin ||
+          role == UserRole.admin ||
           role == UserRole.obispado ||
           role == UserRole.lider;
 

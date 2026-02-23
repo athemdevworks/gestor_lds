@@ -32,7 +32,7 @@ const Map<String, List<String>> kLdsStructure = {
     'Segundo Consejero del Quórum de Maestros',
     'Secretario del Quórum de Maestros',
     'Asesor del Quórum de Maestros',
-    'Primer Ayudante del Quórum de Presbíteros', // (El Obispo preside, el ayudante dirige)
+    'Primer Ayudante del Quórum de Presbíteros',
     'Segundo Ayudante del Quórum de Presbíteros',
     'Secretario del Quórum de Presbíteros',
     'Asesor del Quórum de Presbíteros',
@@ -77,7 +77,51 @@ const Map<String, List<String>> kLdsStructure = {
     'Líder Misional de Barrio',
     'Misionero de Barrio',
   ],
-  'Barrio': [
-    'Miembro', // Rol genérico por si acaso
+  'Joven Adulto Soltero':[
+    'Asesora de la Sociedad de Socorro para las jóvenes adultas solteras',
+    'Asesor de jóvenes adultos solteros',
+    'Líder de los jóvenes adultos solteros',
+    'Líder de los jóvenes adultos solteros',
+    'Presidente del Comité de Jóvenes Adultos Solteros',
+    'Miembro del Comité de Jóvenes Adultos Solteros',
+  ],
+  'Música': [
+    'Pianista u organista del sacerdocio',
+    'Director de música del sacerdocio',
+    'Pianista de coro',
+    'Asesor musical',
+    'Director(a) de coro',
+    'Pianista u organista',
+    'Líder de música',
+    'Coordinador de música',
+      ],
+  'Revistas': [
+    'Representante de la revista Liahona',
+  ],
+  'Instalaciones': [
+    'Representante del edificio',
+    'Programador--Edificio 1',
+    'Programador--Edificio 2',
+    'Programador--Edificio 3',
+    'Programador--Edificio 4',
+    'Programador--Edificio 5',
+  ],
+  'Para la Fortaleza de la Juventud': [
+    'Representante de FSY',
+  ],
+  'Historia': [
+    'Especialista en historia',
+  ],
+  'Tecnología': [
+    'Especialista en comunicación por correo electrónico',
+    'Especialista en tecnología',
+    'Intérprete de Barrio/Rama',
+  ],
+  'Bienestar y Autosuficiencia': [
+    'Líder de actividades para personas con discapacidades',
+    'Especialista en discapacidades',
+    'Especialista en Bienestar y Autosuficiencia',
+    'Facilitador de grupo de autosuficiencia'
   ]
+
 };
