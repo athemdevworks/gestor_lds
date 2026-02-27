@@ -5,7 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart'; // <--- RECOMENDADO: Manejo de estado
 import 'firebase_options.dart';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 // Importamos las pantallas y servicios
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';

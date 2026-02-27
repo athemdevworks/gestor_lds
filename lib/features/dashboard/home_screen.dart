@@ -12,6 +12,7 @@ import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
 import 'package:gestor_lds/features/communications/screens/whatsapp_sender_screen.dart';
 import 'package:gestor_lds/features/members/screens/members_screen.dart';
 import 'package:gestor_lds/features/dashboard//widgets/birthdays_card.dart';
+import 'package:gestor_lds/features/statistics/screens/manager_dashboard_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final UserModel user;
@@ -197,6 +198,19 @@ class HomeScreen extends StatelessWidget {
               _buildGridOrList(
                 isWideScreen,
                 children: [
+                  _DashboardCard(
+                    title: 'ESTADISTICAS',
+                    subtitle: 'Modo Manager',
+                    icon: Icons.pie_chart_rounded, // Un icono de gráfica circular
+                    iconColor: Colors.amber.shade700, // Dorado/Amarillo para resaltar
+                    textColor: Colors.black,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ManagerDashboardScreen()),
+                      );
+                    },
+                  ),
                   _DashboardCard(
                     title: 'USUARIOS',
                     subtitle: 'Aprobar y editar usuarios',

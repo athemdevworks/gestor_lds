@@ -17,7 +17,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
   final InterviewService _service = InterviewService();
   final Color _brandBlue = const Color(0xFF164772);
 
-  bool get _isAdmin => widget.currentUser.role == UserRole.obispado;
+  bool get _isAdmin => widget.currentUser.role == UserRole.obispado || widget.currentUser.role == UserRole.admin;
 
   // Filtro seleccionado por el miembro (Por defecto "Todos")
   String _selectedFilterRole = 'Todos';
@@ -259,11 +259,27 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
 
   Widget? _buildActionButtons(InterviewModel slot, bool isMyTab) {
     if (_isAdmin) {
-      return IconButton(
-        icon: const Icon(Icons.delete_outline, color: Colors.red),
-        onPressed: () => _service.deleteSlot(slot.id),
+      return Row(
+        mainAxisSize: MainAxisSize.min, // Súper importante para que no dé error visual
+        children: [
+          // 1. Botón de Liberar (Solo aparece si el turno está ocupado)
+          if (slot.isReserved)
+            IconButton(
+              icon: const Icon(Icons.person_remove, color: Colors.orange),
+              tooltip: 'Liberar Turno (Cancelar Cita)',
+              onPressed: () => _cancelAppointment(slot), // ¡Reutilizamos tu función!
+            ),
+
+          // 2. Botón de Eliminar el bloque de tiempo completo
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            tooltip: 'Borrar Horario',
+            onPressed: () => _confirmDeleteSlot(slot),
+          ),
+        ],
       );
     }
+
     if (isMyTab) {
       return ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
@@ -271,6 +287,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
         child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
       );
     }
+
     if (!slot.isReserved) {
       return ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
@@ -279,6 +296,30 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
       );
     }
     return null;
+  }
+
+  // --- NUEVA FUNCIÓN: CONFIRMAR BORRADO ---
+  // Para evitar que el Obispado borre un horario por accidente
+  Future<void> _confirmDeleteSlot(InterviewModel slot) async {
+    bool confirm = await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Eliminar Horario'),
+          content: const Text('¿Seguro que deseas borrar este bloque de tiempo por completo?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Sí, Borrar', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        )
+    ) ?? false;
+
+    if (confirm) {
+      await _service.deleteSlot(slot.id);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Horario eliminado.')));
+    }
   }
 
   // --- DIÁLOGOS DE ACCIÓN ---
@@ -437,30 +478,40 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     );
   }
 
-  // Generador actualizado con ROL
+
+
+
+  // Generador actualizado usando BATCH (Escritura Masiva)
   Future<void> _generateSlots(DateTime date, TimeOfDay start, TimeOfDay end, int durationMinutes, String role) async {
     DateTime startDT = DateTime(date.year, date.month, date.day, start.hour, start.minute);
     DateTime endDT = DateTime(date.year, date.month, date.day, end.hour, end.minute);
 
     if (endDT.isBefore(startDT)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Hora fin inválida')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Hora de fin inválida')));
       return;
     }
 
-    int count = 0;
-    while (startDT.add(Duration(minutes: durationMinutes)).isBefore(endDT) ||
-        startDT.add(Duration(minutes: durationMinutes)).isAtSameMomentAs(endDT)) {
-
-      await _service.createSlot(
-          start: startDT,
-          durationMinutes: durationMinutes,
-          adminId: widget.currentUser.uid,
-          role: role // <--- PASAMOS EL ROL
+    try {
+      // 🚀 Llamamos a la nueva súper-función del servicio
+      await _service.createSlotBlock(
+        startTime: startDT,
+        endTime: endDT,
+        durationMinutes: durationMinutes,
+        adminId: widget.currentUser.uid,
+        role: role,
       );
 
-      startDT = startDT.add(Duration(minutes: durationMinutes));
-      count++;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bloque de citas generado exitosamente para $role.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al generar horarios: $e')),
+        );
+      }
     }
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Se crearon $count espacios para $role.')));
   }
 }

@@ -31,8 +31,8 @@ class BirthdaysCard extends StatelessWidget {
             ),
             const Divider(),
             Expanded(
-              child: StreamBuilder<List<MemberModel>>(
-                stream: memberService.getBirthdaysThisWeek(),
+              child: FutureBuilder<List<MemberModel>>(
+                future: memberService.getBirthdaysThisWeek(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());

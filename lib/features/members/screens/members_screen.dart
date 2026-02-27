@@ -70,8 +70,8 @@ class _MembersScreenState extends State<MembersScreen> {
 
           // 2. LISTA DE MIEMBROS
           Expanded(
-            child: StreamBuilder<List<MemberModel>>(
-              stream: _memberService.getMembers(),
+            child: FutureBuilder<List<MemberModel>>(
+              future: _memberService.getMembers(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
                 if (snapshot.connectionState == ConnectionState.waiting) {

@@ -14,22 +14,13 @@ class MemberService {
     await docRef.set(member.toMap(), SetOptions(merge: true));
 
     // 2. --- SINCRONIZACIÓN (EFECTO ESPEJO) ---
-    // Si este miembro tiene un usuario de sistema vinculado, actualizamos su etiqueta también.
     if (member.relatedUserId != null && member.relatedUserId!.isNotEmpty) {
       try {
-        // Definimos qué organización mostrar en el Usuario:
-        // Si tiene cargo de servicio (Ej: Primaria), mostramos ese.
-        // Si fue relevado (null), mostramos su organización base (Ej: Soc. Socorro).
         String displayOrg = member.servingOrganization ?? member.primaryOrganization;
 
         await _usersRef.doc(member.relatedUserId).update({
-          // Actualizamos Llamamiento (Si es null, guardamos string vacío para borrarlo)
           'calling': member.calling ?? '',
-
-          // Actualizamos Organización (Para que ya no diga Primaria si no trabaja ahí)
           'organization': displayOrg,
-
-          // Opcional: Sincronizar también nombres y teléfonos para mantener todo igual
           'nombres': member.firstName,
           'apellidos': member.lastName,
           'phoneNumber': member.phone,
@@ -37,84 +28,87 @@ class MemberService {
         print("Usuario sincronizado correctamente.");
       } catch (e) {
         print("El usuario vinculado no existe o hubo error: $e");
-        // No lanzamos error para no detener el guardado del miembro
       }
     }
   }
 
-  // Agregar nuevo (Wrapper para claridad en el Formulario)
   Future<void> addMember(MemberModel member) async {
     return saveMember(member);
   }
 
-  // Actualizar existente (Wrapper para claridad en el Formulario)
   Future<void> updateMember(MemberModel member) async {
     return saveMember(member);
   }
 
-  // Borrar miembro
   Future<void> deleteMember(String id) async {
     await _membersRef.doc(id).delete();
   }
 
-  // --- CONSULTAS ---
+  // --- CONSULTAS OPTIMIZADAS (AHORRO DE COSTOS Y SOPORTE OFFLINE) ---
 
-  // Obtener lista completa en tiempo real
-  Stream<List<MemberModel>> getMembers() {
-    return _membersRef.orderBy('lastName').snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
-        return MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
-    });
+  // Obtener lista completa (Lectura Única con Caché)
+  Future<List<MemberModel>> getMembers() async {
+    final snapshot = await _membersRef.orderBy('lastName').get(
+        const GetOptions(source: Source.serverAndCache) // Optimizado para offline y costos
+    );
+    return snapshot.docs.map((doc) {
+      return MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    }).toList();
   }
 
   // Buscar miembros (Filtro en cliente)
   Future<List<MemberModel>> searchMembers(String query) async {
-    final snapshot = await _membersRef.get();
+    final snapshot = await _membersRef.get(
+        const GetOptions(source: Source.serverAndCache)
+    );
     final allMembers = snapshot.docs.map((doc) => MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
 
     final lowerQuery = query.toLowerCase();
     return allMembers.where((m) =>
-    m.fullName.toLowerCase().contains(lowerQuery) || // fullName es un getter ahora, funciona igual
+    m.fullName.toLowerCase().contains(lowerQuery) ||
         m.lastName.toLowerCase().contains(lowerQuery)
     ).toList();
   }
 
-  // Obtener cumpleañeros de la semana
-  Stream<List<MemberModel>> getBirthdaysThisWeek() {
-    return _membersRef.snapshots().map((snapshot) {
-      final now = DateTime.now();
+  // Obtener cumpleañeros de la semana (Lectura Única)
+  Future<List<MemberModel>> getBirthdaysThisWeek() async {
+    final snapshot = await _membersRef.get(
+        const GetOptions(source: Source.serverAndCache)
+    );
+    final now = DateTime.now();
 
-      final members = snapshot.docs.map((doc) {
-        return MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-      }).toList();
+    final members = snapshot.docs.map((doc) {
+      return MemberModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+    }).toList();
 
-      return members.where((m) {
-        if (m.birthDate == null) return false;
+    final upcomingBirthdays = members.where((m) {
+      if (m.birthDate == null) return false;
 
-        final dob = m.birthDate!;
-        final birthdayThisYear = DateTime(now.year, dob.month, dob.day);
-        final birthdayNextYear = DateTime(now.year + 1, dob.month, dob.day);
+      final dob = m.birthDate!;
+      final birthdayThisYear = DateTime(now.year, dob.month, dob.day);
+      final birthdayNextYear = DateTime(now.year + 1, dob.month, dob.day);
 
-        final diff = birthdayThisYear.difference(now).inDays;
-        final diffNext = birthdayNextYear.difference(now).inDays;
+      final diff = birthdayThisYear.difference(now).inDays;
+      final diffNext = birthdayNextYear.difference(now).inDays;
 
-        // Rango: Hoy (0) hasta próximos 7 días
-        return (diff >= 0 && diff <= 7) || (diffNext >= 0 && diffNext <= 7);
-      }).toList()
-        ..sort((a, b) {
-          // Ordenar por fecha próxima
-          final dobA = a.birthDate!;
-          final dobB = b.birthDate!;
-          final dateA = DateTime(2000, dobA.month, dobA.day);
-          final dateB = DateTime(2000, dobB.month, dobB.day);
-          return dateA.compareTo(dateB);
-        });
+      return (diff >= 0 && diff <= 7) || (diffNext >= 0 && diffNext <= 7);
+    }).toList();
+
+    // Ordenar por fecha próxima
+    upcomingBirthdays.sort((a, b) {
+      final dobA = a.birthDate!;
+      final dobB = b.birthDate!;
+      final dateA = DateTime(2000, dobA.month, dobA.day);
+      final dateB = DateTime(2000, dobB.month, dobB.day);
+      return dateA.compareTo(dateB);
     });
+
+    return upcomingBirthdays;
   }
 
-  // --- IMPORTACIÓN Y MIGRACIÓN (ADAPTADO AL NUEVO MODELO) ---
+  // --- IMPORTACIÓN Y MIGRACIÓN ---
   Future<void> importUsersToMembers() async {
+    // ... (Tu código de migración se mantiene exactamente igual) ...
     final usersSnapshot = await _usersRef.get();
     int count = 0;
 
@@ -123,7 +117,6 @@ class MemberService {
       final userId = userDoc.id;
       final email = userData['email'] as String? ?? '';
 
-      // 1. Evitar duplicados
       final docCheck = await _membersRef.doc(userId).get();
       if (docCheck.exists) continue;
 
@@ -132,7 +125,6 @@ class MemberService {
         if (emailCheck.docs.isNotEmpty) continue;
       }
 
-      // 2. Obtener Datos Básicos
       String firstName = userData['nombres'] ?? userData['firstName'] ?? '';
       String lastName = userData['apellidos'] ?? userData['lastName'] ?? '';
 
@@ -144,23 +136,18 @@ class MemberService {
 
       String phone = userData['phoneNumber'] ?? userData['phone'] ?? userData['celular'] ?? '';
       String calling = userData['calling'] ?? userData['llamamiento'] ?? '';
-
-      // La organización antigua se mapea a primaryOrganization
       String oldOrg = userData['organization'] ?? userData['organizacion'] ?? 'Barrio';
 
-      // 3. Detectar si es JAS (Lógica simple)
       bool isYSA = false;
       if (oldOrg.toUpperCase().contains('JAS') || oldOrg.toUpperCase().contains('YSA')) {
         isYSA = true;
       }
 
-      // 4. Fechas
       DateTime? birthDate;
       if (userData['birthDate'] != null && userData['birthDate'] is Timestamp) {
         birthDate = (userData['birthDate'] as Timestamp).toDate();
       }
 
-      // 5. Género
       String gender = 'M';
       final orgLower = oldOrg.toLowerCase();
       final callLower = calling.toLowerCase();
@@ -168,20 +155,15 @@ class MemberService {
         gender = 'F';
       }
 
-      // 6. CREAR EL NUEVO MODELO (Sin fullName, con nuevos campos)
       final newMember = MemberModel(
         id: userId,
         firstName: firstName,
         lastName: lastName,
-        // fullName: SE ELIMINÓ (es getter ahora)
         gender: gender,
-
-        // Mapeo Nuevo:
-        primaryOrganization: oldOrg, // Asumimos que lo que había antes era su org principal
+        primaryOrganization: oldOrg,
         isYSA: isYSA,
-        servingOrganization: null,   // Por defecto nulo en migración
+        servingOrganization: null,
         calling: calling.isNotEmpty ? calling : null,
-
         email: email,
         phone: phone,
         birthDate: birthDate,

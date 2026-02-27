@@ -3,7 +3,7 @@ description: "Proyecto de gestion de reuniones y agendas"
 publish_to: 'none'
 
 # CAMBIO 1: Actualizamos versión para el despliegue
-version: 1.8.2+26
+version: 1.9.1+28
 
 environment:
   sdk: ^3.10.1
@@ -26,8 +26,9 @@ dependencies:
   package_info_plus: ^9.0.0
   table_calendar: ^3.2.0
   provider: ^6.1.5+1
-  url_launcher: ^6.2.0
+  url_launcher: ^6.3.2
   add_2_calendar: ^3.0.1
+  fl_chart: ^1.1.1
   # FIN DE DEPENDENCIAS
 
 dev_dependencies:

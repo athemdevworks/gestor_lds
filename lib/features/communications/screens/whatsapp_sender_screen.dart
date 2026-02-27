@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
-// IMPORTANTE: Importamos la pantalla del generador de PDFs
 import 'package:gestor_lds/features/communications/screens/document_generator_screen.dart';
 
 class WhatsAppSenderScreen extends StatefulWidget {
@@ -26,22 +25,14 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
   // Controladores de Texto
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-
-  // --- NUEVOS CONTROLADORES PARA DISCURSO ---
   final TextEditingController _topicController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
-  // ------------------------------------------
 
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
 
   String _previewMessage = '';
   bool _isInit = true;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void didChangeDependencies() {
@@ -64,43 +55,35 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
   // Genera el texto basado en la selección
   void _updatePreview() {
     final name = _nameController.text.trim().isEmpty ? '[Nombre]' : _nameController.text.trim();
-
-    // Fecha con formato completo: "domingo 7 de enero de 2026"
     final date = DateFormat("EEEE d 'de' MMMM 'de' y", 'es_ES').format(_selectedDate);
     final time = _selectedTime.format(context);
-
-    // Variables para discurso
     final topic = _topicController.text.trim().isEmpty ? '[Tema]' : _topicController.text.trim();
     final duration = _durationController.text.trim().isEmpty ? '[Tiempo]' : _durationController.text.trim();
 
     setState(() {
       switch (_selectedType) {
         case 'Entrevista (Renovación)':
-          _previewMessage = "Hola $name, esperamos que estés muy bien. \n\nEl Obispado desea invitarte a una breve entrevista para la renovación de tu recomendación para el templo, el día *$date* a las *$time* en la oficina del Barrio. \n\n¿Podrías confirmarnos tu asistencia?";
+          _previewMessage = "Hola *$name*, esperamos que estés muy bien. 👋\n\nEl Obispado desea invitarte a una breve entrevista para la renovación de tu recomendación para el templo, el día *$date* a las *$time* en la oficina del Barrio. \n\n¿Podrías confirmarnos tu asistencia?";
           break;
-
         case 'Entrevista (General)':
-          _previewMessage = "Hola $name. El Obispo quisiera reunirse contigo brevemente este *$date* a las *$time* en su oficina. \n\nPor favor, avísanos si este horario funciona para ti.";
+          _previewMessage = "Hola *$name*. 👋\n\nEl Obispo quisiera reunirse contigo brevemente este *$date* a las *$time* en su oficina. \n\nPor favor, avísanos si este horario funciona para ti.";
           break;
-
         case 'Asignación Discurso':
           _previewMessage = "Estimado(a) Hermano(a): *$name*\n\n"
-              "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra.\n\n"
-              "En esta ocasión nos complace extenderle una cordial invitación para participar en nuestra reunión sacramental con un *DISCURSO* el día *$date* en la capilla Nuevo Trujillo. El tema asignado para esta ocasión es: *“$topic”*. Tendrá un tiempo estimado no mayor a *$duration min*.\n\n"
-              "Rogamos que el espíritu del Señor le inspire en la preparación de su discurso y así todos podamos ser edificados en la casa de Dios, el prepararse diligentemente le traerá muchas bendiciones al esforzarse por vivir lo que aprenda.\n\n"
-              "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le agradecemos, le recordamos y le admiramos por su fe y sus humildes oraciones.\n\n"
-              "Con Amor,\n\n"
+              "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo. 👋\n\n"
+              "Nos complace extenderle una invitación para participar en nuestra reunión sacramental con un *DISCURSO* el día *$date* en la capilla. \n\n"
+              "📖 *Tema:* “$topic”\n"
+              "⏳ *Tiempo:* $duration min.\n\n"
+              "Rogamos que el espíritu del Señor le inspire en su preparación. Le pedimos estar 10 minutos antes en el estrado.\n\n"
+              "Con Amor,\n"
               "Obispado Nuevo Trujillo";
           break;
-
         case 'Asignación Oración':
-          _previewMessage = "Hola $name. Nos gustaría invitarte a ofrecer una oración en la reunión sacramental del *$date*. \n\n¿Cuentas con disponibilidad?";
+          _previewMessage = "Hola *$name*. 👋\n\nNos gustaría invitarte a ofrecer una oración en la reunión sacramental del *$date*. \n\n¿Cuentas con disponibilidad para ayudarnos?";
           break;
-
         case 'Recordatorio Reunión':
-          _previewMessage = "Hola $name, te recordamos nuestra reunión de Consejo este *$date* a las *$time*. ¡Te esperamos!";
+          _previewMessage = "Hola *$name*, te recordamos nuestra reunión de Consejo este *$date* a las *$time*. ¡Te esperamos! 📅";
           break;
-
         default:
           _previewMessage = "";
       }
@@ -136,13 +119,21 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
     }
   }
 
+  // --- EL LANZADOR OPTIMIZADO PARA PERÚ (+51) ---
   Future<void> _sendWhatsApp() async {
     final String message = Uri.encodeComponent(_previewMessage);
-    final String phone = _phoneController.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+    String phone = _phoneController.text.trim().replaceAll(RegExp(r'\D'), ''); // Deja solo números
+
+    // Si el usuario ingresa 9 dígitos (formato estándar de Perú), le añadimos el código de país '51'
+    if (phone.length == 9) {
+      phone = '51$phone';
+    }
 
     final Uri whatsappUrl = phone.isNotEmpty
         ? Uri.parse("https://wa.me/$phone?text=$message")
-        : Uri.parse("https://wa.me/?text=$message");
+        : Uri.parse("https://wa.me/?text=$message"); // Abre WhatsApp general para elegir contacto
+
+    print('🌐 Intentando abrir URL: $whatsappUrl'); // Para depuración en consola
 
     try {
       if (!await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication)) {
@@ -151,7 +142,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al abrir WhatsApp')),
+          SnackBar(content: Text('Error al abrir WhatsApp: $e')),
         );
       }
     }
@@ -180,7 +171,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    const Text('Configuración de Cita', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text('Configuración del Mensaje', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                     const SizedBox(height: 15),
 
                     DropdownButtonFormField<String>(
@@ -196,7 +187,6 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
                     ),
                     const SizedBox(height: 15),
 
-                    // Nombre
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(labelText: 'Nombre del Miembro', border: OutlineInputBorder(), prefixIcon: Icon(Icons.person)),
@@ -230,9 +220,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
                       ),
                       const SizedBox(height: 15),
                     ],
-                    // ---------------------------------------------
 
-                    // Teléfono
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
@@ -325,7 +313,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
             const Center(child: Text("O generar documento formal:", style: TextStyle(color: Colors.grey))),
             const SizedBox(height: 10),
 
-            // --- 5. NUEVO BOTÓN: GENERAR PDF ---
+            // --- 5. BOTÓN: GENERAR PDF ---
             ElevatedButton.icon(
               icon: const Icon(Icons.picture_as_pdf),
               label: const Text("Generar Documentos PDF"),
@@ -334,7 +322,7 @@ class _WhatsAppSenderScreenState extends State<WhatsAppSenderScreen> {
                   MaterialPageRoute(builder: (_) => const DocumentGeneratorScreen())
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: brandBlue, // Color corporativo
+                backgroundColor: brandBlue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

@@ -32,15 +32,25 @@ class _MemberAutocompleteFieldState extends State<MemberAutocompleteField> {
   }
 
   // Carga inicial optimizada: Traemos la lista una vez y filtramos en memoria
-  void _loadMembers() {
-    _memberService.getMembers().listen((members) {
+  Future<void> _loadMembers() async { // <--- Agregamos async
+    try {
+      // Usamos 'await' en lugar de '.listen()'
+      final members = await _memberService.getMembers();
+
       if (mounted) {
         setState(() {
           _allMembers = members;
           _isLoading = false;
         });
       }
-    });
+    } catch (error) {
+      print('Error cargando miembros: $error');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   // Lógica de filtrado local (Súper rápida)
