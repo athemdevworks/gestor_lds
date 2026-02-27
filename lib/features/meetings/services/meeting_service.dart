@@ -16,6 +16,14 @@ class MeetingService {
     required String presidedBy,
     required String directedBy,
     String? organization,
+
+    // --- NUEVOS CAMPOS v1.10 ---
+    String? openingHymn,
+    String? openingPrayer,
+    String? closingHymn,
+    String? closingPrayer,
+    // ---------------------------
+
     SacramentAgendaModel? sacramentAgenda,
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
@@ -30,6 +38,14 @@ class MeetingService {
       presidedBy: presidedBy,
       directedBy: directedBy,
       organization: organization,
+
+      // --- PASAR AL MODELO ---
+      openingHymn: openingHymn,
+      openingPrayer: openingPrayer,
+      closingHymn: closingHymn,
+      closingPrayer: closingPrayer,
+      // -----------------------
+
       sacramentAgenda: sacramentAgenda,
       agendaItems: agendaItems,
       commitments: commitments,
@@ -38,18 +54,15 @@ class MeetingService {
     await docRef.set(newMeeting.toMap());
   }
 
-  // --- NUEVOS MÉTODOS DE CONSULTA (Próximas vs Historial) ---
-
   // A. OBTENER PRÓXIMAS REUNIONES (Desde Hoy en adelante)
   Stream<List<MeetingModel>> getUpcomingMeetings() {
     final now = DateTime.now();
-    // Normalizamos a las 00:00:00 horas para no perder reuniones de hoy
     final todayStart = DateTime(now.year, now.month, now.day);
 
     return _db
         .collection(_collectionName)
         .where('date', isGreaterThanOrEqualTo: todayStart)
-        .orderBy('date', descending: false) // La más cercana primero (Ascendente)
+        .orderBy('date', descending: false)
         .snapshots()
         .map((snapshot) => snapshot.docs
         .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
@@ -63,16 +76,15 @@ class MeetingService {
 
     return _db
         .collection(_collectionName)
-        .where('date', isLessThan: todayStart) // Solo pasadas
-        .where('date', isGreaterThanOrEqualTo: limitDate) // Límite del filtro (ej: 1 mes)
-        .orderBy('date', descending: true) // La más reciente primero
+        .where('date', isLessThan: todayStart)
+        .where('date', isGreaterThanOrEqualTo: limitDate)
+        .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
         .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
         .toList());
   }
 
-  // (Mantenemos el general por si acaso, aunque usaremos los de arriba)
   Stream<List<MeetingModel>> getMeetings() {
     return _db
         .collection(_collectionName)
@@ -94,6 +106,14 @@ class MeetingService {
     required String presidedBy,
     required String directedBy,
     String? organization,
+
+    // --- NUEVOS CAMPOS v1.10 ---
+    String? openingHymn,
+    String? openingPrayer,
+    String? closingHymn,
+    String? closingPrayer,
+    // ---------------------------
+
     SacramentAgendaModel? sacramentAgenda,
     List<AgendaItemModel>? agendaItems,
     List<String>? commitments,
@@ -106,6 +126,14 @@ class MeetingService {
       presidedBy: presidedBy,
       directedBy: directedBy,
       organization: organization,
+
+      // --- PASAR AL MODELO ---
+      openingHymn: openingHymn,
+      openingPrayer: openingPrayer,
+      closingHymn: closingHymn,
+      closingPrayer: closingPrayer,
+      // -----------------------
+
       sacramentAgenda: sacramentAgenda,
       agendaItems: agendaItems,
       commitments: commitments,

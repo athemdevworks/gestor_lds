@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <--- IMPORTANTE PARA EL PORTAPAPELES
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
-// 1. IMPORTAMOS EL NUEVO WIDGET
 import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
 
 class DocumentGeneratorScreen extends StatefulWidget {
@@ -29,13 +29,12 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   String _selectedLeader = 'OBISPO';
 
   // Estado
-  bool _isMale = false; // Se actualizará solo al seleccionar miembro
+  bool _isMale = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // Fecha por defecto: Próximo Domingo
     _dateController.text = DateFormat('yyyy-MM-dd').format(_nextSunday());
     _timeController.text = "10:30 de la mañana";
   }
@@ -51,8 +50,8 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Generador de Documentos'),
-        backgroundColor: Colors.blueGrey,
+        title: const Text('Comunicaciones'),
+        backgroundColor: const Color(0xFF164772), // Tu brandBlue
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -82,7 +81,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildCommonFields(), // Aquí adentro está la magia ahora
+          _buildCommonFields(),
           const SizedBox(height: 20),
 
           const Text('Detalles de Asignación', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -112,11 +111,35 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           ],
 
           const SizedBox(height: 30),
-          ElevatedButton.icon(
-            onPressed: () => _generateAssignmentPdf(),
-            icon: const Icon(Icons.print),
-            label: const Text('GENERAR ASIGNACIÓN'),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF164772), foregroundColor: Colors.white, padding: const EdgeInsets.all(16)),
+
+          // --- BOTONES UNIFICADOS ---
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _copyAssignmentToWhatsApp,
+                  icon: const Icon(Icons.copy, color: Color(0xFF25D366)),
+                  label: const Text('Copiar WA', style: TextStyle(color: Color(0xFF25D366))),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _generateAssignmentPdf,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('PDF Formal'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF164772),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16)
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -144,49 +167,65 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           ),
 
           const SizedBox(height: 30),
-          ElevatedButton.icon(
-            onPressed: () => _generateInterviewPdf(),
-            icon: const Icon(Icons.print),
-            label: const Text('GENERAR CITACIÓN'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white, padding: const EdgeInsets.all(16)),
+
+          // --- BOTONES UNIFICADOS ---
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _copyInterviewToWhatsApp,
+                  icon: const Icon(Icons.copy, color: Color(0xFF25D366)),
+                  label: const Text('Copiar WA', style: TextStyle(color: Color(0xFF25D366))),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Color(0xFF25D366)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _generateInterviewPdf,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('PDF Formal'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade800,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16)
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // --- CAMPOS COMUNES (Ahora con Autocompletado Inteligente) ---
+  // --- CAMPOS COMUNES ---
   Widget _buildCommonFields() {
     return Column(
       children: [
-        // 2. REEMPLAZO DEL TEXTFIELD POR EL AUTOCOMPLETE
         MemberAutocompleteField(
           label: 'Nombre del Miembro',
           controller: _nameController,
           icon: Icons.person_search,
-          // 3. MAGIA: Detectar Género Automáticamente
           onMemberSelected: (member) {
             setState(() {
-              // Si el miembro es 'M' (Male), isMale es true. Si es 'F', es false.
               _isMale = member.gender == 'M';
             });
-
-            // Feedback visual opcional
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Seleccionado: ${member.fullName} (${member.gender == 'M' ? "Hermano" : "Hermana"})'),
+              content: Text('Seleccionado: ${member.fullName}'),
               duration: const Duration(seconds: 1),
             ));
           },
         ),
-
         const SizedBox(height: 15),
-
         Row(
           children: [
             const Text('Género: ', style: TextStyle(fontSize: 16)),
             const SizedBox(width: 10),
-            // Mantenemos el ToggleButtons por si quieres cambiarlo manualmente después
             ToggleButtons(
               isSelected: [!_isMale, _isMale],
               onPressed: (index) => setState(() => _isMale = index == 1),
@@ -199,7 +238,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           ],
         ),
         const SizedBox(height: 15),
-
         Row(
           children: [
             Expanded(
@@ -208,7 +246,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
                 readOnly: true,
                 decoration: const InputDecoration(labelText: 'Fecha', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_month)),
                 onTap: () async {
-                  DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now(), lastDate: DateTime(2030));
+                  DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.parse(_dateController.text), firstDate: DateTime.now(), lastDate: DateTime(2030));
                   if (picked != null) setState(() => _dateController.text = DateFormat('yyyy-MM-dd').format(picked));
                 },
               ),
@@ -225,6 +263,71 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
       ],
     );
   }
+
+  // ==========================================
+  // LÓGICA DE WHATSAPP (COPIAR AL PORTAPAPELES)
+  // ==========================================
+
+  void _copyAssignmentToWhatsApp() {
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+      return;
+    }
+
+    final date = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(DateTime.parse(_dateController.text));
+    final isTalk = _selectedAssignmentType.contains('DISCURSO');
+    final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
+    final articulo = (_selectedAssignmentType.toUpperCase().contains('ORACION') || _selectedAssignmentType.toUpperCase().contains('ORACIÓN')) ? 'la ' : 'el ';
+
+    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
+    message += "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+
+    message += "En esta ocasión nos complace extenderle una cordial invitación para participar en nuestra reunión sacramental con $articulo *${_selectedAssignmentType.toUpperCase()}* el día *$date* a las *${_timeController.text}* en la capilla Nuevo Trujillo.\n\n";
+
+    if (isTalk) {
+      message += "📖 El tema asignado para esta ocasión es: *${_topicController.text.trim()}*.\n";
+      message += "⏳ Tendrá un tiempo estimado no mayor a *${_durationController.text} min*.\n\n";
+    }
+
+    message += "Le pedimos estar 10 minutos antes del inicio de la reunión en el Salón Sacramental para sentarse en el estrado.\n\n";
+
+    if (isTalk) {
+      message += "Rogamos que el espíritu del Señor le inspire en la preparación de su discurso y así todos podamos ser edificados en la casa de Dios, el prepararse diligentemente le traerá muchas bendiciones al esforzarse por vivir lo que aprenda.\n\n";
+    }
+
+    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le agradecemos, le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
+    message += "Con Amor,\n*Obispado Nuevo Trujillo*";
+
+    Clipboard.setData(ClipboardData(text: message));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
+  }
+
+  void _copyInterviewToWhatsApp() {
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+      return;
+    }
+
+    final date = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(DateTime.parse(_dateController.text));
+    final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
+
+    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
+    message += "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+
+    message += "Por medio de la presente deseamos invitarle a una entrevista con el *$_selectedLeader*, la cual se llevará a cabo el día *$date* a las *${_timeController.text}* en la capilla Nuevo Trujillo.\n\n";
+
+    message += "Agradecemos de antemano su puntualidad y disposición. Si tiene algún inconveniente con el horario, por favor avísenos.\n\n";
+
+    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le agradecemos, le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
+    message += "Con Amor,\n*Obispado Nuevo Trujillo*";
+
+    Clipboard.setData(ClipboardData(text: message));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
+  }
+
+  // ==========================================
+  // LÓGICA DE PDF (MANTENIDA INTACTA)
+  // ==========================================
 
   void _generateAssignmentPdf() async {
     if (_nameController.text.isEmpty) {

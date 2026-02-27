@@ -9,7 +9,7 @@ import '../budget/screens/budget_list_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
 import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
-import 'package:gestor_lds/features/communications/screens/whatsapp_sender_screen.dart';
+import 'package:gestor_lds/features/communications/screens/document_generator_screen.dart';
 import 'package:gestor_lds/features/members/screens/members_screen.dart';
 import 'package:gestor_lds/features/dashboard//widgets/birthdays_card.dart';
 import 'package:gestor_lds/features/statistics/screens/manager_dashboard_screen.dart';
@@ -108,7 +108,7 @@ class HomeScreen extends StatelessWidget {
                 // --- CALENDARIO (Movido aquí) ---
                 _DashboardCard(
                   title: 'CALENDARIO',
-                  subtitle: 'Eventos del mes',
+                  subtitle: 'Cronograma de actividades del barrio',
                   icon: Icons.calendar_month,
                   iconColor: Colors.deepPurple.shade600,
                   textColor: Colors.black,
@@ -117,7 +117,7 @@ class HomeScreen extends StatelessWidget {
                 // --- ENTREVISTAS (Futuro) ---
                 _DashboardCard(
                   title: 'ENTREVISTAS',
-                  subtitle: 'Mis citas con el Obispo',
+                  subtitle: 'Gestión de citas y entrevistas',
                   icon: Icons.upcoming,
                   iconColor: Colors.teal.shade600,
                   textColor: Colors.black,
@@ -144,7 +144,7 @@ class HomeScreen extends StatelessWidget {
                 // --- ACTIVIDADES ---
                   _DashboardCard(
                     title: 'ACTIVIDADES',
-                    subtitle: 'Planificación anual',
+                    subtitle: 'Organización y control de actividades',
                     icon: Icons.local_activity,
                     iconColor: Colors.orange.shade700,
                     textColor: Colors.black,
@@ -158,7 +158,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _DashboardCard(
                     title: 'AGENDAS',
-                    subtitle: 'Consejo y Obispado',
+                    subtitle: 'Minutas y pautas de reunión',
                     icon: Icons.edit_calendar,
                     iconColor: Colors.blue.shade700,
                     textColor: Colors.black,
@@ -166,7 +166,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _DashboardCard(
                     title: 'MIS COMPROMISOS',
-                    subtitle: 'Mis tareas pendientes',
+                    subtitle: 'Seguimiento de asignaciones',
                     icon: Icons.task_alt,
                     iconColor: Colors.green.shade700,
                     textColor: Colors.black,
@@ -174,7 +174,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _DashboardCard(
                     title: 'PRESUPUESTO',
-                    subtitle: 'Planificar y solicitar fondos',
+                    subtitle: 'Control financiero y solicitudes',
                     icon: Icons.monetization_on_outlined, // Icono de dinero
                     iconColor: Colors.green.shade700,
                     textColor: Colors.black,
@@ -200,7 +200,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   _DashboardCard(
                     title: 'ESTADISTICAS',
-                    subtitle: 'Modo Manager',
+                    subtitle: 'Panel de métricas y rendimiento',
                     icon: Icons.pie_chart_rounded, // Un icono de gráfica circular
                     iconColor: Colors.amber.shade700, // Dorado/Amarillo para resaltar
                     textColor: Colors.black,
@@ -213,7 +213,7 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _DashboardCard(
                     title: 'USUARIOS',
-                    subtitle: 'Aprobar y editar usuarios',
+                    subtitle: 'Gestión de cuentas y permisos',
                     icon: Icons.verified_user,
                     iconColor: Colors.indigo.shade700,
                     textColor: Colors.black,
@@ -222,18 +222,18 @@ class HomeScreen extends StatelessWidget {
                   // --- COMUNICACIONES (Nuevo Módulo) ---
                   _DashboardCard(
                     title: 'COMUNICACIONES',
-                    subtitle: 'Enviar citas por WhatsApp',
-                    icon: Icons.send_to_mobile,
+                    subtitle: 'Citaciones y documentos oficiales',
+                    icon: Icons.campaign_rounded,
                     iconColor: const Color(0xFF25D366), // Verde WhatsApp
                     textColor: Colors.black,
                     onTap: () {
-                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WhatsAppSenderScreen()));
+                      Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DocumentGeneratorScreen()));
                     },
                   ),
 
                   _DashboardCard(
                     title: 'DIRECTORIO',
-                    subtitle: 'Listado de Miembros',
+                    subtitle: 'Base de datos del barrio',
                     icon: Icons.people_alt_rounded,
                     iconColor: Colors.deepOrange,
                     textColor: Colors.black,
