@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:gestor_lds/features/statistics/services/statistics_service.dart';
+// ¡Importa aquí tu nueva pantalla! Ajusta la ruta si la guardaste en otro lado.
+import 'package:gestor_lds/features/statistics/screens/hymn_list_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({super.key});
@@ -26,7 +28,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     _loadAllData();
   }
 
-  // Cargamos todo en paralelo para que sea ultra rápido
+  // Ya no cargamos el ranking aquí para que el dashboard sea súper veloz
   Future<void> _loadAllData() async {
     final results = await Future.wait([
       _statsService.getCommitmentsStats(),
@@ -79,6 +81,10 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
               // 3. MEDIDOR (Entrevistas)
               _buildInterviewsCard(),
+              const SizedBox(height: 16),
+
+              // 5. BOTÓN HACIA LISTADO DE HIMNOS (NUEVO)
+              _buildHymnsButtonCard(context),
               const SizedBox(height: 16),
 
               // 4. LISTA DE ALERTA (Focos Rojos)
@@ -159,16 +165,14 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
-                    // --- AQUI ESTÁ LA MAGIA DEL TOOLTIP TRANSPARENTE ---
                     barTouchData: BarTouchData(
                       enabled: true,
                       touchTooltipData: BarTouchTooltipData(
-                        getTooltipColor: (group) => Colors.transparent, // Adiós cuadro plomo
+                        getTooltipColor: (group) => Colors.transparent,
                         tooltipPadding: EdgeInsets.zero,
                         tooltipMargin: 8,
                         getTooltipItem: (group, groupIndex, rod, rodIndex) {
                           return BarTooltipItem(
-                            // toStringAsFixed(2) para que muestre los céntimos (ej: 450.00)
                             rod.toY.toStringAsFixed(2),
                             TextStyle(
                               color: group.x == 0 ? Colors.blue.shade700 : Colors.purple.shade700,
@@ -179,7 +183,6 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                         },
                       ),
                     ),
-                    // --------------------------------------------------
                     titlesData: FlTitlesData(
                       show: true,
                       bottomTitles: AxisTitles(
@@ -202,12 +205,12 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       BarChartGroupData(
                         x: 0,
                         barRods: [BarChartRodData(toY: reimbursements, color: Colors.blue.shade500, width: 40, borderRadius: BorderRadius.circular(6))],
-                        showingTooltipIndicators: [0], // Esto mantiene el número siempre visible
+                        showingTooltipIndicators: [0],
                       ),
                       BarChartGroupData(
                         x: 1,
                         barRods: [BarChartRodData(toY: advances, color: Colors.purple.shade400, width: 40, borderRadius: BorderRadius.circular(6))],
-                        showingTooltipIndicators: [0], // Esto mantiene el número siempre visible
+                        showingTooltipIndicators: [0],
                       ),
                     ],
                   )
@@ -264,7 +267,63 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   }
 
   // ==========================================
-  // WIDGET 4: FOCOS ROJOS (LISTA)
+  // WIDGET 4: BOTÓN HACIA RANKING DE HIMNOS (NUEVO)
+  // ==========================================
+  Widget _buildHymnsButtonCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      // InkWell hace que tooooda la tarjeta sea un botón interactivo
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HymnListScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Ícono redondeado
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.library_music, color: Colors.indigo.shade600, size: 28),
+              ),
+              const SizedBox(width: 15),
+              // Textos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Ranking de Himnos',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.indigo.shade900)
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                        'Ver historial y frecuencias del mes',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600)
+                    ),
+                  ],
+                ),
+              ),
+              // Flechita indicadora
+              Icon(Icons.arrow_forward_ios_rounded, color: Colors.indigo.shade300, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // WIDGET 5: FOCOS ROJOS (LISTA)
   // ==========================================
   Widget _buildOverdueCard() {
     return Card(
@@ -290,9 +349,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               ..._overdueCommitments!.map((item) {
                 return ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                  // Cambiamos el icono de la izquierda por una simple alerta
                   leading: Icon(Icons.error_outline, color: Colors.red.shade400),
-
                   title: Text(
                       item['description'],
                       maxLines: 1,
@@ -300,9 +357,6 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)
                   ),
                   subtitle: Text('${item['responsible']} • ${item['topic']}'),
-
-                  // AQUI ESTÁ LA MAGIA: Movemos el texto a la derecha
-                  // AQUI ESTÁ LA MAGIA: El texto agrupado como lo pediste
                   trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -315,7 +369,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.red.shade900, // Rojo oscuro para el número
+                                color: Colors.red.shade900,
                               ),
                             ),
                             TextSpan(
@@ -323,7 +377,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.red.shade900, // Mismo estilo y color que el número
+                                color: Colors.red.shade900,
                               ),
                             ),
                           ],

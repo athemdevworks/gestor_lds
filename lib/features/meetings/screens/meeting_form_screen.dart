@@ -286,13 +286,13 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           'time': _timeController.text,
           'presidedBy': _presidedByController.text,
           'directedBy': _directedByController.text,
-          'openingHymn': _openingHymnController.text,
-          'openingPrayer': _openingPrayerController.text,
-          'closingHymn': _closingHymnController.text,
-          'closingPrayer': _closingPrayerController.text,
+          'openingHymn': isSacramental ? null : _openingHymnController.text,
+          'openingPrayer': isSacramental ? null : _openingPrayerController.text,
+          'closingHymn': isSacramental ? null : _closingHymnController.text,
+          'closingPrayer': isSacramental ? null : _closingPrayerController.text,
           'sacramentAgenda': sacramentAgenda,
           'agendaItems': isSacramental ? null : _currentAgendaItems,
-          'commitments': _selectedType != MeetingType.sacramental ? [] : null,
+          'commitments': _selectedType != MeetingType.sacramental ? <String>[] : null,
         };
 
         if (isEditing) {

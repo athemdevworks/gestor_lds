@@ -229,5 +229,6 @@ class HymnsData {
     "1018. Ven, oh, Cristo",
     "1019. Amar igual que Tú",
     "1020. Tiernamente Jesús hoy nos llama"
+
   ];
 }

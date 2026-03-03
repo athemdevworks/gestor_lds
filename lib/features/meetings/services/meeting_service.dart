@@ -151,4 +151,80 @@ class MeetingService {
   Future<void> deleteMeeting(String meetingId) async {
     await _db.collection(_collectionName).doc(meetingId).delete();
   }
+
+// ==========================================
+  // 📊 ESTADÍSTICAS Y MINERÍA DE DATOS
+  // ==========================================
+
+  /// Extrae y cuenta todos los himnos cantados en un AÑO específico
+  Future<List<MapEntry<String, int>>> getYearlyHymnRanking(int year) async {
+    // 1. Definir el rango de TODO el año
+    final startDate = DateTime(year, 1, 1);
+    final endDate = DateTime(year + 1, 1, 1); // Primer día del año siguiente
+
+    // 2. Traer todas las reuniones de ese año
+    final snapshot = await _db
+        .collection(_collectionName)
+        .where('date', isGreaterThanOrEqualTo: startDate)
+        .where('date', isLessThan: endDate)
+        .get();
+
+    final meetings = snapshot.docs
+        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .toList();
+
+    // 3. Diccionario para contar los himnos
+    final Map<String, int> hymnCounts = {};
+
+    void addHymn(String? hymn) {
+      if (hymn != null && hymn.trim().isNotEmpty && hymn.toLowerCase() != 'por definir') {
+        // NORMALIZACIÓN DE DATOS (Para evitar duplicados)
+        // 1. Quitar espacios extra al inicio y final
+        // 2. Convertir todo a mayúsculas para igualar "Dios Vive" con "DIOS VIVE"
+        // 3. Eliminar dobles espacios internos
+        String cleanHymn = hymn.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+
+        hymnCounts[cleanHymn] = (hymnCounts[cleanHymn] ?? 0) + 1;
+      }
+    }
+
+    // 4. Escanear cada reunión y extraer los himnos
+    for (var meeting in meetings) {
+      // Himnos de Liderazgo
+      addHymn(meeting.openingHymn);
+      addHymn(meeting.closingHymn);
+
+      // Himnos Sacamentales
+      if (meeting.sacramentAgenda != null) {
+        addHymn(meeting.sacramentAgenda!.openingHymn);
+        addHymn(meeting.sacramentAgenda!.sacramentHymn);
+        addHymn(meeting.sacramentAgenda!.intermediateHymn);
+        addHymn(meeting.sacramentAgenda!.closingHymn);
+      }
+    }
+
+
+    // 5. Ordenar por NÚMERO DE HIMNO (de menor a mayor)
+    var sortedRanking = hymnCounts.entries.toList()
+      ..sort((a, b) {
+        // Extraemos el número que está antes del punto. Ej: "199. DIOS VIVE" -> 199
+        int numA = int.tryParse(a.key.split('.').first.trim()) ?? 9999;
+        int numB = int.tryParse(b.key.split('.').first.trim()) ?? 9999;
+
+        // Si no tienen número o son iguales, desempata alfabéticamente
+        if (numA == numB) {
+          return a.key.compareTo(b.key);
+        }
+        return numA.compareTo(numB); // Orden ascendente (1, 2, 3...)
+      });
+
+    // Formatear a Title Case (Ej: "199. Dios Vive")
+    return sortedRanking.map((entry) {
+      String titleCase = entry.key.split(' ').map((word) {
+        if (word.isEmpty) return word;
+        return word[0].toUpperCase() + word.substring(1).toLowerCase();
+      }).join(' ');
+      return MapEntry(titleCase, entry.value);
+    }).toList();
+  }
 }
