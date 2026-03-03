@@ -152,12 +152,12 @@ class MeetingService {
     await _db.collection(_collectionName).doc(meetingId).delete();
   }
 
-// ==========================================
+  // ==========================================
   // 📊 ESTADÍSTICAS Y MINERÍA DE DATOS
   // ==========================================
 
   /// Extrae y cuenta todos los himnos cantados en un AÑO específico
-  Future<List<MapEntry<String, int>>> getYearlyHymnRanking(int year) async {
+  Future<List<MapEntry<String, List<DateTime>>>> getYearlyHymnRanking(int year) async {
     // 1. Definir el rango de TODO el año
     final startDate = DateTime(year, 1, 1);
     final endDate = DateTime(year + 1, 1, 1); // Primer día del año siguiente
@@ -173,58 +173,135 @@ class MeetingService {
         .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
         .toList();
 
-    // 3. Diccionario para contar los himnos
-    final Map<String, int> hymnCounts = {};
+    // 3. Diccionario para guardar las FECHAS en las que se cantó cada himno
+    final Map<String, List<DateTime>> hymnDates = {};
 
-    void addHymn(String? hymn) {
-      if (hymn != null && hymn.trim().isNotEmpty && hymn.toLowerCase() != 'por definir') {
-        // NORMALIZACIÓN DE DATOS (Para evitar duplicados)
-        // 1. Quitar espacios extra al inicio y final
-        // 2. Convertir todo a mayúsculas para igualar "Dios Vive" con "DIOS VIVE"
-        // 3. Eliminar dobles espacios internos
-        String cleanHymn = hymn.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+    // Modificamos la función para que reciba también la fecha de la reunión
+    void addHymn(String? hymn, DateTime meetingDate) {
+      if (hymn != null && hymn
+          .trim()
+          .isNotEmpty && hymn.toLowerCase() != 'por definir') {
+        String cleanHymn = hymn.trim().toUpperCase().replaceAll(
+            RegExp(r'\s+'), ' ');
 
-        hymnCounts[cleanHymn] = (hymnCounts[cleanHymn] ?? 0) + 1;
+        // Si el himno no existe en el diccionario, creamos su lista vacía
+        hymnDates.putIfAbsent(cleanHymn, () => []);
+        // Añadimos la fecha a la lista de ese himno
+        hymnDates[cleanHymn]!.add(meetingDate);
       }
     }
 
-    // 4. Escanear cada reunión y extraer los himnos
+    // 4. Escanear cada reunión y extraer los himnos con su FECHA
     for (var meeting in meetings) {
-      // Himnos de Liderazgo
-      addHymn(meeting.openingHymn);
-      addHymn(meeting.closingHymn);
-
-      // Himnos Sacamentales
-      if (meeting.sacramentAgenda != null) {
-        addHymn(meeting.sacramentAgenda!.openingHymn);
-        addHymn(meeting.sacramentAgenda!.sacramentHymn);
-        addHymn(meeting.sacramentAgenda!.intermediateHymn);
-        addHymn(meeting.sacramentAgenda!.closingHymn);
+      if (meeting.type == MeetingType.sacramental &&
+          meeting.sacramentAgenda != null) {
+        addHymn(meeting.sacramentAgenda!.openingHymn, meeting.date);
+        addHymn(meeting.sacramentAgenda!.sacramentHymn, meeting.date);
+        addHymn(meeting.sacramentAgenda!.intermediateHymn, meeting.date);
+        addHymn(meeting.sacramentAgenda!.closingHymn, meeting.date);
+      } else {
+        addHymn(meeting.openingHymn, meeting.date);
+        addHymn(meeting.closingHymn, meeting.date);
       }
     }
-
 
     // 5. Ordenar por NÚMERO DE HIMNO (de menor a mayor)
-    var sortedRanking = hymnCounts.entries.toList()
+    var sortedRanking = hymnDates.entries.toList()
       ..sort((a, b) {
-        // Extraemos el número que está antes del punto. Ej: "199. DIOS VIVE" -> 199
-        int numA = int.tryParse(a.key.split('.').first.trim()) ?? 9999;
-        int numB = int.tryParse(b.key.split('.').first.trim()) ?? 9999;
-
-        // Si no tienen número o son iguales, desempata alfabéticamente
-        if (numA == numB) {
-          return a.key.compareTo(b.key);
-        }
-        return numA.compareTo(numB); // Orden ascendente (1, 2, 3...)
+        int numA = int.tryParse(a.key
+            .split('.')
+            .first
+            .trim()) ?? 9999;
+        int numB = int.tryParse(b.key
+            .split('.')
+            .first
+            .trim()) ?? 9999;
+        if (numA == numB) return a.key.compareTo(b.key);
+        return numA.compareTo(numB);
       });
 
-    // Formatear a Title Case (Ej: "199. Dios Vive")
+    // Formatear a Title Case y ordenar las fechas internamente
     return sortedRanking.map((entry) {
       String titleCase = entry.key.split(' ').map((word) {
         if (word.isEmpty) return word;
         return word[0].toUpperCase() + word.substring(1).toLowerCase();
       }).join(' ');
+
+      // Ordenar las fechas de la más antigua a la más reciente
+      entry.value.sort((a, b) => a.compareTo(b));
+
       return MapEntry(titleCase, entry.value);
     }).toList();
   }
+
+  // ==========================================
+  // 🗣️ HISTORIAL DE DISCURSANTES
+  // ==========================================
+
+  /// Extrae el historial de todos los discursantes en un AÑO específico
+  Future<List<MapEntry<String, List<Map<String, dynamic>>>>> getYearlySpeakerHistory(int year) async {
+    final startDate = DateTime(year, 1, 1);
+    final endDate = DateTime(year + 1, 1, 1);
+
+    // Solo traemos las sacramentales, que es donde hay discursantes
+    final snapshot = await _db
+        .collection(_collectionName)
+        .where('date', isGreaterThanOrEqualTo: startDate)
+        .where('date', isLessThan: endDate)
+        .where('type', isEqualTo: MeetingType.sacramental.name)
+        .get();
+
+    final meetings = snapshot.docs
+        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .toList();
+
+    // Diccionario: Nombre del Hermano(a) -> Lista de {fecha, tema}
+    final Map<String, List<Map<String, dynamic>>> speakerHistory = {};
+
+    void addSpeaker(String? name, String? topic, DateTime date) {
+      if (name != null && name.trim().isNotEmpty && name.toLowerCase() != 'por definir') {
+        // Limpiamos espacios y aplicamos Title Case (Ej: "JUAN perez" -> "Juan Perez")
+        String cleanName = name.trim().split(' ').map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        }).join(' ');
+
+        String finalTopic = (topic != null && topic.trim().isNotEmpty)
+            ? topic.trim()
+            : 'Tema Libre / No especificado';
+
+        speakerHistory.putIfAbsent(cleanName, () => []);
+        speakerHistory[cleanName]!.add({
+          'date': date,
+          'topic': finalTopic,
+        });
+      }
+    }
+
+    // Escanear cada reunión y extraer discursantes
+    for (var meeting in meetings) {
+      if (meeting.sacramentAgenda != null && !meeting.sacramentAgenda!.isFastAndTestimony) {
+        final agenda = meeting.sacramentAgenda!;
+
+        addSpeaker(agenda.firstSpeakerName, agenda.firstSpeakerTopic, meeting.date);
+        addSpeaker(agenda.secondSpeakerName, agenda.secondSpeakerTopic, meeting.date);
+
+        if (agenda.hasThirdSpeaker) {
+          addSpeaker(agenda.thirdSpeakerName, agenda.thirdSpeakerTopic, meeting.date);
+        }
+      }
+    }
+
+    // Ordenar alfabéticamente por el nombre del discursante
+    var sortedRanking = speakerHistory.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+
+    // Ordenar las fechas de cada persona internamente (de la más reciente a la más antigua)
+    for (var entry in sortedRanking) {
+      entry.value.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+    }
+
+    return sortedRanking;
+  }
+
 }

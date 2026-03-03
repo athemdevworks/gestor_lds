@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:intl/intl.dart';
 
-class HymnListScreen extends StatefulWidget {
-  const HymnListScreen({super.key});
+class SpeakerListScreen extends StatefulWidget {
+  const SpeakerListScreen({super.key});
 
   @override
-  State<HymnListScreen> createState() => _HymnListScreenState();
+  State<SpeakerListScreen> createState() => _SpeakerListScreenState();
 }
 
-class _HymnListScreenState extends State<HymnListScreen> {
+class _SpeakerListScreenState extends State<SpeakerListScreen> {
   final MeetingService _meetingService = MeetingService();
   final Color _brandBlue = const Color(0xFF164772);
 
   int _currentYear = DateTime.now().year;
 
-  // ¡ATENCIÓN! Cambió el tipo de int a List<DateTime>
-  List<MapEntry<String, List<DateTime>>>? _allHymns;
-  List<MapEntry<String, List<DateTime>>>? _filteredHymns;
+  List<MapEntry<String, List<Map<String, dynamic>>>>? _allSpeakers;
+  List<MapEntry<String, List<Map<String, dynamic>>>>? _filteredSpeakers;
 
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
@@ -25,7 +24,7 @@ class _HymnListScreenState extends State<HymnListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadRanking();
+    _loadHistory();
   }
 
   @override
@@ -34,47 +33,47 @@ class _HymnListScreenState extends State<HymnListScreen> {
     super.dispose();
   }
 
-  Future<void> _loadRanking() async {
+  Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
-    final ranking = await _meetingService.getYearlyHymnRanking(_currentYear);
+    final history = await _meetingService.getYearlySpeakerHistory(_currentYear);
 
     if (mounted) {
       setState(() {
-        _allHymns = ranking;
-        _filteredHymns = ranking;
+        _allSpeakers = history;
+        _filteredSpeakers = history;
         _isLoading = false;
       });
       if (_searchController.text.isNotEmpty) {
-        _filterHymns(_searchController.text);
+        _filterSpeakers(_searchController.text);
       }
     }
   }
 
   void _previousYear() {
     setState(() => _currentYear--);
-    _loadRanking();
+    _loadHistory();
   }
 
   void _nextYear() {
     setState(() => _currentYear++);
-    _loadRanking();
+    _loadHistory();
   }
 
-  void _filterHymns(String query) {
+  void _filterSpeakers(String query) {
     if (query.isEmpty) {
-      setState(() => _filteredHymns = _allHymns);
+      setState(() => _filteredSpeakers = _allSpeakers);
       return;
     }
     final lowerQuery = query.toLowerCase();
     setState(() {
-      _filteredHymns = _allHymns?.where((hymn) {
-        return hymn.key.toLowerCase().contains(lowerQuery);
+      _filteredSpeakers = _allSpeakers?.where((speaker) {
+        return speaker.key.toLowerCase().contains(lowerQuery);
       }).toList();
     });
   }
 
-  // --- NUEVA FUNCIÓN: PANEL INFERIOR CON FECHAS ---
-  void _showDatesBottomSheet(String hymnName, List<DateTime> dates) {
+  // --- PANEL INFERIOR CON FECHAS Y TEMAS ---
+  void _showHistoryBottomSheet(String speakerName, List<Map<String, dynamic>> history) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -88,35 +87,40 @@ class _HymnListScreenState extends State<HymnListScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                hymnName,
+                speakerName,
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _brandBlue),
               ),
               const SizedBox(height: 5),
               Text(
-                'Se cantó ${dates.length} ${dates.length == 1 ? "vez" : "veces"} en este año:',
+                'Discursó ${history.length} ${history.length == 1 ? "vez" : "veces"} en este año:',
                 style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
               ),
-              const Divider(height: 30),
+              const Divider(height: 20),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: dates.length,
+                  itemCount: history.length,
                   itemBuilder: (context, index) {
-                    final dateStr = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(dates[index]);
+                    final data = history[index];
+                    final dateStr = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(data['date']);
+                    final topic = data['topic'];
+
                     return ListTile(
-                      dense: true,
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.event_available, color: Colors.green.shade600, size: 20),
+                      leading: Icon(Icons.record_voice_over, color: Colors.blue.shade600, size: 24),
                       title: Text(
-                        // Ponemos la primera letra del día en mayúscula
                         dateStr[0].toUpperCase() + dateStr.substring(1),
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Tema: $topic',
+                        style: TextStyle(color: Colors.grey.shade700, fontStyle: FontStyle.italic),
                       ),
                     );
                   },
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -135,7 +139,7 @@ class _HymnListScreenState extends State<HymnListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial de Himnos'),
+        title: const Text('Historial de Discursantes'),
         backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
       ),
@@ -162,16 +166,16 @@ class _HymnListScreenState extends State<HymnListScreen> {
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: _filterHymns,
+              onChanged: _filterSpeakers,
               decoration: InputDecoration(
-                hintText: 'Buscar por número o título...',
+                hintText: 'Buscar hermano(a)...',
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                   icon: const Icon(Icons.clear, color: Colors.grey),
                   onPressed: () {
                     _searchController.clear();
-                    _filterHymns('');
+                    _filterSpeakers('');
                   },
                 )
                     : null,
@@ -186,16 +190,16 @@ class _HymnListScreenState extends State<HymnListScreen> {
             ),
           ),
 
-          if (!_isLoading && _allHymns != null && _allHymns!.isNotEmpty)
+          if (!_isLoading && _allSpeakers != null && _allSpeakers!.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
               color: Colors.grey.shade50,
               child: Row(
                 children: [
-                  Icon(Icons.library_music, color: Colors.grey.shade600, size: 20),
+                  Icon(Icons.people_alt, color: Colors.grey.shade600, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    'Himnos distintos cantados: ${_allHymns!.length}',
+                    'Hermanos que discursaron: ${_allSpeakers!.length}',
                     style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -205,17 +209,17 @@ class _HymnListScreenState extends State<HymnListScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _filteredHymns == null || _filteredHymns!.isEmpty
+                : _filteredSpeakers == null || _filteredSpeakers!.isEmpty
                 ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(_searchController.text.isNotEmpty ? Icons.search_off : Icons.music_off, size: 60, color: Colors.grey.shade300),
+                  Icon(_searchController.text.isNotEmpty ? Icons.search_off : Icons.mic_off, size: 60, color: Colors.grey.shade300),
                   const SizedBox(height: 16),
                   Text(
                     _searchController.text.isNotEmpty
-                        ? 'No se encontraron himnos con "${_searchController.text}"'
-                        : 'No hay himnos registrados en $_currentYear.',
+                        ? 'No se encontraron registros para "${_searchController.text}"'
+                        : 'No hay discursantes registrados en $_currentYear.',
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
                   ),
                 ],
@@ -223,30 +227,32 @@ class _HymnListScreenState extends State<HymnListScreen> {
             )
                 : ListView.separated(
               padding: const EdgeInsets.all(16),
-              itemCount: _filteredHymns!.length,
+              itemCount: _filteredSpeakers!.length,
               separatorBuilder: (_, __) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final hymn = _filteredHymns![index];
+                final speaker = _filteredSpeakers![index];
 
-                // --- AGREGAMOS EL INKWELL/ONTAP AL LIST TILE ---
                 return InkWell(
-                  onTap: () => _showDatesBottomSheet(hymn.key, hymn.value),
+                  onTap: () => _showHistoryBottomSheet(speaker.key, speaker.value),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    leading: Icon(Icons.music_note, color: _brandBlue.withOpacity(0.7)),
+                    leading: CircleAvatar(
+                      backgroundColor: _brandBlue.withOpacity(0.1),
+                      child: Icon(Icons.person, color: _brandBlue),
+                    ),
                     title: Text(
-                        hymn.key,
+                        speaker.key,
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)
                     ),
                     trailing: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                          color: _brandBlue.withOpacity(0.08),
+                          color: Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(20)
                       ),
                       child: Text(
-                          '${hymn.value.length} veces',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: _brandBlue, fontSize: 13)
+                          '${speaker.value.length} veces',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700, fontSize: 13)
                       ),
                     ),
                   ),

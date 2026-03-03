@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:gestor_lds/features/statistics/screens/speaker_list_screen.dart';
 import 'package:gestor_lds/features/statistics/services/statistics_service.dart';
 // ¡Importa aquí tu nueva pantalla! Ajusta la ruta si la guardaste en otro lado.
 import 'package:gestor_lds/features/statistics/screens/hymn_list_screen.dart';
@@ -83,11 +84,15 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               _buildInterviewsCard(),
               const SizedBox(height: 16),
 
-              // 5. BOTÓN HACIA LISTADO DE HIMNOS (NUEVO)
+              // 4. BOTÓN HACIA LISTADO DE HIMNOS (NUEVO)
               _buildHymnsButtonCard(context),
               const SizedBox(height: 16),
 
-              // 4. LISTA DE ALERTA (Focos Rojos)
+              // 4. BOTÓN HACIA LISTADO DE HIMNOS (NUEVO)
+              _buildSpeakersButtonCard(context),
+              const SizedBox(height: 16),
+
+              // 5. LISTA DE ALERTA (Focos Rojos)
               _buildOverdueCard(),
               const SizedBox(height: 30),
             ],
@@ -396,6 +401,58 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 );
               }),
           ],
+        ),
+      ),
+    );
+  }
+
+  // ==========================================
+  // WIDGET 6: BOTÓN HACIA HISTORIAL DE DISCURSANTES
+  // ==========================================
+  Widget _buildSpeakersButtonCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SpeakerListScreen()),
+          );
+        },
+        borderRadius: BorderRadius.circular(15),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.record_voice_over, color: Colors.blue.shade600, size: 28),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'Historial de Discursantes',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900)
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                        'Ver temas y frecuencia anual',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600)
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded, color: Colors.blue.shade300, size: 20),
+            ],
+          ),
         ),
       ),
     );
