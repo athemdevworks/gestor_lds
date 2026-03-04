@@ -114,7 +114,6 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
             Text('S/. ${budget.totalBudget.toStringAsFixed(2)}', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
           ],
         ),
-        // 👇 CAMBIO 3: Menú Popup con Editar y Eliminar
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -126,9 +125,14 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
             PopupMenuButton<String>(
               onSelected: (value) {
                 if (value == 'edit') {
-                  // Asumiendo que tu ActivityBudgetFormScreen acepta un budgetToEdit
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => ActivityBudgetFormScreen(budgetToEdit: budget)));
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edición en desarrollo...')));
+                  // 👇 CORRECCIÓN 1: Habilitada la navegación para editar
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ActivityBudgetFormScreen(budgetToEdit: budget),
+                        settings: const RouteSettings(name: '/budget-edit'),
+                      )
+                  );
                 } else if (value == 'delete') {
                   _confirmDelete('activity_budgets', budget.id);
                 }
@@ -167,13 +171,11 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
             final data = docs[index].data() as Map<String, dynamic>;
             final docId = docs[index].id;
 
-            // Extracción manual segura para evitar errores si el modelo no está 100% igual
             final isReimbursement = data['isReimbursement'] ?? true;
             final applicant = data['applicantName'] ?? 'Sin nombre';
             final reason = data['reason'] ?? 'Sin detalle';
             final status = data['status'] ?? 'pendiente';
 
-            // Calcular total de los items
             double total = 0;
             if (data['items'] != null) {
               for (var item in (data['items'] as List)) {
@@ -209,7 +211,6 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                     IconButton(
                       icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                       onPressed: () async {
-                        // 1. Reconstruimos el objeto ExpenseRequestModel a partir del mapa de Firestore
                         final request = ExpenseRequestModel(
                           id: docId,
                           isReimbursement: isReimbursement,
@@ -217,7 +218,6 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                           beneficiaryName: data['beneficiaryName'] ?? '',
                           beneficiaryAddress: data['beneficiaryAddress'] ?? '',
                           reason: reason,
-                          // Mapeamos la lista de items
                           items: (data['items'] as List<dynamic>? ?? []).map((item) {
                             return ExpenseItem(
                               category: item['category'] ?? 'General',
@@ -226,7 +226,6 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                             );
                           }).toList(),
                           requestDate: (data['requestDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                          // Mapeamos los datos bancarios
                           bankDetails: BankDetails(
                             bankName: data['bankDetails']?['bankName'] ?? '',
                             accountType: data['bankDetails']?['accountType'] ?? '',
@@ -236,10 +235,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                           ),
                         );
 
-                        // 2. Generamos el PDF
                         final pdfData = await BudgetPdfService().generateExpenseRequestPdf(request);
-
-                        // 3. Imprimimos con la NUEVA REGLA DE NOMBRES
                         final dateStr = DateFormat('dd-MM-yyyy').format(request.requestDate);
                         await Printing.layoutPdf(
                           onLayout: (PdfPageFormat format) async => pdfData,
@@ -277,9 +273,12 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
 
   Future<void> _reprintPdf(ActivityBudgetModel budget) async {
     final pdfData = await BudgetPdfService().generateActivityBudgetPdf(budget);
+    // 👇 CORRECCIÓN 2: Regla de oro para el nombre del PDF de Presupuestos (HP)
+    final dateStr = DateFormat('dd-MM-yyyy').format(budget.activityDate);
+
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfData,
-      name: 'Presupuesto-${budget.activityName}.pdf',
+      name: "HP '${budget.activityName}' '$dateStr'.pdf",
     );
   }
 
