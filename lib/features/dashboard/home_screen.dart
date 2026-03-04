@@ -31,7 +31,9 @@ class HomeScreen extends StatelessWidget {
     // Color Azul Institucional
     const Color brandBlue = Color(0xFF164772);
 
-    return Scaffold(
+    return PopScope(
+        canPop: false, // 🛑 Bloquea el botón de retroceso para que no cierre el navegador
+        child: Scaffold(
       backgroundColor: const Color(0xFFEEF2F6), // Fondo Gris Suave
 
       appBar: AppBar(
@@ -303,7 +305,7 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   // --- WIDGETS AUXILIARES ---

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/budget/models/budget_model.dart';
 import 'package:gestor_lds/features/budget/services/budget_pdf_service.dart';
 import 'package:printing/printing.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ExpenseRequestFormScreen extends StatefulWidget {
   const ExpenseRequestFormScreen({super.key});
@@ -27,14 +28,45 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
   List<ExpenseItem> _items = [];
 
   // Controladores temporales para agregar item
-  String? _selectedCategory;
+  final _categoryController = TextEditingController(); // 👇 NUEVO: Controlador para el Autocomplete
   final _amountController = TextEditingController();
   DateTime _itemDate = DateTime.now();
 
   final List<String> _categories = [
-    'Administración', 'Quórum de Élderes', 'Sociedad de Socorro',
-    'Hombres Jóvenes', 'Mujeres Jóvenes', 'Primaria', 'Escuela Dominical',
-    'Música', 'Historia Familiar', 'Actividades', 'Otros'
+    // --- OFRENDAS DE AYUNO ---
+    'Ofrenda de Ayuno: Gastos Comida',
+    'Ofrenda de Ayuno: Gastos Alojamiento',
+    'Ofrenda de Ayuno: Gastos Médicos',
+    'Ofrenda de Ayuno: Agua, Gas, Electricidad',
+    'Ofrenda de Ayuno: Otros Gastos',
+
+    // --- PRESUPUESTO DEL BARRIO ---
+    'Administración',
+    'Administración: Presupuesto', // 👇 CORREGIDO: Faltaba la coma aquí
+    'Asignación de Presupuesto',
+    'Biblioteca',
+    'Centro de Distribución',
+    'Currículo',
+    'Misceláneo',
+
+    // --- ORGANIZACIONES ---
+    'Adultos Solteros',
+    'Adultos Solteros: JAS',
+    'Escuela Dominical',
+    'Grupo Sumos Sacerdotes',
+    'Hombres Jóvenes',
+    'Mujeres Jóvenes',
+    'Sociedad de Socorro',
+
+    // --- PRIMARIA ---
+    'Primaria: General',
+    'Primaria: Materiales',
+    'Primaria: Refrigerio',
+
+    // --- QUÓRUM DE ÉLDERES ---
+    'Quorum Élderes: General',
+    'Quorum Élderes: Obra Misional',
+    'Quorum Élderes: Templo e Historia Familiar',
   ];
 
   // 3. DATOS BANCARIOS
@@ -49,7 +81,7 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Solicitud de Gastos'),
-        backgroundColor: Colors.green.shade700, // Verde para diferenciar dinero
+        backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -103,11 +135,36 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
                   padding: const EdgeInsets.all(10.0),
                   child: Column(
                     children: [
-                      DropdownButtonFormField<String>(
-                        value: _selectedCategory,
-                        items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                        onChanged: (val) => setState(() => _selectedCategory = val),
-                        decoration: const InputDecoration(labelText: 'Categoría', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                      // 👇 REEMPLAZADO: Autocomplete en lugar de Dropdown
+                      Autocomplete<String>(
+                        optionsBuilder: (TextEditingValue textEditingValue) {
+                          if (textEditingValue.text.isEmpty) {
+                            return const Iterable<String>.empty();
+                          }
+                          return _categories.where((String option) {
+                            return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                          });
+                        },
+                        onSelected: (String selection) {
+                          _categoryController.text = selection;
+                        },
+                        fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                          // Sincronizar controlador interno para poder limpiarlo al agregar a la lista
+                          if (_categoryController.text.isEmpty && controller.text.isNotEmpty) {
+                            controller.clear();
+                          }
+
+                          return TextFormField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            onChanged: (val) => _categoryController.text = val,
+                            decoration: const InputDecoration(
+                                labelText: 'Categoría (Buscar)',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 10),
                       Row(
@@ -126,7 +183,7 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: _buildTextField('Monto S/.', _amountController, isNumber: true, isDense: true),
+                            child: _buildTextField('Monto S/.', _amountController, isNumber: true, isDense: true, isRequired: false),
                           ),
                         ],
                       ),
@@ -184,16 +241,16 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
               const SizedBox(height: 10),
 
               Row(children: [
-                Expanded(child: _buildTextField('Banco', _bankNameController)),
+                Expanded(child: _buildTextField('Banco', _bankNameController, isRequired: false)),
                 const SizedBox(width: 10),
-                Expanded(child: _buildTextField('Tipo Cuenta', _accountTypeController)),
+                Expanded(child: _buildTextField('Tipo Cuenta', _accountTypeController, isRequired: false)),
               ]),
               const SizedBox(height: 10),
-              _buildTextField('Número de Cuenta', _accountNumberController, isNumber: true),
+              _buildTextField('Número de Cuenta', _accountNumberController, isNumber: true, isRequired: false),
               const SizedBox(height: 10),
-              _buildTextField('CCI (Interbancario)', _cciController, isNumber: true),
+              _buildTextField('CCI (Interbancario)', _cciController, isNumber: true, isRequired: false),
               const SizedBox(height: 10),
-              _buildTextField('DNI / RUC Titular', _docIdController, isNumber: true),
+              _buildTextField('DNI / RUC Titular', _docIdController, isNumber: true, isRequired: false),
 
               const SizedBox(height: 30),
               SizedBox(
@@ -216,12 +273,12 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     return Row(children: [Icon(icon, color: Colors.grey[700]), const SizedBox(width: 8), Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[800]))]);
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {IconData? icon, bool isNumber = false, int maxLines = 1, bool isDense = false}) {
+  Widget _buildTextField(String label, TextEditingController controller, {IconData? icon, bool isNumber = false, int maxLines = 1, bool isDense = false, bool isRequired = true}) {
     return TextFormField(
       controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       maxLines: maxLines,
-      validator: (val) => (!isDense && (val == null || val.isEmpty)) ? 'Requerido' : null,
+      validator: (val) => (isRequired && (val == null || val.isEmpty)) ? 'Requerido' : null,
       decoration: InputDecoration(
         labelText: label, prefixIcon: icon != null ? Icon(icon, size: 20) : null,
         border: const OutlineInputBorder(), contentPadding: isDense ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8) : null,
@@ -231,10 +288,14 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
 
   // --- LOGICA ---
   void _addItem() {
-    if (_selectedCategory == null || _amountController.text.isEmpty) return;
+    if (_categoryController.text.isEmpty || _amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa categoría y monto')));
+      return;
+    }
     setState(() {
-      _items.add(ExpenseItem(category: _selectedCategory!, date: _itemDate, amount: double.tryParse(_amountController.text) ?? 0));
+      _items.add(ExpenseItem(category: _categoryController.text, date: _itemDate, amount: double.tryParse(_amountController.text) ?? 0));
       _amountController.clear();
+      _categoryController.clear(); // Limpia el buscador para el próximo gasto
     });
   }
 
@@ -250,33 +311,66 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final request = ExpenseRequestModel(
-        id: '',
-        isReimbursement: _isReimbursement,
-        applicantName: _applicantController.text,
-        beneficiaryName: _beneficiaryController.text,
-        beneficiaryAddress: _addressController.text,
-        reason: _reasonController.text,
-        items: _items,
-        requestDate: DateTime.now(),
-        bankDetails: BankDetails(
-          bankName: _bankNameController.text,
-          accountType: _accountTypeController.text,
-          accountNumber: _accountNumberController.text,
-          cci: _cciController.text,
-          identityDoc: _docIdController.text,
-        ),
-      );
+      final user = FirebaseAuth.instance.currentUser;
+      final uid = user?.uid ?? 'unknown_user';
 
-      // Guardar en Firestore (Usamos la misma colección 'activity_budgets' o una nueva 'expense_requests')
-      // Para orden, recomiendo una colección separada:
-      await FirebaseFirestore.instance.collection('expense_requests').add(request.toMap());
+      // 1. Preparamos el mapa para Firebase
+      final requestData = {
+        'isReimbursement': _isReimbursement,
+        'applicantName': _applicantController.text.trim(),
+        'beneficiaryName': _beneficiaryController.text.trim(),
+        'beneficiaryAddress': _addressController.text.trim(),
+        'reason': _reasonController.text.trim(),
+        'items': _items.map((item) => {
+          'category': item.category,
+          'date': Timestamp.fromDate(item.date),
+          'amount': item.amount,
+        }).toList(),
+        'requestDate': Timestamp.now(),
+        'status': 'pendiente',
+        'requestedByUid': uid,
+        'bankDetails': {
+          'bankName': _bankNameController.text.trim(),
+          'accountType': _accountTypeController.text.trim(),
+          'accountNumber': _accountNumberController.text.trim(),
+          'cci': _cciController.text.trim(),
+          'identityDoc': _docIdController.text.trim(),
+        }
+      };
 
+      // 2. Guardamos en Firebase
+      await FirebaseFirestore.instance.collection('expense_requests').add(requestData);
+
+      // 3. Generamos el PDF automáticamente
       if (mounted) {
-        // Generar PDF (Lo implementaremos en el paso 2)
-        final pdfData = await BudgetPdfService().generateExpenseRequestPdf(request);
-        await Printing.layoutPdf(onLayout: (_) async => pdfData, name: 'Solicitud-${request.applicantName}.pdf');
+        // Reconstruimos el objeto para el generador PDF
+        final requestForPdf = ExpenseRequestModel(
+            id: 'temp',
+            isReimbursement: _isReimbursement,
+            applicantName: _applicantController.text.trim(),
+            beneficiaryName: _beneficiaryController.text.trim(),
+            beneficiaryAddress: _addressController.text.trim(),
+            reason: _reasonController.text.trim(),
+            items: _items,
+            requestDate: DateTime.now(),
+            bankDetails: BankDetails(
+              bankName: _bankNameController.text.trim(),
+              accountType: _accountTypeController.text.trim(),
+              accountNumber: _accountNumberController.text.trim(),
+              cci: _cciController.text.trim(),
+              identityDoc: _docIdController.text.trim(),
+            )
+        );
 
+        final pdfData = await BudgetPdfService().generateExpenseRequestPdf(requestForPdf);
+        final dateStr = DateFormat('dd-MM-yyyy').format(DateTime.now());
+
+        await Printing.layoutPdf(
+            onLayout: (_) async => pdfData,
+            name: "SG '${requestForPdf.reason}' '$dateStr'.pdf"
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Solicitud guardada y PDF generado'), backgroundColor: Colors.green));
         Navigator.pop(context);
       }
     } catch (e) {

@@ -9,59 +9,91 @@ import 'package:pdf/pdf.dart';
 
 import 'expense_request_form_screen.dart';
 
-class BudgetListScreen extends StatelessWidget {
+// 👇 CAMBIO 1: Convertido a StatefulWidget para usar TabBar
+class BudgetListScreen extends StatefulWidget {
   const BudgetListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final brandColor = const Color(0xFF164772);
+  State<BudgetListScreen> createState() => _BudgetListScreenState();
+}
 
+class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final brandColor = const Color(0xFF164772);
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Presupuestos'),
+        title: const Text('Gestión de Finanzas'),
         backgroundColor: brandColor,
         foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          indicatorColor: Colors.orange,
+          tabs: const [
+            Tab(text: 'PRESUPUESTOS', icon: Icon(Icons.event_note)),
+            Tab(text: 'SOLICITUDES', icon: Icon(Icons.receipt_long)),
+          ],
+        ),
       ),
-      // AQUÍ ESTÁ LA MAGIA: StreamBuilder escucha cambios en vivo
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('activity_budgets')
-            .orderBy('activityDate', descending: true) // Ordenar por fecha
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-
-          if (docs.isEmpty) {
-            return _buildEmptyState();
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(10),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              // Convertimos el documento a nuestro Modelo
-              final data = docs[index].data() as Map<String, dynamic>;
-              final budget = ActivityBudgetModel.fromMap(data, docs[index].id);
-
-              return _buildBudgetCard(context, budget);
-            },
-          );
-        },
+      // 👇 CAMBIO 2: TabBarView con los dos streams separados
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildBudgetsTab(),
+          _buildRequestsTab(),
+        ],
       ),
-
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateOptions(context),
         backgroundColor: brandColor,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('NUEVO', style: TextStyle(color: Colors.white)),
       ),
+    );
+  }
+
+  // ==========================================
+  // PESTAÑA 1: HOJAS DE PRESUPUESTO
+  // ==========================================
+  Widget _buildBudgetsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('activity_budgets')
+          .orderBy('activityDate', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) return _buildEmptyState('No hay presupuestos registrados');
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 10, left: 10, right: 10, bottom: 80),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final budget = ActivityBudgetModel.fromMap(data, docs[index].id);
+            return _buildBudgetCard(context, budget);
+          },
+        );
+      },
     );
   }
 
@@ -74,60 +106,215 @@ class BudgetListScreen extends StatelessWidget {
           backgroundColor: Colors.indigo.shade50,
           child: const Icon(Icons.event_note, color: Color(0xFF164772)),
         ),
-        title: Text(
-          budget.activityName,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: Text(budget.activityName, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${budget.organization} • ${DateFormat('dd/MM/yyyy').format(budget.activityDate)}'),
-            Text(
-              'S/. ${budget.totalBudget.toStringAsFixed(2)}',
-              style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
+            Text('S/. ${budget.totalBudget.toStringAsFixed(2)}', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        // 👇 CAMBIO 3: Menú Popup con Editar y Eliminar
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              onPressed: () => _reprintPdf(budget),
+              tooltip: 'Ver PDF',
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  // Asumiendo que tu ActivityBudgetFormScreen acepta un budgetToEdit
+                  // Navigator.push(context, MaterialPageRoute(builder: (_) => ActivityBudgetFormScreen(budgetToEdit: budget)));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edición en desarrollo...')));
+                } else if (value == 'delete') {
+                  _confirmDelete('activity_budgets', budget.id);
+                }
+              },
+              itemBuilder: (BuildContext context) => [
+                const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 8), Text('Editar')])),
+                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 8), Text('Eliminar')])),
+              ],
             ),
           ],
         ),
-        trailing: IconButton(
-          icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-          onPressed: () => _reprintPdf(context, budget),
-          tooltip: 'Ver PDF',
-        ),
-        onTap: () {
-          // Opcional: Aquí podrías abrir el formulario para editar
-          // Por ahora solo mostramos detalle o reimprimimos
-          _reprintPdf(context, budget);
-        },
       ),
     );
   }
 
-  Future<void> _reprintPdf(BuildContext context, ActivityBudgetModel budget) async {
-    // Reutilizamos el servicio para generar el PDF al vuelo
-    final pdfData = await BudgetPdfService().generateActivityBudgetPdf(budget);
+  // ==========================================
+  // PESTAÑA 2: SOLICITUDES DE GASTOS
+  // ==========================================
+  Widget _buildRequestsTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('expense_requests')
+          .orderBy('requestDate', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
+        final docs = snapshot.data?.docs ?? [];
+        if (docs.isEmpty) return _buildEmptyState('No hay solicitudes de gastos');
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 10, left: 10, right: 10, bottom: 80),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final docId = docs[index].id;
+
+            // Extracción manual segura para evitar errores si el modelo no está 100% igual
+            final isReimbursement = data['isReimbursement'] ?? true;
+            final applicant = data['applicantName'] ?? 'Sin nombre';
+            final reason = data['reason'] ?? 'Sin detalle';
+            final status = data['status'] ?? 'pendiente';
+
+            // Calcular total de los items
+            double total = 0;
+            if (data['items'] != null) {
+              for (var item in (data['items'] as List)) {
+                total += (item['amount'] ?? 0).toDouble();
+              }
+            }
+
+            return Card(
+              elevation: 2,
+              margin: const EdgeInsets.only(bottom: 10),
+              shape: Border(left: BorderSide(color: isReimbursement ? Colors.blue : Colors.orange, width: 5)),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: status == 'aprobado' ? Colors.green.shade100 : Colors.orange.shade100,
+                  child: Icon(
+                      status == 'aprobado' ? Icons.check_circle : Icons.hourglass_empty,
+                      color: status == 'aprobado' ? Colors.green.shade700 : Colors.orange.shade700
+                  ),
+                ),
+                title: Text(applicant, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(reason, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('S/. ${total.toStringAsFixed(2)} - ${isReimbursement ? 'Reembolso' : 'Adelanto'}',
+                        style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold)
+                    ),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                      onPressed: () async {
+                        // 1. Reconstruimos el objeto ExpenseRequestModel a partir del mapa de Firestore
+                        final request = ExpenseRequestModel(
+                          id: docId,
+                          isReimbursement: isReimbursement,
+                          applicantName: applicant,
+                          beneficiaryName: data['beneficiaryName'] ?? '',
+                          beneficiaryAddress: data['beneficiaryAddress'] ?? '',
+                          reason: reason,
+                          // Mapeamos la lista de items
+                          items: (data['items'] as List<dynamic>? ?? []).map((item) {
+                            return ExpenseItem(
+                              category: item['category'] ?? 'General',
+                              date: (item['date'] as Timestamp).toDate(),
+                              amount: (item['amount'] ?? 0).toDouble(),
+                            );
+                          }).toList(),
+                          requestDate: (data['requestDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                          // Mapeamos los datos bancarios
+                          bankDetails: BankDetails(
+                            bankName: data['bankDetails']?['bankName'] ?? '',
+                            accountType: data['bankDetails']?['accountType'] ?? '',
+                            accountNumber: data['bankDetails']?['accountNumber'] ?? '',
+                            cci: data['bankDetails']?['cci'] ?? '',
+                            identityDoc: data['bankDetails']?['identityDoc'] ?? '',
+                          ),
+                        );
+
+                        // 2. Generamos el PDF
+                        final pdfData = await BudgetPdfService().generateExpenseRequestPdf(request);
+
+                        // 3. Imprimimos con la NUEVA REGLA DE NOMBRES
+                        final dateStr = DateFormat('dd-MM-yyyy').format(request.requestDate);
+                        await Printing.layoutPdf(
+                          onLayout: (PdfPageFormat format) async => pdfData,
+                          name: "SG '${request.reason}' '$dateStr'.pdf",
+                        );
+                      },
+                      tooltip: 'Ver PDF',
+                    ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edición en desarrollo...')));
+                        } else if (value == 'delete') {
+                          _confirmDelete('expense_requests', docId);
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => [
+                        const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, color: Colors.blue, size: 20), SizedBox(width: 8), Text('Editar')])),
+                        const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 20), SizedBox(width: 8), Text('Eliminar')])),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ==========================================
+  // FUNCIONES AUXILIARES Y LÓGICA
+  // ==========================================
+
+  Future<void> _reprintPdf(ActivityBudgetModel budget) async {
+    final pdfData = await BudgetPdfService().generateActivityBudgetPdf(budget);
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdfData,
       name: 'Presupuesto-${budget.activityName}.pdf',
     );
   }
 
-  Widget _buildEmptyState() {
+  void _confirmDelete(String collection, String docId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Eliminación'),
+        content: const Text('¿Estás seguro de que deseas eliminar este registro permanentemente?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FirebaseFirestore.instance.collection(collection).doc(docId).delete();
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registro eliminado')));
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.account_balance_wallet_outlined, size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 20),
-          Text(
-            'No hay presupuestos registrados',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
+          Text(message, style: TextStyle(fontSize: 18, color: Colors.grey.shade600)),
           const SizedBox(height: 10),
-          const Text(
-            'Presiona "NUEVO" para comenzar',
-            style: TextStyle(color: Colors.grey),
-          ),
+          const Text('Presiona "NUEVO" para comenzar', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -157,7 +344,6 @@ class BudgetListScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ActivityBudgetFormScreen(),
-                        // 👇 AGREGADO: Ruta web para Formulario de Presupuesto
                         settings: const RouteSettings(name: '/budget-form'),
                       )
                   );
@@ -174,7 +360,6 @@ class BudgetListScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => const ExpenseRequestFormScreen(),
-                        // 👇 AGREGADO: Ruta web para Formulario de Gastos
                         settings: const RouteSettings(name: '/expense-form'),
                       )
                   );

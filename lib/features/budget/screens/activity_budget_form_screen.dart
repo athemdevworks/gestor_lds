@@ -10,8 +10,9 @@ import '../services/budget_pdf_service.dart';
 
 class ActivityBudgetFormScreen extends StatefulWidget {
   final ActivityModel? fromActivity;
+  final ActivityBudgetModel? budgetToEdit; // 👇 AGREGADO: Parámetro para recibir el presupuesto a editar
 
-  const ActivityBudgetFormScreen({super.key, this.fromActivity});
+  const ActivityBudgetFormScreen({super.key, this.fromActivity, this.budgetToEdit});
 
   @override
   State<ActivityBudgetFormScreen> createState() => _ActivityBudgetFormScreenState();
@@ -28,7 +29,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   final _activityNameController = TextEditingController();
   final _purposeController = TextEditingController();
   final _applicantController = TextEditingController();
-
 
   // Fechas
   DateTime? _activityDate;
@@ -54,21 +54,55 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
 
   bool _isSaving = false;
 
+  // 👇 LA LISTA OFICIAL DE ORGANIZACIONES
+  final List<String> _organizations = [
+    'Adultos Solteros',
+    'Adultos Solteros: JAS',
+    'Escuela Dominical',
+    'Grupo Sumos Sacerdotes',
+    'Hombres Jóvenes',
+    'Mujeres Jóvenes',
+    'Sociedad de Socorro',
+    'Primaria: General',
+    'Primaria: Materiales',
+    'Primaria: Refrigerio',
+    'Quorum Élderes: General',
+    'Quorum Élderes: Obra Misional',
+    'Quorum Élderes: Templo e Historia Familiar'
+  ];
+
   @override
   void initState() {
     super.initState();
 
+    // 👇 AGREGADO: Cargar datos si estamos en modo edición
+    if (widget.budgetToEdit != null) {
+      final b = widget.budgetToEdit!;
+      _organizationController.text = b.organization;
+      _leaderController.text = b.responsibleLeader;
+      _activityDate = b.activityDate;
+      _presentationDate = b.presentationDate;
+      _activityNameController.text = b.activityName;
+      _purposeController.text = b.activityPurpose;
+      _applicantController.text = b.applicantName;
+      _expenses = List.from(b.expenses); // Clona la lista para evitar modificar la original directamente
+      _conductedByController.text = b.conductedBy;
+      _presidedByController.text = b.presidedBy;
+      _openingHymnController.text = b.openingHymn;
+      _openingPrayerController.text = b.openingPrayer;
+      _developmentController.text = b.activityDevelopment;
+      _closingHymnController.text = b.closingHymn;
+      _closingPrayerController.text = b.closingPrayer;
+      _cleaningController.text = b.cleaningTeam;
+      _securityController.text = b.securityTeam;
+    }
     // Si recibimos una actividad, llenamos los campos automáticamente
-    if (widget.fromActivity != null) {
+    else if (widget.fromActivity != null) {
       final act = widget.fromActivity!;
-
-      // NOTA: Ajusta '.title', '.description', etc. si tu ActivityModel tiene otros nombres
       _activityNameController.text = act.title;
       _purposeController.text = act.description;
       _activityDate = act.date;
       _organizationController.text = act.organization ?? '';
-
-      // La fecha de presentación por defecto es hoy
       _presentationDate = DateTime.now();
     }
   }
@@ -100,7 +134,39 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
               _buildSectionTitle('1. DATOS GENERALES', Icons.info_outline),
               const SizedBox(height: 10),
 
-              _buildTextField('Organización', _organizationController, icon: Icons.group),
+              // 👇 CAMPO DE BÚSQUEDA AUTOCOMPLETABLE PARA LA ORGANIZACIÓN
+              Autocomplete<String>(
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text.isEmpty) {
+                    return const Iterable<String>.empty();
+                  }
+                  return _organizations.where((String option) {
+                    return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  });
+                },
+                onSelected: (String selection) {
+                  _organizationController.text = selection;
+                },
+                fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+                  // Sincronizamos el controlador interno del Autocomplete con el nuestro
+                  if (_organizationController.text.isNotEmpty && controller.text.isEmpty) {
+                    controller.text = _organizationController.text;
+                  }
+
+                  return TextFormField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    onChanged: (val) => _organizationController.text = val,
+                    validator: (value) => (value == null || value.isEmpty) ? 'Requerido' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Organización (Escriba para buscar)',
+                      prefixIcon: Icon(Icons.group, size: 20),
+                      border: OutlineInputBorder(),
+                    ),
+                  );
+                },
+              ),
+
               const SizedBox(height: 10),
               _buildTextField('Líder Responsable', _leaderController, icon: Icons.person),
               const SizedBox(height: 10),
@@ -229,13 +295,14 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              // DESARROLLO DE LA ACTIVIDAD ---
+
               _buildTextField(
                   'Desarrollo de la Actividad (Mensaje, Clase, Dinámica...)',
                   _developmentController,
-                  maxLines: 3, // Más alto para escribir detalles
+                  maxLines: 3,
                   icon: Icons.article_outlined
               ),
+
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -251,9 +318,14 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              _buildTextField('Encargados Limpieza', _cleaningController, icon: Icons.cleaning_services),
-              const SizedBox(height: 10),
-              _buildTextField('Encargados Seguridad', _securityController, icon: Icons.security),
+
+              Row(
+                children: [
+                  Expanded(child: _buildTextField('Encargados Limpieza', _cleaningController, icon: Icons.cleaning_services)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildTextField('Encargados Seguridad', _securityController, icon: Icons.security)),
+                ],
+              ),
 
               const SizedBox(height: 40),
               SizedBox(
@@ -282,7 +354,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
       children: [
         Icon(icon, color: const Color(0xFF164772)),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF164772))),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF164772))),
       ],
     );
   }
@@ -293,7 +365,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
       keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
       maxLines: maxLines,
       validator: (value) {
-        if (!isDense && (value == null || value.isEmpty)) return 'Requerido'; // Validación simple
+        if (!isDense && (value == null || value.isEmpty)) return 'Requerido';
         return null;
       },
       decoration: InputDecoration(
@@ -344,7 +416,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
         quantity: int.tryParse(_itemQtyController.text) ?? 1,
         unitPrice: double.tryParse(_itemPriceController.text) ?? 0.0,
       ));
-      // Limpiar campos
       _itemDescController.clear();
       _itemQtyController.text = '1';
       _itemPriceController.clear();
@@ -356,7 +427,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   }
 
   Future<void> _saveBudget() async {
-    // 1. Validaciones
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor completa los campos obligatorios')));
       return;
@@ -369,10 +439,8 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
     setState(() => _isSaving = true);
 
     try {
-      // 2. Crear el Objeto (AQUÍ ESTABA EL ERROR)
-      // Ahora incluimos 'activityDevelopment'
       final newBudget = ActivityBudgetModel(
-        id: '',
+        id: widget.budgetToEdit?.id ?? '', // 👇 AGREGADO: Mantiene el ID si estamos editando
         organization: _organizationController.text,
         responsibleLeader: _leaderController.text,
         activityDate: _activityDate!,
@@ -385,39 +453,36 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
         presidedBy: _presidedByController.text,
         openingHymn: _openingHymnController.text,
         openingPrayer: _openingPrayerController.text,
-
-        // --- CAMPO NUEVO AGREGADO ---
         activityDevelopment: _developmentController.text,
-        // ----------------------------
-
         closingHymn: _closingHymnController.text,
         closingPrayer: _closingPrayerController.text,
         cleaningTeam: _cleaningController.text,
         securityTeam: _securityController.text,
       );
 
-      // 3. Guardar en Firebase
-      await FirebaseFirestore.instance.collection('activity_budgets').add(newBudget.toMap());
+      // 👇 AGREGADO: Lógica de actualización si es edición, o creación si es nuevo
+      if (widget.budgetToEdit != null) {
+        await FirebaseFirestore.instance.collection('activity_budgets').doc(widget.budgetToEdit!.id).update(newBudget.toMap());
+      } else {
+        await FirebaseFirestore.instance.collection('activity_budgets').add(newBudget.toMap());
+      }
 
-      // 4. Generar e Imprimir PDF
       if (mounted) {
-        // Llamamos al servicio
         final pdfData = await BudgetPdfService().generateActivityBudgetPdf(newBudget);
 
-        // Abrimos la vista previa de impresión
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdfData,
-          name: 'Presupuesto-${newBudget.activityName}.pdf',
+          name: 'HP-${newBudget.activityName}.pdf',
         );
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado y generado exitosamente')));
-        Navigator.pop(context); // Volver a la lista
+        Navigator.pop(context);
       }
 
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-        print("Error detallado: $e"); // Para ver en consola
+        print("Error detallado: $e");
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
