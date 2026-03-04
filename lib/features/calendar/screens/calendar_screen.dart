@@ -221,14 +221,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           subtitle: Text('${event.time} - Preside: ${event.presidedBy}'),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () async {
-                            await Navigator.push(context, MaterialPageRoute(builder: (context) => MeetingDetailScreen(meeting: event)));
+                            await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MeetingDetailScreen(meeting: event),
+                                  // 👇 AGREGADO: Ruta web para Detalles de Reunión (desde el calendario)
+                                  settings: const RouteSettings(name: '/meeting-detail'),
+                                )
+                            );
                             _loadEvents(); // Recargar al volver
                           },
                         ),
                       );
                     }
 
-// B. ACTIVIDAD
+                    // B. ACTIVIDAD
                     else if (event is ActivityModel) {
                       return Card(
                         elevation: 2,
@@ -239,28 +246,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           title: Text(event.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text('${event.time} - ${event.location}'),
 
-                          // CAMBIO 1: Icono diferente según rol
                           trailing: widget.currentUser.role == UserRole.miembro
-                              ? const Icon(Icons.visibility, color: Colors.grey) // Ojo para ver
-                              : const Icon(Icons.edit, color: Colors.blue),      // Lápiz para editar
+                              ? const Icon(Icons.visibility, color: Colors.grey)
+                              : const Icon(Icons.edit, color: Colors.blue),
 
                           onTap: () async {
-                            // CAMBIO 2: Lógica de Navegación por Rol
-
                             if (widget.currentUser.role == UserRole.miembro) {
-                              // CASO A: MIEMBRO -> Solo ve detalles
                               showDialog(
                                   context: context,
                                   builder: (ctx) => ActivityDetailDialog(activity: event)
                               );
                             } else {
-                              // CASO B: LÍDER/OBISPADO -> Puede Editar
-                              // Navegamos directamente al formulario en modo edición
                               await Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => ActivityFormScreen(activityToEdit: event))
+                                  MaterialPageRoute(
+                                    builder: (_) => ActivityFormScreen(activityToEdit: event),
+                                    // 👇 AGREGADO: Ruta web para Editar Actividad (desde el calendario)
+                                    settings: const RouteSettings(name: '/activity-edit'),
+                                  )
                               );
-                              _loadEvents(); // Recargar al volver por si editó algo
+                              _loadEvents();
                             }
                           },
                         ),
@@ -277,8 +282,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           subtitle: Text('Vence: ${DateFormat('dd/MM').format(event.dueDate)}'),
                           trailing: const Icon(Icons.open_in_new),
                           onTap: () async {
-                            await Navigator.push(context, MaterialPageRoute(builder: (context) => MyCommitmentsScreen(currentUser: widget.currentUser)));
-                            _loadEvents(); // Recargar al volver
+                            await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MyCommitmentsScreen(currentUser: widget.currentUser),
+                                  // 👇 AGREGADO: Ruta web para ir a Mis Compromisos
+                                  settings: const RouteSettings(name: '/commitments'),
+                                )
+                            );
+                            _loadEvents();
                           },
                         ),
                       );

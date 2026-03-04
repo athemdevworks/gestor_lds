@@ -36,7 +36,14 @@ class _MembersScreenState extends State<MembersScreen> {
         backgroundColor: const Color(0xFFD4AF37), // Dorado
         onPressed: () {
           // Navegar al formulario para CREAR
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const MemberFormScreen()));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const MemberFormScreen(),
+                // 👇 AGREGADO: Ruta web para crear miembro
+                settings: const RouteSettings(name: '/member-create'),
+              )
+          );
         },
         child: const Icon(Icons.person_add, color: Colors.black),
       ),
@@ -139,9 +146,14 @@ class _MembersScreenState extends State<MembersScreen> {
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           // Navegar a EDITAR
-          Navigator.push(context, MaterialPageRoute(
-            builder: (_) => MemberFormScreen(memberToEdit: member),
-          ));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MemberFormScreen(memberToEdit: member),
+                // 👇 AGREGADO: Ruta web para editar miembro
+                settings: const RouteSettings(name: '/member-edit'),
+              )
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(12.0),

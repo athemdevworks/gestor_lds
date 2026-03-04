@@ -106,7 +106,11 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const MeetingFormScreen()),
+            MaterialPageRoute(
+              builder: (context) => const MeetingFormScreen(),
+              // 👇 AGREGADO: Ruta web para crear una nueva reunión
+              settings: const RouteSettings(name: '/meeting-create'),
+            ),
           );
         },
       )
@@ -227,6 +231,8 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => MeetingDetailScreen(meeting: meeting),
+                      // 👇 AGREGADO: Ruta web para ver el detalle de la reunión
+                      settings: const RouteSettings(name: '/meeting-detail'),
                     ),
                   );
                 },

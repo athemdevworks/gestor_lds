@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/budget/models/budget_model.dart';
 import 'package:gestor_lds/features/budget/screens/activity_budget_form_screen.dart';
-// import 'expense_request_form_screen.dart'; // Aún no creado
 import 'package:gestor_lds/features/budget/services/budget_pdf_service.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
@@ -149,12 +148,19 @@ class BudgetListScreen extends StatelessWidget {
                 child: Text('¿Qué deseas hacer?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ),
               ListTile(
-                leading: CircleAvatar(backgroundColor: Colors.indigo.shade50, child: Icon(Icons.event_note, color: Colors.indigo)),
+                leading: CircleAvatar(backgroundColor: Colors.indigo.shade50, child: const Icon(Icons.event_note, color: Colors.indigo)),
                 title: const Text('Hoja de Presupuesto'),
                 subtitle: const Text('Planificación de actividad'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityBudgetFormScreen()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ActivityBudgetFormScreen(),
+                        // 👇 AGREGADO: Ruta web para Formulario de Presupuesto
+                        settings: const RouteSettings(name: '/budget-form'),
+                      )
+                  );
                 },
               ),
               const Divider(),
@@ -164,7 +170,14 @@ class BudgetListScreen extends StatelessWidget {
                 subtitle: const Text('Solicitar Reembolso / Adelanto'),
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpenseRequestFormScreen()));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ExpenseRequestFormScreen(),
+                        // 👇 AGREGADO: Ruta web para Formulario de Gastos
+                        settings: const RouteSettings(name: '/expense-form'),
+                      )
+                  );
                 },
               ),
               const SizedBox(height: 10),

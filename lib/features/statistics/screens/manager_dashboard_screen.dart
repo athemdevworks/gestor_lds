@@ -417,7 +417,10 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const SpeakerListScreen()),
+            MaterialPageRoute(
+                builder: (context) => const SpeakerListScreen()
+
+            ),
           );
         },
         borderRadius: BorderRadius.circular(15),

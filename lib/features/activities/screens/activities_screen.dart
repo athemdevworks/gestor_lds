@@ -59,7 +59,14 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
         backgroundColor: brandBlue,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const ActivityFormScreen()));
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ActivityFormScreen(),
+                // 👇 AGREGADO: Ruta web para crear actividad
+                settings: const RouteSettings(name: '/activity-create'),
+              )
+          );
         },
       ),
       body: TabBarView(
@@ -290,7 +297,14 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
             title: const Text('Editar Actividad'),
             onTap: () {
               Navigator.pop(ctx);
-              Navigator.push(context, MaterialPageRoute(builder: (_) => ActivityFormScreen(activityToEdit: activity)));
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ActivityFormScreen(activityToEdit: activity),
+                    // 👇 AGREGADO: Ruta web para editar actividad
+                    settings: const RouteSettings(name: '/activity-edit'),
+                  )
+              );
             },
           ),
           ListTile(
