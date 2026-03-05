@@ -1,0 +1,37 @@
+name: Compilar APK Android
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Esto nos deja agregar un botón para prenderlo manualmente por si acaso
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clonar el código
+        uses: actions/checkout@v3
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable' # Siempre usará la versión más nueva y sin errores
+
+      - name: Instalar dependencias
+        run: flutter pub get
+
+      - name: Compilar el APK
+        run: flutter build apk --release
+
+      - name: Subir el APK para descargar
+        uses: actions/upload-artifact@v3
+        with:
+          name: GestorLDS-v2.0-beta
+          path: build/app/outputs/flutter-apk/app-release.apk
