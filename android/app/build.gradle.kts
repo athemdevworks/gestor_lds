@@ -11,10 +11,11 @@ android {
 
     defaultConfig {
         applicationId = "com.nuevotrujillo.gestorlds.gestor_lds"
-        minSdk = 23
+        minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     compileOptions {
