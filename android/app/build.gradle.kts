@@ -7,19 +7,23 @@ plugins {
 
 android {
     namespace = "com.nuevotrujillo.gestorlds.gestor_lds"
-
-    // 👇 SUBIMOS AL 36 PARA CALMAR A LOS PLUGINS NUEVOS
     compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nuevotrujillo.gestorlds.gestor_lds"
         minSdk = 23
-
-        // 👇 LO EMPAREJAMOS CON EL 36
         targetSdk = 36
-
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     buildTypes {
