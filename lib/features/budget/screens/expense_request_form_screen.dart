@@ -7,7 +7,10 @@ import 'package:printing/printing.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ExpenseRequestFormScreen extends StatefulWidget {
-  const ExpenseRequestFormScreen({super.key});
+  // 👇 1. EL BUZÓN: Recibe los datos si venimos de "Editar"
+  final ExpenseRequestModel? requestToEdit;
+
+  const ExpenseRequestFormScreen({super.key, this.requestToEdit});
 
   @override
   State<ExpenseRequestFormScreen> createState() => _ExpenseRequestFormScreenState();
@@ -18,38 +21,32 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
   bool _isSaving = false;
 
   // 1. TIPO Y PERSONAS
-  bool _isReimbursement = true; // true = Reembolso, false = Adelanto
+  bool _isReimbursement = true;
   final _applicantController = TextEditingController();
-  final _beneficiaryController = TextEditingController(); // Pagar a
+  final _beneficiaryController = TextEditingController();
   final _addressController = TextEditingController();
   final _reasonController = TextEditingController();
 
-  // 2. DETALLE DE GASTOS (Lista Dinámica)
+  // 2. DETALLE DE GASTOS
   List<ExpenseItem> _items = [];
 
-  // Controladores temporales para agregar item
-  final _categoryController = TextEditingController(); // 👇 NUEVO: Controlador para el Autocomplete
+  final _categoryController = TextEditingController();
   final _amountController = TextEditingController();
   DateTime _itemDate = DateTime.now();
 
   final List<String> _categories = [
-    // --- OFRENDAS DE AYUNO ---
     'Ofrenda de Ayuno: Gastos Comida',
     'Ofrenda de Ayuno: Gastos Alojamiento',
     'Ofrenda de Ayuno: Gastos Médicos',
     'Ofrenda de Ayuno: Agua, Gas, Electricidad',
     'Ofrenda de Ayuno: Otros Gastos',
-
-    // --- PRESUPUESTO DEL BARRIO ---
     'Administración',
-    'Administración: Presupuesto', // 👇 CORREGIDO: Faltaba la coma aquí
+    'Administración: Presupuesto',
     'Asignación de Presupuesto',
     'Biblioteca',
     'Centro de Distribución',
     'Currículo',
     'Misceláneo',
-
-    // --- ORGANIZACIONES ---
     'Adultos Solteros',
     'Adultos Solteros: JAS',
     'Escuela Dominical',
@@ -57,13 +54,9 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     'Hombres Jóvenes',
     'Mujeres Jóvenes',
     'Sociedad de Socorro',
-
-    // --- PRIMARIA ---
     'Primaria: General',
     'Primaria: Materiales',
     'Primaria: Refrigerio',
-
-    // --- QUÓRUM DE ÉLDERES ---
     'Quorum Élderes: General',
     'Quorum Élderes: Obra Misional',
     'Quorum Élderes: Templo e Historia Familiar',
@@ -76,11 +69,35 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
   final _cciController = TextEditingController();
   final _docIdController = TextEditingController();
 
+  // 👇 2. EL AUTOLLENADO: Si hay datos, los metemos en los campos
+  @override
+  void initState() {
+    super.initState();
+    if (widget.requestToEdit != null) {
+      final req = widget.requestToEdit!;
+      _isReimbursement = req.isReimbursement;
+      _applicantController.text = req.applicantName;
+      _beneficiaryController.text = req.beneficiaryName;
+      _addressController.text = req.beneficiaryAddress;
+      _reasonController.text = req.reason;
+
+      // Clonamos la lista de items para poder editarla sin problemas
+      _items = req.items.map((e) => ExpenseItem(category: e.category, date: e.date, amount: e.amount)).toList();
+
+      _bankNameController.text = req.bankDetails.bankName;
+      _accountTypeController.text = req.bankDetails.accountType;
+      _accountNumberController.text = req.bankDetails.accountNumber;
+      _cciController.text = req.bankDetails.cci;
+      _docIdController.text = req.bankDetails.identityDoc;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Solicitud de Gastos'),
+        // 👇 Título dinámico
+        title: Text(widget.requestToEdit == null ? 'Nueva Solicitud' : 'Editar Solicitud'),
         backgroundColor: Colors.green.shade700,
         foregroundColor: Colors.white,
         actions: [
@@ -99,7 +116,6 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // TIPO DE SOLICITUD
               Card(
                 child: SwitchListTile(
                   title: Text(_isReimbursement ? 'SOLICITUD DE REEMBOLSO' : 'SOLICITUD DE ADELANTO',
@@ -128,41 +144,25 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
               _buildSectionTitle('2. DETALLE DE MONTOS', Icons.monetization_on_outlined),
               const SizedBox(height: 10),
 
-              // CARD PARA AGREGAR ITEM
               Card(
                 color: Colors.green.shade50,
                 child: Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: Column(
                     children: [
-                      // 👇 REEMPLAZADO: Autocomplete en lugar de Dropdown
                       Autocomplete<String>(
                         optionsBuilder: (TextEditingValue textEditingValue) {
-                          if (textEditingValue.text.isEmpty) {
-                            return const Iterable<String>.empty();
-                          }
-                          return _categories.where((String option) {
-                            return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                          });
+                          if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
+                          return _categories.where((String option) => option.toLowerCase().contains(textEditingValue.text.toLowerCase()));
                         },
-                        onSelected: (String selection) {
-                          _categoryController.text = selection;
-                        },
+                        onSelected: (String selection) => _categoryController.text = selection,
                         fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                          // Sincronizar controlador interno para poder limpiarlo al agregar a la lista
-                          if (_categoryController.text.isEmpty && controller.text.isNotEmpty) {
-                            controller.clear();
-                          }
-
+                          if (_categoryController.text.isEmpty && controller.text.isNotEmpty) controller.clear();
                           return TextFormField(
                             controller: controller,
                             focusNode: focusNode,
                             onChanged: (val) => _categoryController.text = val,
-                            decoration: const InputDecoration(
-                                labelText: 'Categoría (Buscar)',
-                                border: OutlineInputBorder(),
-                                contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)
-                            ),
+                            decoration: const InputDecoration(labelText: 'Categoría (Buscar)', border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
                           );
                         },
                       ),
@@ -182,9 +182,7 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildTextField('Monto S/.', _amountController, isNumber: true, isDense: true, isRequired: false),
-                          ),
+                          Expanded(child: _buildTextField('Monto S/.', _amountController, isNumber: true, isDense: true, isRequired: false)),
                         ],
                       ),
                       const SizedBox(height: 5),
@@ -202,7 +200,6 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
                 ),
               ),
 
-              // LISTA DE ITEMS
               if (_items.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 ListView.separated(
@@ -258,7 +255,8 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
                 child: ElevatedButton(
                   onPressed: _saveRequest,
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white),
-                  child: const Text('GUARDAR Y GENERAR PDF', style: TextStyle(fontSize: 16)),
+                  // 👇 Botón dinámico
+                  child: Text(widget.requestToEdit == null ? 'GUARDAR Y GENERAR PDF' : 'ACTUALIZAR Y GENERAR PDF', style: const TextStyle(fontSize: 16)),
                 ),
               ),
             ],
@@ -268,7 +266,6 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     );
   }
 
-  // --- HELPERS ---
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(children: [Icon(icon, color: Colors.grey[700]), const SizedBox(width: 8), Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[800]))]);
   }
@@ -286,7 +283,6 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     );
   }
 
-  // --- LOGICA ---
   void _addItem() {
     if (_categoryController.text.isEmpty || _amountController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa categoría y monto')));
@@ -295,7 +291,7 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
     setState(() {
       _items.add(ExpenseItem(category: _categoryController.text, date: _itemDate, amount: double.tryParse(_amountController.text) ?? 0));
       _amountController.clear();
-      _categoryController.clear(); // Limpia el buscador para el próximo gasto
+      _categoryController.clear();
     });
   }
 
@@ -314,7 +310,7 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
       final user = FirebaseAuth.instance.currentUser;
       final uid = user?.uid ?? 'unknown_user';
 
-      // 1. Preparamos el mapa para Firebase
+      // 👇 3. EL CEREBRO: Mapa base de datos que sí cambian
       final requestData = {
         'isReimbursement': _isReimbursement,
         'applicantName': _applicantController.text.trim(),
@@ -326,9 +322,6 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
           'date': Timestamp.fromDate(item.date),
           'amount': item.amount,
         }).toList(),
-        'requestDate': Timestamp.now(),
-        'status': 'pendiente',
-        'requestedByUid': uid,
         'bankDetails': {
           'bankName': _bankNameController.text.trim(),
           'accountType': _accountTypeController.text.trim(),
@@ -338,21 +331,33 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
         }
       };
 
-      // 2. Guardamos en Firebase
-      await FirebaseFirestore.instance.collection('expense_requests').add(requestData);
+      // Si es NUEVO, le agregamos los datos de creación inicial
+      if (widget.requestToEdit == null) {
+        requestData['requestDate'] = Timestamp.now();
+        requestData['status'] = 'pendiente';
+        requestData['requestedByUid'] = uid;
 
-      // 3. Generamos el PDF automáticamente
+        await FirebaseFirestore.instance.collection('expense_requests').add(requestData);
+      } else {
+        // Si es EDICIÓN, solo actualizamos los campos (sin borrar la fecha original ni el estado)
+        await FirebaseFirestore.instance.collection('expense_requests')
+            .doc(widget.requestToEdit!.id)
+            .update(requestData);
+      }
+
       if (mounted) {
-        // Reconstruimos el objeto para el generador PDF
+        // Respetamos la fecha original para el PDF si estamos editando
+        final pdfDate = widget.requestToEdit?.requestDate ?? DateTime.now();
+
         final requestForPdf = ExpenseRequestModel(
-            id: 'temp',
+            id: widget.requestToEdit?.id ?? 'temp',
             isReimbursement: _isReimbursement,
             applicantName: _applicantController.text.trim(),
             beneficiaryName: _beneficiaryController.text.trim(),
             beneficiaryAddress: _addressController.text.trim(),
             reason: _reasonController.text.trim(),
             items: _items,
-            requestDate: DateTime.now(),
+            requestDate: pdfDate,
             bankDetails: BankDetails(
               bankName: _bankNameController.text.trim(),
               accountType: _accountTypeController.text.trim(),
@@ -363,14 +368,17 @@ class _ExpenseRequestFormScreenState extends State<ExpenseRequestFormScreen> {
         );
 
         final pdfData = await BudgetPdfService().generateExpenseRequestPdf(requestForPdf);
-        final dateStr = DateFormat('dd-MM-yyyy').format(DateTime.now());
+        final dateStr = DateFormat('dd-MM-yyyy').format(pdfDate);
 
         await Printing.layoutPdf(
             onLayout: (_) async => pdfData,
             name: "SG '${requestForPdf.reason}' '$dateStr'.pdf"
         );
 
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Solicitud guardada y PDF generado'), backgroundColor: Colors.green));
+        // Mensaje dinámico de éxito
+        final successMsg = widget.requestToEdit == null ? '✅ Solicitud guardada y PDF generado' : '✅ Solicitud actualizada y PDF generado';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(successMsg), backgroundColor: Colors.green));
+
         Navigator.pop(context);
       }
     } catch (e) {

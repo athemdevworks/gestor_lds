@@ -171,6 +171,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
             final data = docs[index].data() as Map<String, dynamic>;
             final docId = docs[index].id;
 
+            // 1. EXTRAEMOS LOS DATOS BÁSICOS PARA LA TARJETA
             final isReimbursement = data['isReimbursement'] ?? true;
             final applicant = data['applicantName'] ?? 'Sin nombre';
             final reason = data['reason'] ?? 'Sin detalle';
@@ -183,6 +184,32 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
               }
             }
 
+            // 2. ARMAMOS EL OBJETO COMPLETO (Lo sacamos del botón PDF para usarlo en ambos lados)
+            final request = ExpenseRequestModel(
+              id: docId,
+              isReimbursement: isReimbursement,
+              applicantName: applicant,
+              beneficiaryName: data['beneficiaryName'] ?? '',
+              beneficiaryAddress: data['beneficiaryAddress'] ?? '',
+              reason: reason,
+              items: (data['items'] as List<dynamic>? ?? []).map((item) {
+                return ExpenseItem(
+                  category: item['category'] ?? 'General',
+                  date: (item['date'] as Timestamp).toDate(),
+                  amount: (item['amount'] ?? 0).toDouble(),
+                );
+              }).toList(),
+              requestDate: (data['requestDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              bankDetails: BankDetails(
+                bankName: data['bankDetails']?['bankName'] ?? '',
+                accountType: data['bankDetails']?['accountType'] ?? '',
+                accountNumber: data['bankDetails']?['accountNumber'] ?? '',
+                cci: data['bankDetails']?['cci'] ?? '',
+                identityDoc: data['bankDetails']?['identityDoc'] ?? '',
+              ),
+            );
+
+            // 3. CONSTRUIMOS LA TARJETA UI
             return Card(
               elevation: 2,
               margin: const EdgeInsets.only(bottom: 10),
@@ -208,33 +235,10 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // BOTÓN DE PDF (Ahora usa la variable 'request' de arriba)
                     IconButton(
                       icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
                       onPressed: () async {
-                        final request = ExpenseRequestModel(
-                          id: docId,
-                          isReimbursement: isReimbursement,
-                          applicantName: applicant,
-                          beneficiaryName: data['beneficiaryName'] ?? '',
-                          beneficiaryAddress: data['beneficiaryAddress'] ?? '',
-                          reason: reason,
-                          items: (data['items'] as List<dynamic>? ?? []).map((item) {
-                            return ExpenseItem(
-                              category: item['category'] ?? 'General',
-                              date: (item['date'] as Timestamp).toDate(),
-                              amount: (item['amount'] ?? 0).toDouble(),
-                            );
-                          }).toList(),
-                          requestDate: (data['requestDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-                          bankDetails: BankDetails(
-                            bankName: data['bankDetails']?['bankName'] ?? '',
-                            accountType: data['bankDetails']?['accountType'] ?? '',
-                            accountNumber: data['bankDetails']?['accountNumber'] ?? '',
-                            cci: data['bankDetails']?['cci'] ?? '',
-                            identityDoc: data['bankDetails']?['identityDoc'] ?? '',
-                          ),
-                        );
-
                         final pdfData = await BudgetPdfService().generateExpenseRequestPdf(request);
                         final dateStr = DateFormat('dd-MM-yyyy').format(request.requestDate);
                         await Printing.layoutPdf(
@@ -244,10 +248,19 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
                       },
                       tooltip: 'Ver PDF',
                     ),
+
+                    // BOTÓN DE OPCIONES (Editar / Eliminar)
                     PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'edit') {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Edición en desarrollo...')));
+                          // 👇 MAGIA APLICADA: Mandamos el objeto 'request' al formulario
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ExpenseRequestFormScreen(requestToEdit: request),
+                                settings: const RouteSettings(name: '/expense-edit'),
+                              )
+                          );
                         } else if (value == 'delete') {
                           _confirmDelete('expense_requests', docId);
                         }
