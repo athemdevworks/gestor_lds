@@ -1,4 +1,4 @@
-package com.nuevotrujillo.gestorlds.gestor_lds
+package com.example.gestor_lds
 
 import io.flutter.embedding.android.FlutterActivity
 
