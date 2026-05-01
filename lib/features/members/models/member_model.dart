@@ -14,6 +14,9 @@ class MemberModel {
   final String primaryOrganization; // Ej: 'Cuórum de Élderes', 'Sociedad de Socorro'
   final bool isYSA;                 // ¿Es JAS? (Independiente de su org)
 
+  // --- PARA ESTACA
+  final String ward;
+
   // --- SERVICIO (SERVIR) ---
   final String? calling;            // Ej: 'Maestro de Primaria'
   final String? servingOrganization;// Ej: 'Primaria' (Donde ejerce el llamamiento)
@@ -28,6 +31,7 @@ class MemberModel {
     required this.gender,
     required this.primaryOrganization,
     this.isYSA = false, // Por defecto no es JAS
+    required this.ward,
     this.birthDate,
     this.phone,
     this.email,
@@ -68,6 +72,7 @@ class MemberModel {
       // Nuevos campos de estructura
       'primaryOrganization': primaryOrganization,
       'isYSA': isYSA,
+      'ward': ward,
       'calling': calling,
       'servingOrganization': servingOrganization,
 
@@ -89,6 +94,7 @@ class MemberModel {
       // Mapeo de nuevos campos
       primaryOrganization: map['primaryOrganization'] ?? map['organization'] ?? 'Sin Asignar', // Fallback para datos viejos
       isYSA: map['isYSA'] ?? false,
+      ward: map['barrio'] ?? 'Jerusalén',
       calling: map['calling'],
       servingOrganization: map['servingOrganization'],
 

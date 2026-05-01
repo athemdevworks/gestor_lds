@@ -208,7 +208,7 @@ class _UserList extends StatelessWidget {
               leading: CircleAvatar(
                 backgroundColor: !showApproved ? Colors.orange.shade100 : Colors.blue.shade100,
                 child: Text(
-                  user.nombres.isNotEmpty ? user.nombres.substring(0, 1).toUpperCase() : '?',
+                  user.firstName.isNotEmpty ? user.firstName.substring(0, 1).toUpperCase() : '?',
                   style: TextStyle(
                     color: !showApproved ? Colors.orange.shade800 : Colors.blue.shade800,
                     fontWeight: FontWeight.bold,
@@ -216,7 +216,7 @@ class _UserList extends StatelessWidget {
                 ),
               ),
               title: Text(
-                  '${user.nombres} ${user.apellidos}',
+                  '${user.firstName} ${user.lastName}',
                   style: const TextStyle(fontWeight: FontWeight.bold)
               ),
               subtitle: Column(
@@ -307,7 +307,7 @@ class _UserList extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Rechazar Solicitud'),
-        content: Text('¿Deseas eliminar la solicitud de ${user.nombres}?'),
+        content: Text('¿Deseas eliminar la solicitud de ${user.firstName}?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           TextButton(

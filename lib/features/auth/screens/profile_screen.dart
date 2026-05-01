@@ -34,8 +34,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nombresController = TextEditingController(text: widget.user.nombres);
-    _apellidosController = TextEditingController(text: widget.user.apellidos);
+    _nombresController = TextEditingController(text: widget.user.firstName);
+    _apellidosController = TextEditingController(text: widget.user.lastName);
     _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
 
     // Inicializar fecha con lo que tenga el usuario (o null)
@@ -147,9 +147,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         CircleAvatar(
                           radius: 40,
-                          backgroundColor: AvatarColors.getColor(widget.user.nombres),
+                          backgroundColor: AvatarColors.getColor(widget.user.firstName),
                           child: Text(
-                            widget.user.nombres.isNotEmpty ? widget.user.nombres[0].toUpperCase() : '?',
+                            widget.user.firstName.isNotEmpty ? widget.user.firstName[0].toUpperCase() : '?',
                             style: const TextStyle(fontSize: 32, color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),

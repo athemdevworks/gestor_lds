@@ -106,7 +106,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
         // Determinar el nombre del usuario
         String finalUserName;
         if (_selectedUserObject != null) {
-          finalUserName = "${_selectedUserObject!.nombres} ${_selectedUserObject!.apellidos}";
+          finalUserName = "${_selectedUserObject!.firstName} ${_selectedUserObject!.lastName}";
         } else if (widget.commitmentToEdit != null) {
           finalUserName = widget.commitmentToEdit!.responsibleName ?? "Usuario";
         } else {
@@ -293,7 +293,7 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
                               dropdownMenuEntries: users.map((user) {
                                 return DropdownMenuEntry<String>(
                                   value: user.uid,
-                                  label: '${user.nombres} ${user.apellidos}',
+                                  label: '${user.firstName} ${user.lastName}',
                                   leadingIcon: const Icon(Icons.person_outline, size: 18),
                                 );
                               }).toList(),

@@ -4,8 +4,9 @@ import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
-import 'package:intl/intl.dart'; // Importa intl para formatear la fecha bonita
+import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
+import 'package:gestor_lds/core/constants/wards_list.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -18,8 +19,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
 
   // Controladores
-  final _nombresController = TextEditingController();
-  final _apellidosController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +29,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   // Estado de Selección
   String? _selectedOrganization;
   String? _selectedCalling;
-  DateTime? _selectedBirthDate; // <--- NUEVO: Variable para la fecha
+  DateTime? _selectedBirthDate;
+  String? _selectedWard; // <--- NUEVO: Variable para guardar el Barrio seleccionado
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -38,7 +40,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
 
-      // VALIDACIÓN NUEVA: Fecha obligatoria
       if (_selectedBirthDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -52,8 +53,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       setState(() => _isLoading = true);
       try {
         final bool alreadyExists = await _userService.checkDuplicateUser(
-            _nombresController.text.trim(),
-            _apellidosController.text.trim()
+            _firstNameController.text.trim(),
+            _lastNameController.text.trim()
         );
 
         if (alreadyExists) {
@@ -73,13 +74,15 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         if (_selectedOrganization == 'Obispado') assignedRole = UserRole.obispado;
         else if (_selectedOrganization == 'Barrio') assignedRole = UserRole.miembro;
 
+        // 👇 AQUI MANDAMOS EL WARD AL SERVICIO
         await _authService.registerUser(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
-          nombres: _nombresController.text.trim(),
-          apellidos: _apellidosController.text.trim(),
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
           calling: _selectedCalling!,
           organization: _selectedOrganization!,
+          ward: _selectedWard!, // <--- NUEVO: Pasamos el Barrio
           role: assignedRole,
           username: _usernameController.text.trim().toLowerCase(),
           phoneNumber: _phoneController.text.trim(),
@@ -120,9 +123,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   const SizedBox(height: 15),
 
                   Row(children: [
-                    Expanded(child: TextFormField(controller: _nombresController, decoration: const InputDecoration(labelText: 'Nombres', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
+                    Expanded(child: TextFormField(controller: _firstNameController, decoration: const InputDecoration(labelText: 'Nombres', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
                     const SizedBox(width: 10),
-                    Expanded(child: TextFormField(controller: _apellidosController, decoration: const InputDecoration(labelText: 'Apellidos', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
+                    Expanded(child: TextFormField(controller: _lastNameController, decoration: const InputDecoration(labelText: 'Apellidos', border: OutlineInputBorder()), validator: (v) => v!.isEmpty ? 'Requerido' : null)),
                   ]),
                   const SizedBox(height: 15),
 
@@ -133,12 +136,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // --- NUEVO CAMPO DE FECHA ---
                   InkWell(
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: context,
-                        initialDate: DateTime(2000), // Fecha sugerida razonable
+                        initialDate: DateTime(2000),
                         firstDate: DateTime(1920),
                         lastDate: DateTime.now(),
                         locale: const Locale('es', 'ES'),
@@ -161,7 +163,24 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  // ----------------------------
+
+                  // 👇 NUEVO: Selector de Barrio (Ward)
+                  DropdownButtonFormField<String>(
+                    decoration: const InputDecoration(
+                      labelText: 'Barrio',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.location_city),
+                    ),
+                    value: _selectedWard,
+                    items: kWardsList.map((ward) => DropdownMenuItem(value: ward, child: Text(ward))).toList(),
+                    onChanged: (val) {
+                      setState(() {
+                        _selectedWard = val;
+                      });
+                    },
+                    validator: (v) => v == null ? 'Selecciona tu barrio' : null,
+                  ),
+                  const SizedBox(height: 15),
 
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(labelText: 'Organización', border: OutlineInputBorder()),
@@ -230,10 +249,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // --- BOTÓN CANCELAR CORREGIDO ---
                       TextButton(
                         onPressed: () {
-                          // En lugar de cerrar (pop), recargamos la pantalla de Login
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(builder: (_) => const LoginScreen()),
                           );

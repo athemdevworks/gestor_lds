@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/members/models/member_model.dart';
 import 'package:gestor_lds/features/members/services/member_service.dart';
-import 'package:gestor_lds/core/constants/callings_list.dart'; // Tu archivo de constantes
+import 'package:gestor_lds/core/constants/callings_list.dart';
+// 👇 NUEVO: Importamos la lista global de barrios
+import 'package:gestor_lds/core/constants/wards_list.dart';
 import 'package:intl/intl.dart';
 
 class MemberFormScreen extends StatefulWidget {
@@ -23,7 +25,6 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _birthDateCtrl = TextEditingController();
-  // NOTA: _callingCtrl YA NO EXISTE porque usamos dropdown
 
   // Variables de Estado
   String _gender = 'M';
@@ -33,10 +34,11 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   // Variables de Lógica
   String _primaryOrganization = 'Cuórum de Élderes'; // Pertenencia
   bool _isYSA = false;
+  String? _selectedWard; // 👇 NUEVO: Variable para el Barrio
 
   // Variables de Servicio (Dropdowns)
-  String? _servingOrganization; // La llave del Mapa
-  String? _selectedCalling;     // El valor de la Lista
+  String? _servingOrganization;
+  String? _selectedCalling;
 
   // Lista Fija de Pertenencia
   final List<String> _primaryOrgsList = [
@@ -60,6 +62,9 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     _phoneCtrl.text = m.phone ?? '';
     _emailCtrl.text = m.email ?? '';
     _gender = m.gender;
+
+    // 👇 NUEVO: Cargamos el barrio si ya existe
+    _selectedWard = m.ward;
 
     // Pertenencia
     if (_primaryOrgsList.contains(m.primaryOrganization)) {
@@ -118,6 +123,13 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // 👇 Validación de seguridad: Asegurar que se haya elegido un barrio
+    if (_selectedWard == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona el barrio del miembro')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -130,6 +142,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
         email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
 
+        ward: _selectedWard!, // 👇 NUEVO: Pasamos el barrio al modelo
         primaryOrganization: _primaryOrganization,
         isYSA: _isYSA,
 
@@ -226,6 +239,20 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                     title: 'Pertenencia Eclesiástica',
                     icon: Icons.groups,
                     children: [
+                      // 👇 NUEVO: El selector de Barrio agregado a la tarjeta de pertenencia
+                      DropdownButtonFormField<String>(
+                        value: _selectedWard,
+                        decoration: const InputDecoration(
+                          labelText: 'Barrio',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.location_city),
+                        ),
+                        items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
+                        onChanged: (v) => setState(() => _selectedWard = v),
+                        validator: (v) => v == null ? 'Requerido' : null,
+                      ),
+                      const SizedBox(height: 15),
+
                       DropdownButtonFormField<String>(
                         value: _primaryOrganization,
                         decoration: const InputDecoration(labelText: 'Organización Principal', border: OutlineInputBorder()),
@@ -280,9 +307,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                         onChanged: (newValue) {
                           setState(() {
                             _servingOrganization = newValue;
-                            // Resetear cargo al cambiar organización
                             _selectedCalling = null;
-                            // (Aquí borramos la línea problemática de _callingCtrl)
                           });
                         },
                       ),

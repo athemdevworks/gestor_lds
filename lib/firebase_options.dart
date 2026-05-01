@@ -50,12 +50,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAM_Cj5A9MIpXxPkgavEMG6zhzVuD5NAuI',
-    appId: '1:848918126420:web:2847e4a3bf46565f45f2c1',
-    messagingSenderId: '848918126420',
-    projectId: 'gestorlds',
-    authDomain: 'gestorlds.firebaseapp.com',
-    storageBucket: 'gestorlds.firebasestorage.app',
+    apiKey: 'AIzaSyB6CX5dedJ_pzTIw08uPe0y5s5HhX0bZxc',
+    appId: '1:360573211683:web:6f4559d9e1273546fbcd96',
+    messagingSenderId: '360573211683',
+    projectId: 'gestorldsestacajerusalen',
+    authDomain: 'gestorldsestacajerusalen.firebaseapp.com',
+    storageBucket: 'gestorldsestacajerusalen.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(

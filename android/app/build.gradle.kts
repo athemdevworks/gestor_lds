@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.nuevotrujillo.gestorlds.gestor_lds"
+    namespace = "com.athemdevworks.gestorlds.estaca"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.nuevotrujillo.gestorlds.gestor_lds"
+        applicationId = "com.athemdevworks.gestorlds.estaca"
         minSdk = 24
         targetSdk = 36
         versionCode = flutter.versionCode

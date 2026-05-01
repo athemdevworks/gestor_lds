@@ -22,30 +22,21 @@ class AuthService {
   }
 
   // --- 3. INICIAR SESIÓN (BLINDADO 🛡️) ---
-  // Ahora busca en 'usernames' usando .doc().get() para cumplir la regla de seguridad
   Future<User?> signInWithEmailAndPassword(String identifier, String password) async {
     try {
       String emailToUse = identifier.trim();
-      String cleanUsername = identifier.trim().toLowerCase(); // Normalizamos a minúsculas
+      String cleanUsername = identifier.trim().toLowerCase();
 
-      // PASO 1: DETECTAR SI ES UN NOMBRE DE USUARIO (No tiene @)
+      // PASO 1: DETECTAR SI ES UN NOMBRE DE USUARIO
       if (!emailToUse.contains('@')) {
-
-        // --- CAMBIO DE SEGURIDAD ---
-        // En lugar de buscar en 'users' (que requiere permisos de lista),
-        // vamos directo al documento en la colección pública 'usernames'.
         final docRef = await _db.collection('usernames').doc(cleanUsername).get();
-
-        // Si el documento no existe, el usuario no es válido
         if (!docRef.exists) {
           throw 'El nombre de usuario no existe.';
         }
-
-        // Si existe, recuperamos el email seguro
         emailToUse = docRef.data()?['email'];
       }
 
-      // PASO 2: AUTENTICAR CON FIREBASE (Usando el correo real)
+      // PASO 2: AUTENTICAR CON FIREBASE
       UserCredential result = await _auth.signInWithEmailAndPassword(
           email: emailToUse,
           password: password
@@ -56,14 +47,12 @@ class AuthService {
         final userDoc = await _db.collection('users').doc(result.user!.uid).get();
         if (userDoc.exists) {
           final isActive = userDoc.data()?['isActive'] ?? true;
-
           if (!isActive) {
             await _auth.signOut();
             throw 'Esta cuenta ha sido inhabilitada por el administrador.';
           }
         }
       }
-
       return result.user;
 
     } on FirebaseAuthException catch (e) {
@@ -81,17 +70,17 @@ class AuthService {
     required String email,
     required String password,
     required String username,
-    required String nombres,
-    required String apellidos,
+    required String firstName, // ✅ Cambiado a Inglés
+    required String lastName,  // ✅ Cambiado a Inglés
     required String calling,
     required String organization,
+    required String ward,      // ✅ El ward está aquí
     required UserRole role,
     String? phoneNumber,
     DateTime? birthDate,
     String? memberId,
   }) async {
     try {
-      // 1. Crear en Auth
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -100,17 +89,17 @@ class AuthService {
       User? user = userCredential.user;
 
       if (user != null) {
-        // Normalizamos el username
         final cleanUsername = username.trim().toLowerCase();
 
         final newUser = UserModel(
           uid: user.uid,
           email: email,
           username: cleanUsername,
-          nombres: nombres,
-          apellidos: apellidos,
+          firstName: firstName, // ✅ Actualizado
+          lastName: lastName,   // ✅ Actualizado
           calling: calling,
           organization: organization,
+          ward: ward,           // ✅ Actualizado
           role: role,
           isApproved: false,
           isActive: true,
@@ -119,23 +108,19 @@ class AuthService {
           birthDate: birthDate,
         );
 
-        // 2. Guardar perfil completo en 'users' (Privado)
         await _db.collection('users').doc(user.uid).set(newUser.toMap());
 
-        // 3. --- NUEVO: Guardar referencia en 'usernames' (Público/Lookup) ---
         await _db.collection('usernames').doc(cleanUsername).set({
           'email': email,
           'uid': user.uid,
         });
 
-        // 4. Vincular Miembro (si aplica)
         if (memberId != null) {
           await _db.collection('members').doc(memberId).update({
             'relatedUserId': user.uid,
             'email': email,
           });
         }
-
         return user;
       }
     } on FirebaseAuthException catch (e) {
@@ -167,15 +152,15 @@ class AuthService {
       final String newUid = result.user!.uid;
       final cleanUsername = username.trim().toLowerCase();
 
-      // 1. Crear el modelo
       final newUser = UserModel(
         uid: newUid,
         email: email,
         username: cleanUsername,
-        nombres: member.firstName,
-        apellidos: member.lastName,
+        firstName: member.firstName, // ✅ Cambiado a Inglés y extraído del member
+        lastName: member.lastName,   // ✅ Cambiado a Inglés y extraído del member
         calling: member.calling ?? 'Sin Llamamiento',
         organization: member.servingOrganization ?? member.primaryOrganization,
+        ward: member.ward,           // ✅ Extrae automáticamente el barrio del miembro
         role: role,
         isApproved: true,
         isActive: true,
@@ -184,16 +169,13 @@ class AuthService {
         birthDate: member.birthDate,
       );
 
-      // 2. Guardar en 'users'
       await _db.collection('users').doc(newUid).set(newUser.toMap());
 
-      // 3. --- NUEVO: Guardar en 'usernames' ---
       await _db.collection('usernames').doc(cleanUsername).set({
         'email': email,
         'uid': newUid,
       });
 
-      // 4. Vincular
       await _db.collection('members').doc(member.id).update({
         'relatedUserId': newUid,
         'email': email,
@@ -223,8 +205,6 @@ class AuthService {
     }
   }
 
-  // ESTA FUNCIÓN YA NO SE DEBERÍA USAR EN EL LOGIN, PERO LA DEJAMOS POR SI ACASO
-  // (Ahora el login usa la colección 'usernames' directo)
   Future<String?> getEmailFromUsername(String username) async {
     try {
       final doc = await _db.collection('usernames').doc(username.trim().toLowerCase()).get();

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/member_model.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 
 class MemberService {
   final CollectionReference _membersRef = FirebaseFirestore.instance.collection('members');
@@ -21,9 +23,10 @@ class MemberService {
         await _usersRef.doc(member.relatedUserId).update({
           'calling': member.calling ?? '',
           'organization': displayOrg,
-          'nombres': member.firstName,
-          'apellidos': member.lastName,
+          'firstName': member.firstName, // ✅ Corregido al nuevo estándar
+          'lastName': member.lastName,   // ✅ Corregido al nuevo estándar
           'phoneNumber': member.phone,
+          'ward': member.ward,           // ✅ Sincronizamos el barrio también
         });
         print("Usuario sincronizado correctamente.");
       } catch (e) {
@@ -108,7 +111,6 @@ class MemberService {
 
   // --- IMPORTACIÓN Y MIGRACIÓN ---
   Future<void> importUsersToMembers() async {
-    // ... (Tu código de migración se mantiene exactamente igual) ...
     final usersSnapshot = await _usersRef.get();
     int count = 0;
 
@@ -137,6 +139,9 @@ class MemberService {
       String phone = userData['phoneNumber'] ?? userData['phone'] ?? userData['celular'] ?? '';
       String calling = userData['calling'] ?? userData['llamamiento'] ?? '';
       String oldOrg = userData['organization'] ?? userData['organizacion'] ?? 'Barrio';
+
+      // 👇 NUEVO: Extraemos el barrio o le ponemos Jerusalén por defecto
+      String ward = userData['ward'] ?? 'Jerusalén';
 
       bool isYSA = false;
       if (oldOrg.toUpperCase().contains('JAS') || oldOrg.toUpperCase().contains('YSA')) {
@@ -168,6 +173,7 @@ class MemberService {
         phone: phone,
         birthDate: birthDate,
         relatedUserId: userId,
+        ward: ward, // ✅ Obligatorio en el nuevo modelo
       );
 
       await saveMember(newMember);
@@ -175,4 +181,46 @@ class MemberService {
     }
     print("Migración completada: $count miembros importados.");
   }
+
+  // --- MIGRACIÓN MASIVA DESDE JSON ---
+  Future<void> importarBarrioDesdeJson() async {
+    try {
+      print("Iniciando importación...");
+      // 1. Cargar el JSON desde los assets
+      final String response = await rootBundle.loadString('assets/import_nuevo_trujillo.json');
+      final List<dynamic> data = json.decode(response);
+
+      final WriteBatch batch = FirebaseFirestore.instance.batch();
+      int count = 0;
+
+      for (var item in data) {
+        final docRef = _membersRef.doc(); // Crea un ID aleatorio nuevo
+
+        // 2. Mapeamos la data. (La fecha la guardamos como String temporalmente para no complicarnos con los formatos en español)
+        final memberData = {
+          'id': docRef.id,
+          'firstName': item['firstName'],
+          'lastName': item['lastName'],
+          'fullName': '${item['firstName']} ${item['lastName']}',
+          'gender': item['gender'],
+          'primaryOrganization': item['primaryOrganization'],
+          'isYSA': item['isYSA'],
+          'ward': item['ward'],
+          'birthDateStr': item['birthDate'], // Guardamos el texto "2 mayo 2008" directo
+        };
+
+        batch.set(docRef, memberData, SetOptions(merge: true));
+        count++;
+
+        // Firebase permite subir máximo 500 por lote. Estamos en 441, así que sobra espacio.
+      }
+
+      await batch.commit();
+      print('✅ ¡GOLAZO! Se importaron $count miembros a la Estaca.');
+
+    } catch (e) {
+      print('❌ Error al importar: $e');
+    }
+  }
+
 }

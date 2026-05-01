@@ -13,12 +13,15 @@ class UserModel {
   final String username;
 
   // Datos Visuales
-  final String nombres;
-  final String apellidos;
+  final String firstName;
+  final String lastName;
 
   // Datos Eclesiásticos (Snapshot)
   final String calling;
   final String organization;
+
+  // --- PARA ESTACA
+  final String ward;
 
   // --- CONTROL DE ACCESO ---
   final UserRole role;
@@ -36,10 +39,11 @@ class UserModel {
     required this.uid,
     required this.email,
     required this.username,
-    required this.nombres,
-    required this.apellidos,
+    required this.firstName,
+    required this.lastName,
     required this.calling,
     required this.organization,
+    required this.ward,
     required this.role,
     this.isApproved = false,
     this.isActive = true,
@@ -53,10 +57,11 @@ class UserModel {
       uid: id,
       email: map['email'] ?? '',
       username: map['username'] ?? '',
-      nombres: map['nombres'] ?? '',
-      apellidos: map['apellidos'] ?? '',
+      firstName: map['firstName'] ?? '',
+      lastName: map['lastName'] ?? '',
       calling: map['calling'] ?? '',
       organization: map['organization'] ?? '',
+      ward: map['ward'] ?? 'Jerusalén',
 
       // La magia para leer 'admin' ya funciona aquí automáticamente
       role: UserRole.values.firstWhere(
@@ -80,10 +85,11 @@ class UserModel {
       'uid': uid,
       'email': email,
       'username': username,
-      'nombres': nombres,
-      'apellidos': apellidos,
+      'firstName': firstName,
+      'lastName': lastName,
       'calling': calling,
       'organization': organization,
+      'ward': ward,
       'role': role.toString().split('.').last, // Esto guardará "admin"
       'isApproved': isApproved,
       'isActive': isActive,

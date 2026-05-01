@@ -3,7 +3,7 @@ description: "Proyecto de gestion de reuniones y agendas"
 publish_to: 'none'
 
 # CAMBIO 1: Actualizamos versión para el despliegue
-version: 1.10.4+35
+version: 2.1.2
 
 environment:
   sdk: ^3.10.1
@@ -39,6 +39,7 @@ dev_dependencies:
   # CAMBIO 2: Agregamos el paquete de Splash
   flutter_native_splash: ^2.4.0
   flutter_lints: ^6.0.0
+  change_app_package_name: ^1.5.0
 
 # Configuración de Iconos (Ya la tenías)
 flutter_launcher_icons:

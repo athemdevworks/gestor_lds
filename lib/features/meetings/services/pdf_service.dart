@@ -272,7 +272,7 @@ class PdfService {
                       ),
                       pw.Padding(
                         padding: const pw.EdgeInsets.only(left: 14, bottom: 4),
-                        child: pw.Text('Presenta: ${item.assignedTo}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700, fontStyle: pw.FontStyle.italic)),
+                        child: pw.Text('Responsable: ${item.assignedTo}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700, fontStyle: pw.FontStyle.italic)),
                       ),
                       if (itemCommitments.isNotEmpty)
                         pw.Container(

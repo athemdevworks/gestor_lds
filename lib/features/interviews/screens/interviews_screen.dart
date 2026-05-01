@@ -349,7 +349,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
               await _service.reserveSlot(
                 slotId: slot.id,
                 userId: widget.currentUser.uid,
-                userName: "${widget.currentUser.nombres} ${widget.currentUser.apellidos}",
+                userName: "${widget.currentUser.firstName} ${widget.currentUser.lastName}",
                 reason: noteController.text.trim().isEmpty ? 'Entrevista Personal' : noteController.text.trim(),
               );
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Cita reservada!')));

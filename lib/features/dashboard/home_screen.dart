@@ -5,14 +5,18 @@ import 'package:gestor_lds/features/dashboard/screens/user_management_screen.dar
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
 import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
 import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
+// 👇 AGREGADO: Import de la nueva pantalla de Historia Familiar
+import 'package:gestor_lds/features/family_history/screens/historia_familiar_screen.dart';
 import '../budget/screens/budget_list_screen.dart';
 import '../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
 import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
 import 'package:gestor_lds/features/communications/screens/document_generator_screen.dart';
 import 'package:gestor_lds/features/members/screens/members_screen.dart';
-import 'package:gestor_lds/features/dashboard//widgets/birthdays_card.dart';
+import 'package:gestor_lds/features/dashboard/widgets/birthdays_card.dart';
 import 'package:gestor_lds/features/statistics/screens/manager_dashboard_screen.dart';
+
+import '../members/services/member_service.dart';
 
 class HomeScreen extends StatelessWidget {
   final UserModel user;
@@ -32,280 +36,324 @@ class HomeScreen extends StatelessWidget {
     const Color brandBlue = Color(0xFF164772);
 
     return PopScope(
-        canPop: false, // 🛑 Bloquea el botón de retroceso para que no cierre el navegador
+        canPop: false,
         child: Scaffold(
-      backgroundColor: const Color(0xFFEEF2F6), // Fondo Gris Suave
+          backgroundColor: const Color(0xFFEEF2F6),
 
-      appBar: AppBar(
-        title: isMobile
-            ? Image.asset(
-          'assets/images/logont.png',
-          height: 35,
-          color: Colors.white,
-          fit: BoxFit.contain,
-          alignment: Alignment.centerLeft,
-        )
-            : const Text(
-          'GestorLDS',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-        ),
-        centerTitle: false,
-        flexibleSpace: isMobile
-            ? null
-            : SafeArea(
-          child: Center(
-            child: Image.asset(
+          appBar: AppBar(
+            title: isMobile
+                ? Image.asset(
               'assets/images/logont.png',
-              height: 45,
+              height: 35,
               color: Colors.white,
               fit: BoxFit.contain,
+              alignment: Alignment.centerLeft,
+            )
+                : const Text(
+              'GestorLDS',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            tooltip: 'Mi Perfil',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileScreen(user: user),
-                  // 👇 AGREGADO: Ruta web para Perfil
-                  settings: const RouteSettings(name: '/profile'),
+            centerTitle: false,
+            flexibleSpace: isMobile
+                ? null
+                : SafeArea(
+              child: Center(
+                child: Image.asset(
+                  'assets/images/logont.png',
+                  height: 45,
+                  color: Colors.white,
+                  fit: BoxFit.contain,
                 ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Cerrar Sesión',
-            onPressed: () => _showLogoutDialog(context),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildWelcomeBanner(context),
-            const SizedBox(height: 30),
-
-            //Cumpleaños
-            SizedBox(
-              height: 250, // Altura para la lista de cumples
-              width: double.infinity,
-              child: BirthdaysCard(),
+              ),
             ),
-            const SizedBox(height: 20),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.account_circle),
+                tooltip: 'Mi Perfil',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfileScreen(user: user),
+                      settings: const RouteSettings(name: '/profile'),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout),
+                tooltip: 'Cerrar Sesión',
+                onPressed: () => _showLogoutDialog(context),
+              ),
+            ],
+          ),
 
-            // SECCIÓN 1: MÓDULOS PRINCIPALES
-            const Text(
-                'MODULOS PRINCIPALES',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
-            ),
-            const SizedBox(height: 10),
 
-            _buildGridOrList(
-              isWideScreen,
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // --- CALENDARIO ---
-                _DashboardCard(
-                  title: 'CALENDARIO',
-                  subtitle: 'Cronograma de actividades del barrio',
-                  icon: Icons.calendar_month,
-                  iconColor: Colors.deepPurple.shade600,
-                  textColor: Colors.black,
-                  onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CalendarScreen(currentUser: user),
-                        // 👇 AGREGADO: Ruta web para Calendario
-                        settings: const RouteSettings(name: '/calendar'),
-                      )
+                _buildWelcomeBanner(context),
+                const SizedBox(height: 30),
+
+
+                //BOTON PARA IMPORTAR... ES NECESARIO MODIFICAR LA RUTA DEL ASSETS EN EL PUBSPEC.YAML
+/*                ElevatedButton.icon(
+                  icon: const Icon(Icons.cloud_upload),
+                  label: const Text('⚠️ Importar Nuevo Trujillo (JSON)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange, // Color llamativo de advertencia
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
-                ),
-                // --- ENTREVISTAS ---
-                _DashboardCard(
-                  title: 'ENTREVISTAS',
-                  subtitle: 'Gestión de citas y entrevistas',
-                  icon: Icons.upcoming,
-                  iconColor: Colors.teal.shade600,
-                  textColor: Colors.black,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => InterviewsScreen(currentUser: user),
-                        // 👇 AGREGADO: Ruta web para Entrevistas
-                        settings: const RouteSettings(name: '/interviews'),
+                  onPressed: () async {
+                    // 1. Avisamos que el proceso empezó
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Importando 441 miembros... no cierres la app.'),
+                        duration: Duration(seconds: 3),
                       ),
                     );
+
+                    // 2. Ejecutamos el script de pase de gol
+                    await MemberService().importarBarrioDesdeJson();
+
+                    // 3. Avisamos que ya terminó
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('✅ ¡GOLAZO! Importación Exitosa.'),
+                          backgroundColor: Colors.green,
+                          duration: Duration(seconds: 4),
+                        ),
+                      );
+                    }
                   },
                 ),
-              ],
-            ),
+                const SizedBox(height: 20),*/
+//------------------------------------------------
 
-            // SECCIÓN 2: GESTIÓN DE REUNIONES
-            if (isAdmin || isLeader) ...[
-              const SizedBox(height: 30),
-              const Text(
-                  'GESTION DE REUNIONES',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
-              ),
-              const SizedBox(height: 10),
+                //Cumpleaños
+                const SizedBox(
+                  height: 250,
+                  width: double.infinity,
+                  child: BirthdaysCard(),
+                ),
+                const SizedBox(height: 20),
 
-              _buildGridOrList(
-                isWideScreen,
-                children: [
-                  // --- ACTIVIDADES ---
-                  _DashboardCard(
-                    title: 'ACTIVIDADES',
-                    subtitle: 'Organización y control de actividades',
-                    icon: Icons.local_activity,
-                    iconColor: Colors.orange.shade700,
-                    textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ActivitiesScreen(currentUser: user),
-                        // 👇 AGREGADO: Ruta web para Actividades
-                        settings: const RouteSettings(name: '/activities'),
+                // SECCIÓN 1: MÓDULOS PRINCIPALES
+                const Text(
+                    'MODULOS PRINCIPALES',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+                ),
+                const SizedBox(height: 10),
+
+                _buildGridOrList(
+                  isWideScreen,
+                  children: [
+                    // --- CALENDARIO ---
+                    _DashboardCard(
+                      title: 'CALENDARIO',
+                      subtitle: 'Cronograma de actividades del barrio',
+                      icon: Icons.calendar_month,
+                      iconColor: Colors.deepPurple.shade600,
+                      textColor: Colors.black,
+                      onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => CalendarScreen(currentUser: user),
+                            settings: const RouteSettings(name: '/calendar'),
+                          )
                       ),
                     ),
-                  ),
-                  _DashboardCard(
-                    title: 'AGENDAS',
-                    subtitle: 'Minutas y pautas de reunión',
-                    icon: Icons.edit_calendar,
-                    iconColor: Colors.blue.shade700,
-                    textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MeetingsListScreen(currentUser: user),
-                          // 👇 AGREGADO: Ruta web para Agendas
-                          settings: const RouteSettings(name: '/meetings'),
-                        )
-                    ),
-                  ),
-                  _DashboardCard(
-                    title: 'MIS COMPROMISOS',
-                    subtitle: 'Seguimiento de asignaciones',
-                    icon: Icons.task_alt,
-                    iconColor: Colors.green.shade700,
-                    textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => MyCommitmentsScreen(currentUser: user),
-                          // 👇 AGREGADO: Ruta web para Compromisos
-                          settings: const RouteSettings(name: '/commitments'),
-                        )
-                    ),
-                  ),
-                  _DashboardCard(
-                    title: 'PRESUPUESTO',
-                    subtitle: 'Control financiero y solicitudes',
-                    icon: Icons.monetization_on_outlined,
-                    iconColor: Colors.green.shade700,
-                    textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const BudgetListScreen(),
-                          // 👇 AGREGADO: Ruta web para Presupuesto
-                          settings: const RouteSettings(name: '/budget'),
-                        )
-                    ),
-                  ),
-                ],
-              ),
-            ],
-
-            // SECCIÓN 3: ADMINISTRACIÓN
-            if (isAdmin) ...[
-              const SizedBox(height: 30),
-              const Text(
-                  'ADMINISTRACION',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
-              ),
-              const SizedBox(height: 10),
-
-              _buildGridOrList(
-                isWideScreen,
-                children: [
-                  _DashboardCard(
-                    title: 'ESTADISTICAS',
-                    subtitle: 'Panel de métricas y rendimiento',
-                    icon: Icons.pie_chart_rounded,
-                    iconColor: Colors.amber.shade700,
-                    textColor: Colors.black,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ManagerDashboardScreen(),
-                          // 👇 AGREGADO: Ruta web para Estadísticas
-                          settings: const RouteSettings(name: '/statistics'),
-                        ),
-                      );
-                    },
-                  ),
-                  _DashboardCard(
-                    title: 'USUARIOS',
-                    subtitle: 'Gestión de cuentas y permisos',
-                    icon: Icons.verified_user,
-                    iconColor: Colors.indigo.shade700,
-                    textColor: Colors.black,
-                    onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const UserManagementScreen(),
-                          // 👇 AGREGADO: Ruta web para Usuarios
-                          settings: const RouteSettings(name: '/users'),
-                        )
-                    ),
-                  ),
-                  // --- COMUNICACIONES ---
-                  _DashboardCard(
-                    title: 'COMUNICACIONES',
-                    subtitle: 'Citaciones y documentos oficiales',
-                    icon: Icons.campaign_rounded,
-                    iconColor: const Color(0xFF25D366),
-                    textColor: Colors.black,
-                    onTap: () {
-                      Navigator.of(context).push(
+                    // --- ENTREVISTAS ---
+                    _DashboardCard(
+                      title: 'ENTREVISTAS',
+                      subtitle: 'Gestión de citas y entrevistas',
+                      icon: Icons.upcoming,
+                      iconColor: Colors.teal.shade600,
+                      textColor: Colors.black,
+                      onTap: () {
+                        Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (_) => const DocumentGeneratorScreen(),
-                            // 👇 AGREGADO: Ruta web para Comunicaciones
-                            settings: const RouteSettings(name: '/communications'),
-                          )
-                      );
-                    },
-                  ),
+                            builder: (_) => InterviewsScreen(currentUser: user),
+                            settings: const RouteSettings(name: '/interviews'),
+                          ),
+                        );
+                      },
+                    ),
+                    // 👇 AGREGADO: --- HISTORIA FAMILIAR ---
+                    _DashboardCard(
+                      title: 'HISTORIA FAMILIAR',
+                      subtitle: 'Seguimiento de metas y progreso',
+                      icon: Icons.account_tree_rounded,
+                      iconColor: Colors.cyan.shade700,
+                      textColor: Colors.black,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => HistoriaFamiliarScreen(currentUser: user),
+                            settings: const RouteSettings(name: '/family_history'),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
 
-                  _DashboardCard(
-                    title: 'DIRECTORIO',
-                    subtitle: 'Base de datos del barrio',
-                    icon: Icons.people_alt_rounded,
-                    iconColor: Colors.deepOrange,
-                    textColor: Colors.black,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MembersScreen(),
-                          // 👇 AGREGADO: Ruta web para Directorio
-                          settings: const RouteSettings(name: '/members'),
+                // SECCIÓN 2: GESTIÓN DE REUNIONES
+                if (isAdmin || isLeader) ...[
+                  const SizedBox(height: 30),
+                  const Text(
+                      'GESTION DE REUNIONES',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildGridOrList(
+                    isWideScreen,
+                    children: [
+                      // --- ACTIVIDADES ---
+                      _DashboardCard(
+                        title: 'ACTIVIDADES',
+                        subtitle: 'Organización y control de actividades',
+                        icon: Icons.local_activity,
+                        iconColor: Colors.orange.shade700,
+                        textColor: Colors.black,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ActivitiesScreen(currentUser: user),
+                            settings: const RouteSettings(name: '/activities'),
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                      _DashboardCard(
+                        title: 'AGENDAS',
+                        subtitle: 'Minutas y pautas de reunión',
+                        icon: Icons.edit_calendar,
+                        iconColor: Colors.blue.shade700,
+                        textColor: Colors.black,
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MeetingsListScreen(currentUser: user),
+                              settings: const RouteSettings(name: '/meetings'),
+                            )
+                        ),
+                      ),
+                      _DashboardCard(
+                        title: 'MIS COMPROMISOS',
+                        subtitle: 'Seguimiento de asignaciones',
+                        icon: Icons.task_alt,
+                        iconColor: Colors.green.shade700,
+                        textColor: Colors.black,
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => MyCommitmentsScreen(currentUser: user),
+                              settings: const RouteSettings(name: '/commitments'),
+                            )
+                        ),
+                      ),
+                      _DashboardCard(
+                        title: 'PRESUPUESTO',
+                        subtitle: 'Control financiero y solicitudes',
+                        icon: Icons.monetization_on_outlined,
+                        iconColor: Colors.green.shade700,
+                        textColor: Colors.black,
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BudgetListScreen(),
+                              settings: const RouteSettings(name: '/budget'),
+                            )
+                        ),
+                      ),
+                    ],
                   ),
-
                 ],
-              ),
-            ],
 
-            const SizedBox(height: 50),
-          ],
-        ),
-      ),
-    ));
+                // SECCIÓN 3: ADMINISTRACIÓN
+                if (isAdmin) ...[
+                  const SizedBox(height: 30),
+                  const Text(
+                      'ADMINISTRACION',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildGridOrList(
+                    isWideScreen,
+                    children: [
+                      _DashboardCard(
+                        title: 'ESTADISTICAS',
+                        subtitle: 'Panel de métricas y rendimiento',
+                        icon: Icons.pie_chart_rounded,
+                        iconColor: Colors.amber.shade700,
+                        textColor: Colors.black,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ManagerDashboardScreen(),
+                              settings: const RouteSettings(name: '/statistics'),
+                            ),
+                          );
+                        },
+                      ),
+                      _DashboardCard(
+                        title: 'USUARIOS',
+                        subtitle: 'Gestión de cuentas y permisos',
+                        icon: Icons.verified_user,
+                        iconColor: Colors.indigo.shade700,
+                        textColor: Colors.black,
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UserManagementScreen(),
+                              settings: const RouteSettings(name: '/users'),
+                            )
+                        ),
+                      ),
+                      // --- COMUNICACIONES ---
+                      _DashboardCard(
+                        title: 'COMUNICACIONES',
+                        subtitle: 'Citaciones y documentos oficiales',
+                        icon: Icons.campaign_rounded,
+                        iconColor: const Color(0xFF25D366),
+                        textColor: Colors.black,
+                        onTap: () {
+                          Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const DocumentGeneratorScreen(),
+                                settings: const RouteSettings(name: '/communications'),
+                              )
+                          );
+                        },
+                      ),
+
+                      _DashboardCard(
+                        title: 'DIRECTORIO',
+                        subtitle: 'Base de datos del barrio',
+                        icon: Icons.people_alt_rounded,
+                        iconColor: Colors.deepOrange,
+                        textColor: Colors.black,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const MembersScreen(),
+                              settings: const RouteSettings(name: '/members'),
+                            ),
+                          );
+                        },
+                      ),
+
+                    ],
+                  ),
+                ],
+
+                const SizedBox(height: 50),
+              ],
+            ),
+          ),
+        ));
   }
 
   // --- WIDGETS AUXILIARES ---
@@ -329,7 +377,7 @@ class HomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'BIENVENIDO, ${user.nombres.toUpperCase()} ${user.apellidos.toUpperCase()}',
+            'BIENVENIDO, ${user.firstName.toUpperCase()} ${user.lastName.toUpperCase()}',
             style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 5),
