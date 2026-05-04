@@ -7,6 +7,9 @@ import 'package:gestor_lds/features/statistics/screens/speaker_list_screen.dart'
 import 'package:gestor_lds/features/statistics/services/statistics_service.dart';
 import 'package:gestor_lds/features/statistics/screens/hymn_list_screen.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
+import 'package:gestor_lds/core/constants/organizations_list.dart'; // 🚀 Importante para los nuevos filtros
+
+import 'family_history_list_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({super.key});
@@ -53,9 +56,8 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 MAGIA RESPONSIVA: Medimos el ancho de la pantalla
     double screenWidth = MediaQuery.of(context).size.width;
-    bool isMobile = screenWidth < 600; // Si es menor a 600px, asumimos que es celular
+    bool isMobile = screenWidth < 600;
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
@@ -76,19 +78,17 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                // 📱 Móvil = 2 columnas | 💻 PC = 3 columnas
                 crossAxisCount: isMobile ? 2 : 3,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                // 📱 Móvil = Cuadrados (1.1) | 💻 PC = Rectangulares (2.4)
                 childAspectRatio: isMobile ? 1.1 : 2.4,
                 children: [
                   _buildCategoryCard(
                     title: 'Discursos',
                     icon: Icons.record_voice_over,
                     color: Colors.blue,
-                    isMobile: isMobile, // Pasamos el dato
+                    isMobile: isMobile,
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpeakerListScreen())),
                   ),
                   _buildCategoryCard(
@@ -146,7 +146,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     required Color color,
     required VoidCallback onTap,
     int badgeCount = 0,
-    required bool isMobile, // 🚀 Recibimos si es móvil o no
+    required bool isMobile,
   }) {
     return Card(
       elevation: 3,
@@ -160,7 +160,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: isMobile
-                  ? Column( // 📱 DISEÑO MÓVIL (Apilado y compacto)
+                  ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(icon, size: 40, color: color),
@@ -174,7 +174,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   ),
                 ],
               )
-                  : Row( // 💻 DISEÑO WEB (Horizontal y gigante)
+                  : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(icon, size: 64, color: color),
@@ -206,7 +206,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       ),
     );
   }
-  // --- MÉTODOS DE PANELES (IGUALES A LOS ANTERIORES) ---
+
   void _mostrarPanelEntrevistas() {
     final reserved = _interviewStats?['reserved'] ?? 0;
     final available = _interviewStats?['available'] ?? 0;
@@ -247,6 +247,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       ),
     );
   }
+
   void _mostrarPanelPresupuesto() {
     final reimbursements = _budgetStats?['reimbursements'] ?? 0.0;
     final advances = _budgetStats?['advances'] ?? 0.0;
@@ -307,7 +308,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que el modal sea más alto si hay muchos atrasos
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.6,
@@ -399,7 +400,7 @@ Widget _legendIndicator(Color color, String text) {
 }
 
 // ============================================================================
-// PANEL DE HISTORIA FAMILIAR (USANDO TUS CONSTRAINTS GLOBALES)
+// 🚀 PANEL DE HISTORIA FAMILIAR (REDISEÑADO CON FILTRO EMERGENTE)
 // ============================================================================
 class FamilyHistoryStatsPanel extends StatefulWidget {
   const FamilyHistoryStatsPanel({super.key});
@@ -409,26 +410,103 @@ class FamilyHistoryStatsPanel extends StatefulWidget {
 }
 
 class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
+  final Color _brandBlue = const Color(0xFF164772);
+
   String _mesSeleccionado = DateTime.now().month.toString().padLeft(2, '0');
   String _barrioSeleccionado = 'Todos';
-
-  final List<String> _meses = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+  String _filtroOrganizacion = 'Todos'; // 🚀 Nuevo filtro demográfico
 
   final Map<String, String> _nombresMeses = {
-    '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
-    '05': 'Mayo', '06': 'Junio', '07': 'Julio', '08': 'Agosto',
-    '09': 'Septiembre', '10': 'Octubre', '11': 'Noviembre', '12': 'Diciembre'
+    '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
+    '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
+    '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
   };
 
-  // 🚀 AHORA SÍ: Usamos tu Constraint global para alimentar el Dropdown.
-  // (Cambia 'AppConstants.wardsList' por el nombre exacto de tu variable global)
-  late final List<String> _barriosSelectable;
+  final List<String> _opcionesDemograficas = [
+    'Todos', 'JAS', 'Hombres', 'Mujeres', 'Jóvenes', ...kOrganizationsList
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    // Inicializamos la lista juntando 'Todos' con tu constraint
-    _barriosSelectable = ['Todos', ...kWardsList];
+  // 🚀 EL PANEL DE FILTROS SECUNDARIO
+  void _mostrarFiltros() {
+    showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('Filtros de Estadísticas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 20),
+
+                      // Fila: Barrio y Mes
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _barrioSeleccionado,
+                              decoration: InputDecoration(labelText: 'Barrio', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
+                              items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
+                              onChanged: (val) {
+                                setModalState(() => _barrioSeleccionado = val!);
+                                setState(() {}); // Refresca el panel de atrás
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _mesSeleccionado,
+                              decoration: InputDecoration(labelText: 'Mes', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
+                              items: List.generate(12, (i) => (i + 1).toString().padLeft(2, '0'))
+                                  .map((m) => DropdownMenuItem(value: m, child: Text(_nombresMeses[m]!, style: const TextStyle(fontSize: 14)))).toList(),
+                              onChanged: (val) {
+                                setModalState(() => _mesSeleccionado = val!);
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Filtro Demográfico
+                      DropdownButtonFormField<String>(
+                        value: _filtroOrganizacion,
+                        decoration: InputDecoration(labelText: 'Organización', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
+                        items: _opcionesDemograficas.map((o) => DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 14)))).toList(),
+                        onChanged: (val) {
+                          setModalState(() => _filtroOrganizacion = val!);
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 24),
+
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _brandBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('APLICAR', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+          );
+        }
+    );
   }
 
   @override
@@ -439,49 +517,73 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('Estadísticas Historia Familiar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
+          // CABECERA LIMPIA
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _barrioSeleccionado,
-                  decoration: const InputDecoration(labelText: 'Barrio', border: OutlineInputBorder(), isDense: true),
-                  items: _barriosSelectable.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 12)))).toList(),
-                  onChanged: (val) => setState(() => _barrioSeleccionado = val!),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _mesSeleccionado,
-                  decoration: const InputDecoration(labelText: 'Mes', border: OutlineInputBorder(), isDense: true),
-                  items: _meses.map((m) => DropdownMenuItem(value: m, child: Text(_nombresMeses[m]!, style: const TextStyle(fontSize: 12)))).toList(),                  onChanged: (val) => setState(() => _mesSeleccionado = val!),
-                ),
-              ),
+              const Text('Informe Historia Familiar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              IconButton(
+                icon: Icon(Icons.filter_list_alt, color: _brandBlue),
+                onPressed: _mostrarFiltros,
+              )
             ],
           ),
+
+          // ETIQUETAS DE FILTROS ACTIVOS
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFiltroTag(Icons.location_city, _barrioSeleccionado),
+                _buildFiltroTag(Icons.calendar_month, _nombresMeses[_mesSeleccionado]!),
+                if (_filtroOrganizacion != 'Todos') _buildFiltroTag(Icons.group, _filtroOrganizacion),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
+
+          // 🚀 CÁLCULO EN VIVO CON FILTRO DEMOGRÁFICO
           StreamBuilder<QuerySnapshot>(
             stream: query.snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const LinearProgressIndicator();
 
-              int tLogin = 0; int tRecuerdos = 0; int tArbol = 0; int tTemplo = 0;
+              List<String> listLogin = [];
+              List<String> listArbol = [];
+              List<String> listRecuerdos = [];
+              List<String> listTemplo = [];
+              List<String> list4Gen = [];
 
               for (var doc in snapshot.data!.docs) {
                 var data = doc.data() as Map<String, dynamic>;
+
+                // 🚀 Aplicamos el filtro demográfico a las estadísticas
+                bool esJAS = data['isYSA'] == true;
+                if (_filtroOrganizacion == 'JAS' && !esJAS) continue;
+                else if (_filtroOrganizacion == 'Hombres' && data['gender'] != 'M') continue;
+                else if (_filtroOrganizacion == 'Mujeres' && data['gender'] != 'F') continue;
+                else if (_filtroOrganizacion == 'Jóvenes') {
+                  bool esJoven = ['Mujeres Jóvenes', 'Hombres Jóvenes'].contains(data['primaryOrganization']);
+                  if (!esJoven) continue;
+                }
+                else if (_filtroOrganizacion != 'Todos' && kOrganizationsList.contains(_filtroOrganizacion)) {
+                  if (data['primaryOrganization'] != _filtroOrganizacion) continue;
+                }
+
+                // Si pasa el filtro, medimos sus metas
                 var reg = data['registro_2026'] as Map<String, dynamic>? ?? {};
                 var mesData = reg[_mesSeleccionado] as Map<String, dynamic>? ?? {};
+                String fullName = "${data['lastName']}, ${data['firstName']}";
 
-                if (mesData['login_fs'] == true) tLogin++;
-                if (mesData['recuerdos'] == true) tRecuerdos++;
-                if (mesData['arbol_crecido'] == true) tArbol++;
-                if (mesData['nombres_templo'] == true) tTemplo++;
+                if (mesData['login_fs'] == true) listLogin.add(fullName);
+                if (mesData['arbol_crecido'] == true) listArbol.add(fullName);
+                if (mesData['recuerdos'] == true) listRecuerdos.add(fullName);
+                if (mesData['nombres_templo'] == true) listTemplo.add(fullName);
+                if (mesData['cuatro_generaciones'] == true) list4Gen.add(fullName);
               }
 
               return GridView.count(
@@ -490,11 +592,13 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
                 childAspectRatio: 2.2,
                 mainAxisSpacing: 8,
                 crossAxisSpacing: 8,
+                physics: const NeverScrollableScrollPhysics(),
                 children: [
-                  _miniCard('FS Login', tLogin, Colors.blue),
-                  _miniCard('Recuerdos', tRecuerdos, Colors.orange),
-                  _miniCard('Árbol', tArbol, Colors.green),
-                  _miniCard('Templo', tTemplo, Colors.purple),
+                  _miniCard('Inició Sesión FS', listLogin, Colors.blue),
+                  _miniCard('Agregó Antepasado', listArbol, Colors.green),
+                  _miniCard('Agregó Recuerdo', listRecuerdos, Colors.orange),
+                  _miniCard('Enviar un Nombre', listTemplo, Colors.purple),
+                  _miniCard('4 Generaciones', list4Gen, Colors.teal),
                 ],
               );
             },
@@ -505,17 +609,60 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
     );
   }
 
-  Widget _miniCard(String label, int val, Color col) {
+  // WIDGETS AUXILIARES
+  Widget _buildFiltroTag(IconData icon, String text) {
     return Container(
-      decoration: BoxDecoration(color: col.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: col.withOpacity(0.2))),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _brandBlue.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _brandBlue.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(val.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: col)),
-          Text(label, style: TextStyle(fontSize: 10, color: col.withOpacity(0.7))),
+          Icon(icon, size: 14, color: _brandBlue),
+          const SizedBox(width: 4),
+          Text(text, style: TextStyle(fontSize: 12, color: _brandBlue, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
+  Widget _miniCard(String label, List<String> list, Color col) {
+    return InkWell(
+      onTap: () {
+        String key = "";
+        if (label == 'Inició Sesión FS') key = 'login_fs';
+        if (label == 'Agregó Antepasado') key = 'arbol_crecido';
+        if (label == 'Agregó Recuerdo') key = 'recuerdos';
+        if (label == 'Enviar un Nombre') key = 'nombres_templo';
+        if (label == '4 Generaciones') key = 'cuatro_generaciones';
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => FamilyHistoryListScreen(
+              title: label,
+              fieldKey: key, // Pasamos la llave de Firebase
+              initialWard: _barrioSeleccionado,
+              initialMonth: _mesSeleccionado,
+              initialOrg: _filtroOrganizacion,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(color: col.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: col.withOpacity(0.2))),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(list.length.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: col)),
+            Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: col.withOpacity(0.8), fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
 }

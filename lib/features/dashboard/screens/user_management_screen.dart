@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
@@ -13,6 +12,7 @@ class UserManagementScreen extends StatefulWidget {
 
 class _UserManagementScreenState extends State<UserManagementScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final Color _brandBlue = const Color(0xFF164772); // 🚀 Color corporativo unificado
 
   @override
   void initState() {
@@ -26,106 +26,36 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
     super.dispose();
   }
 
-  // --- FUNCIÓN DE MIGRACIÓN MASIVA (Crear colección 'usernames') ---
-  Future<void> _runMigration() async {
-    // 1. Preguntar confirmación para no hacerlo por error
-    bool confirm = await showDialog(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Migrar Base de Datos'),
-        content: const Text(
-            'Esto generará la colección segura "usernames" basada en los usuarios existentes.\n\nÚsalo solo una vez.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(c, true), child: const Text('MIGRAR')),
-        ],
-      ),
-    ) ??
-        false;
-    if (!confirm) return;
-    try {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Iniciando migración...')));
-
-      final FirebaseFirestore db = FirebaseFirestore.instance;
-
-      // 2. Leer TODOS los usuarios antiguos
-      // NOTA: Esto requiere que tengas permisos de lectura en 'users' habilitados temporalmente
-      final snapshot = await db.collection('users').get();
-
-      final batch = db.batch(); // Usamos Batch para guardar todo de un golpe
-      int count = 0;
-
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final email = data['email'];
-        // Si el usuario ya tiene 'username', lo usamos. Si no, usamos lo que está antes del @
-        String rawUsername = data['username'] ?? email.split('@')[0];
-        // Limpiamos: minúsculas y sin espacios
-        final cleanUsername = rawUsername.toString().trim().toLowerCase();
-
-        // 3. Preparamos la escritura en la nueva colección 'usernames'
-        // El ID del documento será el nombre de usuario (para búsqueda rápida)
-        final ref = db.collection('usernames').doc(cleanUsername);
-        batch.set(ref, {
-          'email': email,
-          'uid': doc.id,
-        });
-        // Opcional: Nos aseguramos que el usuario original tenga el campo 'username' guardado
-        batch.update(doc.reference, {'username': cleanUsername});
-        count++;
-      }
-
-      // 4. Ejecutar todos los cambios en Firebase
-      await batch.commit();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('¡Éxito! Se creó la colección con $count usuarios.'), backgroundColor: Colors.green));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-      }
-    }
-  }
-
-
   @override
   Widget build(BuildContext context) {
-    const brandBlue = Color(0xFF164772);
-
     return Scaffold(
+      backgroundColor: const Color(0xFFEEF2F6), // 🚀 Fondo unificado
       appBar: AppBar(
-        title: const Text('Directorio y Accesos'),
-        backgroundColor: brandBlue,
+        title: const Text('Directorio de Accesos', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
-
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_upload),
-            tooltip: 'Migrar Usuarios',
-            onPressed: _runMigration, // <--- Llama a la función que pegamos antes
-          ),
-        ],
-
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white60,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold),
           tabs: const [
-            Tab(text: 'PENDIENTES', icon: Icon(Icons.person_add)),
-            Tab(text: 'DIRECTORIO', icon: Icon(Icons.people_alt)),
+            Tab(text: 'PENDIENTES', icon: Icon(Icons.person_add_alt_1)),
+            Tab(text: 'APROBADOS', icon: Icon(Icons.admin_panel_settings)),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
+        children: [
           // PESTAÑA 1: PENDIENTES (showApproved = false)
-          _UserList(showApproved: false),
+          _UserList(showApproved: false, brandColor: _brandBlue),
 
           // PESTAÑA 2: APROBADOS (showApproved = true)
-          _UserList(showApproved: true),
+          _UserList(showApproved: true, brandColor: _brandBlue),
         ],
       ),
     );
@@ -135,17 +65,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
 // --- WIDGET INTERNO: LISTA DE USUARIOS ---
 class _UserList extends StatelessWidget {
   final bool showApproved;
-  const _UserList({required this.showApproved});
+  final Color brandColor;
+
+  const _UserList({required this.showApproved, required this.brandColor});
 
   Future<void> _launchWhatsApp(BuildContext context, String phone) async {
     final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse("https://wa.me/$cleanPhone");
+    final uri = Uri.parse("https://wa.me/51$cleanPhone"); // 🚀 Asumimos +51 como en members_screen
     try {
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         throw 'No se pudo abrir WhatsApp';
       }
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp')));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
     }
   }
 
@@ -154,7 +86,7 @@ class _UserList extends StatelessWidget {
     try {
       await launchUrl(launchUri);
     } catch (e) {
-      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo realizar la llamada')));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo realizar la llamada', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
     }
   }
 
@@ -173,11 +105,11 @@ class _UserList extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(showApproved ? Icons.folder_open : Icons.person_off, size: 60, color: Colors.grey[300]),
-                const SizedBox(height: 10),
+                Icon(showApproved ? Icons.verified_user_outlined : Icons.inbox_outlined, size: 80, color: Colors.grey[300]),
+                const SizedBox(height: 16),
                 Text(
-                  showApproved ? 'El directorio está vacío.' : 'No hay solicitudes pendientes.',
-                  style: TextStyle(color: Colors.grey[600]),
+                  showApproved ? 'Directorio de accesos vacío.' : 'No hay solicitudes pendientes.',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
               ],
             ),
@@ -186,114 +118,121 @@ class _UserList extends StatelessWidget {
 
         final users = snapshot.data!;
 
-        return ListView.separated(
+        return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: users.length,
-          separatorBuilder: (_, __) => const Divider(),
           itemBuilder: (context, index) {
             final user = users[index];
-            final hasPhone = user.phoneNumber != null && user.phoneNumber!.isNotEmpty;
+            final hasPhone = user.phoneNumber != null && user.phoneNumber!.trim().isNotEmpty;
 
-            // --- 🧠 LÓGICA INTELIGENTE VISUAL ---
-            String displaySubtitle = user.organization; // Por defecto: Solo Org.
-
-            // Si tiene cargo Y no es "Ninguno", lo agregamos al principio
+            String displaySubtitle = user.organization;
             if (user.calling.isNotEmpty && user.calling != 'Ninguno') {
               displaySubtitle = '${user.calling} • $displaySubtitle';
             }
-            // ------------------------------------
 
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: !showApproved ? Colors.orange.shade100 : Colors.blue.shade100,
-                child: Text(
-                  user.firstName.isNotEmpty ? user.firstName.substring(0, 1).toUpperCase() : '?',
-                  style: TextStyle(
-                    color: !showApproved ? Colors.orange.shade800 : Colors.blue.shade800,
-                    fontWeight: FontWeight.bold,
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shadowColor: Colors.black12,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                leading: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: !showApproved ? Colors.orange.shade50 : brandColor.withOpacity(0.1),
+                  child: Text(
+                    user.firstName.isNotEmpty ? user.firstName.substring(0, 1).toUpperCase() : '?',
+                    style: TextStyle(
+                      color: !showApproved ? Colors.orange.shade800 : brandColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                 ),
-              ),
-              title: Text(
-                  '${user.firstName} ${user.lastName}',
-                  style: const TextStyle(fontWeight: FontWeight.bold)
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displaySubtitle,
-                    style: TextStyle(
-                      // Si está inactivo, lo ponemos rojo para avisar visualmente
-                      color: user.isActive ? Colors.grey[800] : Colors.red,
-                      fontWeight: user.isActive ? FontWeight.normal : FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      // Rol (Chip pequeño)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
-                        child: Text(
-                            user.role.toString().split('.').last.toUpperCase(),
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)
-                        ),
+                title: Text(
+                    '${user.firstName} ${user.lastName}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    Text(
+                      displaySubtitle,
+                      style: TextStyle(
+                        color: user.isActive ? Colors.grey[700] : Colors.red,
+                        fontWeight: user.isActive ? FontWeight.normal : FontWeight.bold,
+                        fontSize: 13,
                       ),
-                      // Teléfono (si tiene)
-                      if (hasPhone) ...[
-                        const SizedBox(width: 8),
-                        Icon(Icons.phone_android, size: 12, color: Colors.grey[600]),
-                        const SizedBox(width: 2),
-                        Text(user.phoneNumber!, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-                      ]
-                    ],
-                  )
-                ],
-              ),
-
-              // ACCIONES
-              trailing: !showApproved
-                  ? Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // APROBAR
-                  IconButton(
-                    icon: const Icon(Icons.check_circle, color: Colors.green),
-                    onPressed: () => userService.updateUserAccess(
-                      uid: user.uid,
-                      role: user.role,
-                      isApproved: true,
-                      calling: user.calling,
-                      phoneNumber: user.phoneNumber,
                     ),
-                    tooltip: 'Aprobar',
-                  ),
-                  // RECHAZAR
-                  IconButton(
-                    icon: const Icon(Icons.cancel, color: Colors.red),
-                    onPressed: () => _showDeleteConfirm(context, user, userService),
-                    tooltip: 'Rechazar',
-                  ),
-                ],
-              )
-                  : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasPhone) IconButton(icon: const Icon(Icons.message, color: Colors.green), onPressed: () => _launchWhatsApp(context, user.phoneNumber!), tooltip: 'WhatsApp'),
-                  if (hasPhone) IconButton(icon: const Icon(Icons.phone, color: Colors.blue), onPressed: () => _launchCall(context, user.phoneNumber!), tooltip: 'Llamar'),
-
-                  // EDITAR
-                  IconButton(
-                    icon: const Icon(Icons.edit_note, color: Colors.grey),
-                    onPressed: () => showDialog(
-                      context: context,
-                      builder: (_) => _EditUserDialog(user: user),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
+                          child: Text(
+                              user.role.name.toUpperCase(),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade800)
+                          ),
+                        ),
+                        if (hasPhone) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.phone_android, size: 12, color: Colors.grey[500]),
+                          const SizedBox(width: 2),
+                          Text(user.phoneNumber!, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        ],
+                        // 🚀 Indicador visual de inactividad
+                        if (!user.isActive) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('BLOQUEADO', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red)),
+                          ),
+                        ]
+                      ],
+                    )
+                  ],
+                ),
+                // 🚀 BOTONERÍA TÁCTICA
+                trailing: !showApproved
+                    ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                      onPressed: () => userService.updateUserAccess(
+                        uid: user.uid,
+                        role: user.role,
+                        isApproved: true,
+                        calling: user.calling,
+                        phoneNumber: user.phoneNumber,
+                      ),
+                      tooltip: 'Aprobar',
                     ),
-                  ),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
+                      onPressed: () => _showDeleteConfirm(context, user, userService),
+                      tooltip: 'Rechazar',
+                    ),
+                  ],
+                )
+                    : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (hasPhone) IconButton(icon: const Icon(Icons.message, color: Color(0xFF25D366)), onPressed: () => _launchWhatsApp(context, user.phoneNumber!), tooltip: 'WhatsApp'),
+                    if (hasPhone) IconButton(icon: const Icon(Icons.phone, color: Colors.blue), onPressed: () => _launchCall(context, user.phoneNumber!), tooltip: 'Llamar'),
+                    IconButton(
+                      icon: const Icon(Icons.edit_document, color: Colors.grey),
+                      tooltip: 'Editar Permisos',
+                      onPressed: () => showDialog(
+                        context: context,
+                        builder: (_) => _EditUserDialog(user: user, brandColor: brandColor),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -306,16 +245,17 @@ class _UserList extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rechazar Solicitud'),
-        content: Text('¿Deseas eliminar la solicitud de ${user.firstName}?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Rechazar Solicitud', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('¿Deseas eliminar definitivamente la solicitud de acceso de ${user.firstName}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
-          TextButton(
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               service.deleteUser(user.uid);
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             child: const Text('Eliminar'),
           ),
         ],
@@ -327,7 +267,9 @@ class _UserList extends StatelessWidget {
 // --- DIÁLOGO DE EDICIÓN ---
 class _EditUserDialog extends StatefulWidget {
   final UserModel user;
-  const _EditUserDialog({required this.user});
+  final Color brandColor;
+
+  const _EditUserDialog({required this.user, required this.brandColor});
 
   @override
   State<_EditUserDialog> createState() => _EditUserDialogState();
@@ -337,7 +279,7 @@ class _EditUserDialogState extends State<_EditUserDialog>{
   final UserService _userService = UserService();
   late UserRole _selectedRole;
   late bool _isApproved;
-  late bool _isActive; // Nuevo campo para controlar el acceso lógico
+  late bool _isActive;
   late TextEditingController _callingController;
   late TextEditingController _phoneController;
 
@@ -346,7 +288,7 @@ class _EditUserDialogState extends State<_EditUserDialog>{
     super.initState();
     _selectedRole = widget.user.role;
     _isApproved = widget.user.isApproved;
-    _isActive = widget.user.isActive; // Cargamos estado actual
+    _isActive = widget.user.isActive;
     _callingController = TextEditingController(text: widget.user.calling);
     _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
   }
@@ -361,88 +303,99 @@ class _EditUserDialogState extends State<_EditUserDialog>{
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Editar Usuario'),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // 🚀 Dialog más limpio
+      title: Text('Permisos de ${widget.user.firstName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 400),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              TextFormField(
                 controller: _callingController,
-                decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Llamamiento / Asignación', border: OutlineInputBorder(), prefixIcon: Icon(Icons.badge), isDense: true),
               ),
               const SizedBox(height: 15),
-              TextField(
+              TextFormField(
                 controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Celular', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone)),
+                decoration: const InputDecoration(labelText: 'Celular / WhatsApp', border: OutlineInputBorder(), prefixIcon: Icon(Icons.phone), isDense: true),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 15),
               if (_selectedRole == UserRole.admin)
-              // CASO 1: Si ya es Admin, mostramos un campo bloqueado informativo
                 TextFormField(
                   initialValue: 'ADMINISTRADOR (Sistema)',
                   readOnly: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Rol',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.security, color: Colors.red),
-                    helperText: 'El rol de Admin solo se gestiona en la Consola.',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.security, color: Colors.red),
+                    helperText: 'El rol de Admin es fijo.',
+                    fillColor: Colors.grey.shade100,
+                    filled: true,
+                    isDense: true,
                   ),
                 )
               else
-              // CASO 2: Si es mortal, mostramos el dropdown SIN la opción Admin
                 DropdownButtonFormField<UserRole>(
-                  decoration: const InputDecoration(labelText: 'Rol', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(labelText: 'Nivel de Acceso (Rol)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.vpn_key), isDense: true),
                   value: _selectedRole,
-                  // AQUÍ ESTÁ EL TRUCO: .where para filtrar
                   items: UserRole.values
                       .where((r) => r != UserRole.admin)
                       .map((r) => DropdownMenuItem(
                       value: r,
-                      child: Text(r.toString().split('.').last.toUpperCase())
+                      child: Text(r.name.toUpperCase())
                   ))
                       .toList(),
                   onChanged: (v) => setState(() => _selectedRole = v!),
                 ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 20),
 
-              // Estado de Aprobación (Registro Inicial)
-              SwitchListTile(
-                title: const Text('Registro Aprobado'),
-                value: _isApproved,
-                onChanged: (val) => setState(() => _isApproved = val),
-              ),
-
-              // Estado de Actividad (Baneo / Relevo temporal)
-              SwitchListTile(
-                title: Text(_isActive ? 'Cuenta Activa' : 'Cuenta Inhabilitada', style: TextStyle(color: _isActive ? Colors.green : Colors.red)),
-                subtitle: const Text('Desactiva para impedir el acceso sin borrar el usuario'),
-                value: _isActive,
-                activeColor: Colors.green,
-                inactiveThumbColor: Colors.red,
-                onChanged: (val) => setState(() => _isActive = val),
-              ),
+              // 🚀 Switches visualmente más limpios
+              Container(
+                decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: const Text('Registro Aprobado', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      value: _isApproved,
+                      activeColor: widget.brandColor,
+                      onChanged: (val) => setState(() => _isApproved = val),
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      title: Text(_isActive ? 'Cuenta Activa' : 'Cuenta Bloqueada', style: TextStyle(color: _isActive ? Colors.green.shade700 : Colors.red.shade700, fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Desactiva para denegar acceso a la app.', style: TextStyle(fontSize: 11)),
+                      value: _isActive,
+                      activeColor: Colors.green,
+                      inactiveThumbColor: Colors.red,
+                      inactiveTrackColor: Colors.red.shade100,
+                      onChanged: (val) => setState(() => _isActive = val),
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.save, size: 18),
+          label: const Text('Guardar'),
+          style: ElevatedButton.styleFrom(backgroundColor: widget.brandColor, foregroundColor: Colors.white),
           onPressed: () async {
             await _userService.updateUserAccess(
               uid: widget.user.uid,
               role: _selectedRole,
               isApproved: _isApproved,
-              isActive: _isActive, // Guardamos el nuevo estado de actividad
+              isActive: _isActive,
               calling: _callingController.text,
               phoneNumber: _phoneController.text.trim(),
             );
             if (mounted) Navigator.pop(context);
           },
-          child: const Text('Guardar'),
         ),
       ],
     );

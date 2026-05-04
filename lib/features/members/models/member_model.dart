@@ -94,7 +94,10 @@ class MemberModel {
       // Mapeo de nuevos campos
       primaryOrganization: map['primaryOrganization'] ?? map['organization'] ?? 'Sin Asignar', // Fallback para datos viejos
       isYSA: map['isYSA'] ?? false,
-      ward: map['barrio'] ?? 'Jerusalén',
+
+      // 🚀 ¡AQUÍ ESTÁ LA MAGIA! Leemos 'ward' y si no hay nada, lo dejamos en blanco.
+      ward: map['ward'] ?? '',
+
       calling: map['calling'],
       servingOrganization: map['servingOrganization'],
 

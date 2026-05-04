@@ -3,7 +3,7 @@ description: "Proyecto de gestion de reuniones y agendas"
 publish_to: 'none'
 
 # CAMBIO 1: Actualizamos versión para el despliegue
-version: 2.1.2
+version: 2.1.3+3
 
 environment:
   sdk: ^3.10.1
@@ -75,3 +75,5 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/import_arevalo.json
+    - assets/import_nuevo_trujillo.json

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Para Clipboard
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:add_2_calendar/add_2_calendar.dart';
-import 'package:flutter/foundation.dart'; // Para detectar kIsWeb
-import 'package:url_launcher/url_launcher.dart'; // Para abrir enlaces en Web
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gestor_lds/features/activities/models/activity_model.dart';
 import 'package:gestor_lds/features/activities/services/activity_service.dart';
 import 'package:gestor_lds/features/activities/screens/activity_form_screen.dart';
@@ -33,12 +33,22 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     const brandBlue = Color(0xFF164772);
+    // 🚀 Lógica de permisos limpia
+    final bool canManageActivities = widget.currentUser.role == UserRole.admin ||
+        widget.currentUser.role == UserRole.obispado ||
+        widget.currentUser.role == UserRole.lider;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Actividades del Barrio'),
+        title: const Text('Actividades del Barrio', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: brandBlue,
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -52,10 +62,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
           ],
         ),
       ),
-      // Si es miembro, ponemos null (no hay botón). Si es líder/obispado, mostramos el botón.
-      floatingActionButton: widget.currentUser.role == UserRole.miembro
-          ? null
-          : FloatingActionButton(
+      floatingActionButton: canManageActivities
+          ? FloatingActionButton(
         backgroundColor: brandBlue,
         child: const Icon(Icons.add, color: Colors.white),
         onPressed: () {
@@ -63,12 +71,12 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
               context,
               MaterialPageRoute(
                 builder: (_) => const ActivityFormScreen(),
-                // 👇 AGREGADO: Ruta web para crear actividad
                 settings: const RouteSettings(name: '/activity-create'),
               )
           );
         },
-      ),
+      )
+          : null,
       body: TabBarView(
         controller: _tabController,
         children: [
@@ -77,6 +85,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
             stream: _activityService.getUpcomingActivities(),
             emptyMsg: "No hay actividades programadas.\n¡Es hora de planear algo divertido!",
             isHistory: false,
+            canManage: canManageActivities,
           ),
 
           // PESTAÑA 2: HISTORIAL
@@ -88,6 +97,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
                   stream: _activityService.getHistoryActivities(_historyFilterDate),
                   emptyMsg: "No hay actividades pasadas en este rango.",
                   isHistory: true,
+                  canManage: canManageActivities,
                 ),
               ),
             ],
@@ -97,7 +107,6 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
     );
   }
 
-  // BARRA DE FILTRO (Igual que en Reuniones)
   Widget _buildFilterBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -114,7 +123,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
                 children: [
                   _filterOption(ctx, 'Último Mes', 30),
                   _filterOption(ctx, 'Últimos 3 Meses', 90),
-                  _filterOption(ctx, 'Este Año', 365), // Simplificado
+                  _filterOption(ctx, 'Este Año', 365),
                 ],
               ));
             },
@@ -137,8 +146,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
     );
   }
 
-  // LISTA DE ACTIVIDADES
-  Widget _buildActivityList({required Stream<List<ActivityModel>> stream, required String emptyMsg, required bool isHistory}) {
+  Widget _buildActivityList({required Stream<List<ActivityModel>> stream, required String emptyMsg, required bool isHistory, required bool canManage}) {
     return StreamBuilder<List<ActivityModel>>(
       stream: stream,
       builder: (context, snapshot) {
@@ -165,23 +173,20 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
           itemCount: activities.length,
           padding: const EdgeInsets.all(12),
           itemBuilder: (context, index) {
-            final activity = activities[index];
-            return _buildActivityCard(activity, isHistory);
+            return _buildActivityCard(activities[index], isHistory, canManage);
           },
         );
       },
     );
   }
 
-  // TARJETA DE ACTIVIDAD MEJORADA
-  Widget _buildActivityCard(ActivityModel activity, bool isHistory) {
+  Widget _buildActivityCard(ActivityModel activity, bool isHistory, bool canManage) {
     return Card(
       elevation: 3,
       margin: const EdgeInsets.only(bottom: 15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         children: [
-          // 1. Cabecera (Icono y Título)
           ListTile(
             contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             leading: CircleAvatar(
@@ -201,16 +206,12 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
               activity.organization,
               style: TextStyle(color: isHistory ? Colors.grey : _getColorForOrg(activity.organization), fontWeight: FontWeight.bold),
             ),
-            // Si es historial O si es un miembro, no mostramos el menú de opciones
-            trailing: (isHistory || widget.currentUser.role == UserRole.miembro)
-                ? null
-                : IconButton(
-              icon: const Icon(Icons.more_vert),
-              onPressed: () => _showOptions(activity),
-            ),
+            // 🚀 Simplificación visual y lógica
+            trailing: (!isHistory && canManage)
+                ? IconButton(icon: const Icon(Icons.more_vert), onPressed: () => _showOptions(activity))
+                : null,
           ),
 
-          // 2. Detalles (Fecha, Hora, Lugar)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
@@ -231,7 +232,6 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
             ),
           ),
 
-          // 3. Descripción (si existe)
           if (activity.description.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -248,20 +248,17 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
 
           const Divider(),
 
-          // 4. BARRA DE ACCIONES RÁPIDAS (Solo si no es historial)
           if (!isHistory)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  // BOTÓN AGENDAR
                   TextButton.icon(
                     icon: const Icon(Icons.calendar_month, size: 20),
                     label: const Text("Agendar"),
                     onPressed: () => _addToCalendar(activity),
                   ),
-                  // BOTÓN COPIAR INVITACIÓN
                   TextButton.icon(
                     icon: const Icon(Icons.copy, size: 20),
                     label: const Text("Copiar Info"),
@@ -301,7 +298,6 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
                   context,
                   MaterialPageRoute(
                     builder: (_) => ActivityFormScreen(activityToEdit: activity),
-                    // 👇 AGREGADO: Ruta web para editar actividad
                     settings: const RouteSettings(name: '/activity-edit'),
                   )
               );
@@ -341,23 +337,17 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
     );
   }
 
-  // Lógica de Calendario
   void _addToCalendar(ActivityModel activity) async {
     DateTime startDate = activity.date;
     try {
-      final timeParts = DateFormat.jm().parse(activity.time); // Intenta "10:00 AM"
+      final timeParts = DateFormat.jm().parse(activity.time);
       startDate = DateTime(activity.date.year, activity.date.month, activity.date.day, timeParts.hour, timeParts.minute);
     } catch (_) {
-      // Si falla, hora por defecto 7 PM
       startDate = DateTime(activity.date.year, activity.date.month, activity.date.day, 19, 0);
     }
 
-    // Duración por defecto 2 horas
     final DateTime endDate = startDate.add(const Duration(hours: 2));
 
-    // ---------------------------------------------
-    // 🌐 LÓGICA WEB: Abrir Google Calendar en pestaña
-    // ---------------------------------------------
     if (kIsWeb) {
       final String googleUrl = 'https://www.google.com/calendar/render?action=TEMPLATE'
           '&text=${Uri.encodeComponent(activity.title)}'
@@ -371,12 +361,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
       } else {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se pudo abrir el calendario web")));
       }
-      return; // ¡Importante! Salimos aquí para no ejecutar código móvil
+      return;
     }
 
-    // ---------------------------------------------
-    // 📱 LÓGICA MÓVIL (Android/iOS): Usar app nativa
-    // ---------------------------------------------
     final Event event = Event(
       title: activity.title,
       description: activity.description,
@@ -387,7 +374,6 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
     Add2Calendar.addEvent2Cal(event);
   }
 
-  // Lógica de WhatsApp (Copiar texto)
   void _copyInvite(ActivityModel activity) {
     final text = """
 🎉 *INVITACIÓN DE BARRIO* 🎉
@@ -406,19 +392,34 @@ Organiza: ${activity.organization}
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invitación copiada al portapapeles 📋")));
   }
 
+  // 🚀 Colores e Iconos emparejados con kOrganizationsList
   Color _getColorForOrg(String org) {
-    if (org.toLowerCase().contains('primaria')) return Colors.yellow.shade800;
-    if (org.toLowerCase().contains('sociedad')) return Colors.amber.shade600;
-    if (org.toLowerCase().contains('jóvenes') || org.toLowerCase().contains('hombres')) return Colors.green.shade600;
-    if (org.toLowerCase().contains('mujeres')) return Colors.pink.shade400;
-    if (org.toLowerCase().contains('barrio')) return Colors.blue.shade800;
-    return Colors.indigo;
+    switch (org) {
+      case 'Primaria': return Colors.yellow.shade800;
+      case 'Sociedad de Socorro': return Colors.amber.shade600;
+      case 'Mujeres Jóvenes': return Colors.pink.shade400;
+      case 'Hombres Jóvenes': return Colors.green.shade600;
+      case 'Cuórum de Élderes': return Colors.blue.shade700;
+      case 'Escuela Dominical': return Colors.teal.shade600;
+      case 'Templo e Historia Familiar': return Colors.cyan.shade700;
+      case 'Obra Misional': return Colors.orange.shade700;
+      case 'Obispado': return Colors.deepPurple.shade700;
+      default: return const Color(0xFF164772); // Brand Blue genérico
+    }
   }
 
   IconData _getIconForOrg(String org) {
-    if (org.toLowerCase().contains('primaria')) return Icons.child_care;
-    if (org.toLowerCase().contains('sociedad')) return Icons.volunteer_activism;
-    if (org.toLowerCase().contains('jóvenes')) return Icons.sports_basketball;
-    return Icons.event;
+    switch (org) {
+      case 'Primaria': return Icons.child_care;
+      case 'Sociedad de Socorro': return Icons.volunteer_activism;
+      case 'Mujeres Jóvenes': return Icons.face_3;
+      case 'Hombres Jóvenes': return Icons.face;
+      case 'Cuórum de Élderes': return Icons.groups;
+      case 'Escuela Dominical': return Icons.menu_book;
+      case 'Templo e Historia Familiar': return Icons.account_tree;
+      case 'Obra Misional': return Icons.public;
+      case 'Obispado': return Icons.account_balance;
+      default: return Icons.event;
+    }
   }
 }

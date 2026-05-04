@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../auth_service.dart';
-import 'registration_screen.dart';
+import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/screens/registration_screen.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -12,6 +12,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  final Color _brandBlue = const Color(0xFF164772); // 🚀 Color corporativo
 
   // Controladores
   final TextEditingController _emailController = TextEditingController();
@@ -20,6 +21,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _login() async {
     // Cerramos el teclado para evitar solapamientos
@@ -45,7 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 2. Login
         await _authService.signInWithEmailAndPassword(emailToUse, password);
-        // Si pasa, AuthWrapper redirige.
+        // Si pasa, AuthWrapper redirige mágicamente a la Sala de Espera o al Dashboard.
 
       } catch (e) {
         if (mounted) {
@@ -64,22 +72,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Recuperar Contraseña'),
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // 🚀 Dialog más elegante
+        title: const Text('Recuperar Contraseña', style: TextStyle(fontWeight: FontWeight.bold)),
         content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: const BoxConstraints(maxWidth: 400),
           child: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Ingresa tu correo. Te enviaremos un enlace para crear una nueva contraseña.'),
-                const SizedBox(height: 15),
+                const Text(
+                  'Ingresa tu correo electrónico. Te enviaremos un enlace para que puedas crear una nueva contraseña segura.',
+                  style: TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 20),
                 TextField(
                   controller: resetEmailController,
-                  decoration: const InputDecoration(labelText: 'Correo Electrónico', border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                    labelText: 'Correo Electrónico',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email_outlined),
+                    isDense: true,
+                  ),
                   keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email], // Ayuda al autocompletado aquí también
+                  autofillHints: const [AutofillHints.email],
                 ),
               ],
             ),
@@ -87,29 +104,34 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _brandBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () async {
               if (resetEmailController.text.isEmpty) return;
               try {
                 await _authService.sendPasswordResetEmail(resetEmailController.text.trim());
                 if (mounted) {
-                  Navigator.pop(context);
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Correo enviado. Revisa tu bandeja.')),
+                    const SnackBar(content: Text('✅ Correo enviado. Revisa tu bandeja de entrada.'), backgroundColor: Colors.green),
                   );
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
+                    SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
                   );
                 }
               }
             },
-            child: const Text('Enviar'),
+            child: const Text('Enviar Enlace'),
           ),
         ],
       ),
@@ -119,8 +141,9 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFEEF2F6), // 🚀 Fondo unificado
       appBar: AppBar(
+        backgroundColor: _brandBlue, // 🚀 Usamos la variable local por si el Theme falla
         title: Image.asset(
           'assets/images/logont.png',
           height: 40,
@@ -128,6 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
           fit: BoxFit.contain,
         ),
         centerTitle: true,
+        elevation: 0,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -136,43 +160,38 @@ class _LoginScreenState extends State<LoginScreen> {
             constraints: const BoxConstraints(maxWidth: 450),
             child: Card(
               elevation: 4,
+              shadowColor: Colors.black12,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(32.0), // 🚀 Más respiro interior
                 child: Form(
                   key: _formKey,
-                  // 1. IMPORTANTE: AutofillGroup para que el navegador no se trabe
                   child: AutofillGroup(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Acceso de Líderes',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        Icon(Icons.account_circle, size: 60, color: _brandBlue.withOpacity(0.8)),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Portal de Acceso', // 🚀 Texto más corporativo
+                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandBlue),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 30),
 
                         TextFormField(
                           controller: _emailController,
                           textInputAction: TextInputAction.next,
                           keyboardType: TextInputType.emailAddress,
-
-                          // 2. IMPORTANTE: Pista para el navegador (Usuario/Email)
                           autofillHints: const [AutofillHints.username, AutofillHints.email],
-
                           decoration: const InputDecoration(
                             labelText: 'Correo o Nombre de Usuario',
                             prefixIcon: Icon(Icons.person),
                             border: OutlineInputBorder(),
+                            isDense: true,
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Ingresa tu usuario o correo';
-                            }
-                            return null;
-                          },
+                          validator: (value) => (value == null || value.isEmpty) ? 'Ingresa tu usuario o correo' : null,
                         ),
 
                         const SizedBox(height: 20),
@@ -181,83 +200,71 @@ class _LoginScreenState extends State<LoginScreen> {
                           controller: _passwordController,
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.done,
-
-                          // 3. IMPORTANTE: Pista para el navegador (Contraseña)
                           autofillHints: const [AutofillHints.password],
-
-                          onFieldSubmitted: (_) => _login(), // Enter para enviar
-                          onEditingComplete: _login,         // Asegura el flujo en algunos teclados
-
+                          onFieldSubmitted: (_) => _login(),
+                          onEditingComplete: _login,
                           decoration: InputDecoration(
                             labelText: 'Contraseña',
                             prefixIcon: const Icon(Icons.lock_outline),
                             border: const OutlineInputBorder(),
+                            isDense: true,
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
+                                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                                 color: Colors.grey,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor ingresa tu contraseña';
-                            }
-                            return null;
-                          },
+                          validator: (value) => (value == null || value.isEmpty) ? 'Por favor ingresa tu contraseña' : null,
                         ),
 
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
                             onPressed: _showResetPasswordDialog,
+                            style: TextButton.styleFrom(foregroundColor: _brandBlue),
                             child: const Text('¿Olvidaste tu contraseña?'),
                           ),
                         ),
 
                         const SizedBox(height: 20),
+
                         _isLoading
                             ? const Center(child: CircularProgressIndicator())
                             : ElevatedButton(
                           onPressed: _login,
-                          child: const Text('Iniciar Sesión'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _brandBlue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16), // 🚀 Botón más grueso
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 15),
+
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).pushReplacement(
                               MaterialPageRoute(builder: (context) => const RegistrationScreen()),
                             );
                           },
+                          style: TextButton.styleFrom(foregroundColor: Colors.grey.shade700),
                           child: const Text('¿No tienes cuenta? Solicita acceso aquí.'),
                         ),
-                        const SizedBox(height: 40),
+
+                        const SizedBox(height: 30),
                         const Divider(),
                         const Padding(
-                          padding: EdgeInsets.only(top: 10.0, bottom: 20.0),
+                          padding: EdgeInsets.only(top: 16.0, bottom: 8.0),
                           child: Column(
                             children: [
-                              Text(
-                                'GestorLDS',
-                                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
-                              ),
-                              Text(
-                                'Desarrollado por ATHEM DevWorks © 2026',
-                                style: TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
-                              Text(
-                                // 4. Versión actualizada
-                                'Versión 2.1.2',
-                                style: TextStyle(fontSize: 10, color: Colors.grey),
-                              ),
+                              Text('GestorLDS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                              Text('Desarrollado por ATHEM DevWorks © 2026', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              SizedBox(height: 4),
+                              Text('Versión 2.1.2', style: TextStyle(fontSize: 11, color: Colors.grey)),
                             ],
                           ),
                         ),

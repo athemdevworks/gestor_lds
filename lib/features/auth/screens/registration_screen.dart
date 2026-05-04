@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/core/constants/callings_list.dart';
+import 'package:intl/intl.dart';
+
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
-import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
+import 'package:gestor_lds/core/constants/organizations_list.dart'; // Tu lista maestra
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -25,17 +26,29 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _callingController = TextEditingController(); // 🚀 El nuevo campo de texto libre
 
   // Estado de Selección
   String? _selectedOrganization;
-  String? _selectedCalling;
   DateTime? _selectedBirthDate;
-  String? _selectedWard; // <--- NUEVO: Variable para guardar el Barrio seleccionado
+  String? _selectedWard;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
   final AuthService _authService = AuthService();
   final UserService _userService = UserService();
+
+  @override
+  void dispose() {
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _emailController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _phoneController.dispose();
+    _callingController.dispose();
+    super.dispose();
+  }
 
   Future<void> _register() async {
     if (_formKey.currentState!.validate()) {
@@ -70,19 +83,17 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           return;
         }
 
-        UserRole assignedRole = UserRole.lider;
-        if (_selectedOrganization == 'Obispado') assignedRole = UserRole.obispado;
-        else if (_selectedOrganization == 'Barrio') assignedRole = UserRole.miembro;
+        // 🚀 SEGURIDAD: Todos nacen como miembros básicos. El Admin da los permisos en el Dashboard.
+        UserRole assignedRole = UserRole.miembro;
 
-        // 👇 AQUI MANDAMOS EL WARD AL SERVICIO
         await _authService.registerUser(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
           firstName: _firstNameController.text.trim(),
           lastName: _lastNameController.text.trim(),
-          calling: _selectedCalling!,
+          calling: _callingController.text.trim().isEmpty ? 'Pendiente' : _callingController.text.trim(), // Si lo dejan vacío, dice 'Pendiente'
           organization: _selectedOrganization!,
-          ward: _selectedWard!, // <--- NUEVO: Pasamos el Barrio
+          ward: _selectedWard!,
           role: assignedRole,
           username: _usernameController.text.trim().toLowerCase(),
           phoneNumber: _phoneController.text.trim(),
@@ -91,7 +102,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
         if (mounted) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cuenta creada. Espera aprobación del Obispo.')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cuenta creada. Espera aprobación de la Estaca.'), backgroundColor: Colors.green));
         }
 
       } catch (e) {
@@ -104,9 +115,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final organizations = kLdsStructure.keys.toList();
-    final callings = _selectedOrganization != null ? kLdsStructure[_selectedOrganization] ?? [] : [];
-
     return Scaffold(
       appBar: AppBar(title: const Text('Solicitud de Acceso')),
       body: Center(
@@ -164,7 +172,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   ),
                   const SizedBox(height: 15),
 
-                  // 👇 NUEVO: Selector de Barrio (Ward)
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
                       labelText: 'Barrio',
@@ -173,36 +180,30 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     ),
                     value: _selectedWard,
                     items: kWardsList.map((ward) => DropdownMenuItem(value: ward, child: Text(ward))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedWard = val;
-                      });
-                    },
+                    onChanged: (val) => setState(() => _selectedWard = val),
                     validator: (v) => v == null ? 'Selecciona tu barrio' : null,
                   ),
                   const SizedBox(height: 15),
 
+                  // 🚀 ÚNICO DROPBOX DE ORGANIZACIÓN
                   DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Organización', border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Organización Principal', border: OutlineInputBorder(), prefixIcon: Icon(Icons.group)),
                     value: _selectedOrganization,
-                    items: organizations.map((org) => DropdownMenuItem(value: org, child: Text(org))).toList(),
-                    onChanged: (val) {
-                      setState(() {
-                        _selectedOrganization = val;
-                        _selectedCalling = null;
-                      });
-                    },
+                    items: kOrganizationsList.map((org) => DropdownMenuItem(value: org, child: Text(org))).toList(),
+                    onChanged: (val) => setState(() => _selectedOrganization = val),
                     validator: (v) => v == null ? 'Selecciona tu organización' : null,
                   ),
                   const SizedBox(height: 15),
 
-                  DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(labelText: 'Llamamiento Actual', border: OutlineInputBorder()),
-                    value: _selectedCalling,
-                    items: callings.map<DropdownMenuItem<String>>((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (val) => setState(() => _selectedCalling = val),
-                    validator: (v) => v == null ? 'Selecciona tu llamamiento' : null,
-                    disabledHint: const Text('Primero elige Organización'),
+                  // 🚀 CAMPO DE TEXTO SIMPLE PARA LLAMAMIENTO
+                  TextFormField(
+                    controller: _callingController,
+                    decoration: const InputDecoration(
+                        labelText: 'Llamamiento Actual (Opcional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.badge),
+                        hintText: 'Ej: Consultor, Presidente, Maestro...'
+                    ),
                   ),
                   const SizedBox(height: 25),
 

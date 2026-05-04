@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/members/models/member_model.dart';
 import 'package:gestor_lds/features/members/services/member_service.dart';
-import 'package:gestor_lds/core/constants/callings_list.dart';
-// 👇 NUEVO: Importamos la lista global de barrios
 import 'package:gestor_lds/core/constants/wards_list.dart';
+// 🚀 IMPORTAMOS TU MAPA DE CONSTRAINTS DESDE SU ARCHIVO
+import 'package:gestor_lds/core/constants/callings_list.dart';
 import 'package:intl/intl.dart';
+
+import '../../../core/constants/organizations_list.dart';
 
 class MemberFormScreen extends StatefulWidget {
   final MemberModel? memberToEdit;
@@ -18,34 +20,27 @@ class MemberFormScreen extends StatefulWidget {
 class _MemberFormScreenState extends State<MemberFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final MemberService _memberService = MemberService();
+  final Color _brandBlue = const Color(0xFF164772);
 
-  // Controladores de Texto
+  // Controladores
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _birthDateCtrl = TextEditingController();
+  final _callingCtrl = TextEditingController(); // Usado si el llamamiento es "Otro"
 
   // Variables de Estado
   String _gender = 'M';
   DateTime? _selectedBirthDate;
   bool _isLoading = false;
-
-  // Variables de Lógica
-  String _primaryOrganization = 'Cuórum de Élderes'; // Pertenencia
   bool _isYSA = false;
-  String? _selectedWard; // 👇 NUEVO: Variable para el Barrio
 
-  // Variables de Servicio (Dropdowns)
-  String? _servingOrganization;
+  // 🚀 VARIABLES DEL DOBLE PIVOTE
+  String? _selectedWard;
+  String _primaryOrganization = 'Miembro General';
+  String _servingOrganization = 'Miembro General';
   String? _selectedCalling;
-
-  // Lista Fija de Pertenencia
-  final List<String> _primaryOrgsList = [
-    'Obispado', 'Cuórum de Élderes', 'Sociedad de Socorro',
-    'Presbíteros', 'Maestros', 'Diáconos',
-    'Mujeres Jóvenes', 'Primaria'
-  ];
 
   @override
   void initState() {
@@ -62,31 +57,37 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     _phoneCtrl.text = m.phone ?? '';
     _emailCtrl.text = m.email ?? '';
     _gender = m.gender;
-
-    // 👇 NUEVO: Cargamos el barrio si ya existe
-    _selectedWard = m.ward;
-
-    // Pertenencia
-    if (_primaryOrgsList.contains(m.primaryOrganization)) {
-      _primaryOrganization = m.primaryOrganization;
-    } else {
-      _primaryOrganization = 'Otro';
-    }
     _isYSA = m.isYSA;
 
-    // Carga Inteligente de Llamamiento
-    if (m.servingOrganization != null && kLdsStructure.containsKey(m.servingOrganization)) {
-      _servingOrganization = m.servingOrganization;
+    // Barrio
+    if (kWardsList.contains(m.ward)) {
+      _selectedWard = m.ward;
+    }
 
-      final possibleCallings = kLdsStructure[_servingOrganization]!;
-      if (m.calling != null && possibleCallings.contains(m.calling)) {
+// 🚀 1. Cargar Organización Principal (Validado contra kOrganizationsList)
+    if (kOrganizationsList.contains(m.primaryOrganization)) {
+      _primaryOrganization = m.primaryOrganization;
+    } else {
+      _primaryOrganization = 'Miembro General'; // Fallback por seguridad
+    }
+
+    // 🚀 2. Cargar Organización de Llamamiento (Validado contra kLdsStructure)
+    String servingOrg = m.servingOrganization ?? m.primaryOrganization;
+    if (kLdsStructure.containsKey(servingOrg)) {
+      _servingOrganization = servingOrg;
+    } else {
+      _servingOrganization = 'Miembro General'; // Fallback por seguridad
+    }
+
+    // 3. Cargar Llamamiento
+    if (m.calling != null && m.calling!.isNotEmpty) {
+      final availableCallings = kLdsStructure[_servingOrganization] ?? [];
+      if (availableCallings.contains(m.calling)) {
         _selectedCalling = m.calling;
       } else {
-        _selectedCalling = null;
+        _selectedCalling = 'Otro';
+        _callingCtrl.text = m.calling!;
       }
-    } else {
-      _servingOrganization = null;
-      _selectedCalling = null;
     }
 
     if (m.birthDate != null) {
@@ -102,6 +103,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
     _birthDateCtrl.dispose();
+    _callingCtrl.dispose();
     super.dispose();
   }
 
@@ -124,15 +126,27 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // 👇 Validación de seguridad: Asegurar que se haya elegido un barrio
     if (_selectedWard == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona el barrio del miembro')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('⚠️ Por favor, selecciona el barrio del miembro'), backgroundColor: Colors.orange));
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      String? finalCalling;
+      final availableCallings = kLdsStructure[_servingOrganization] ?? [];
+
+      if (availableCallings.isNotEmpty) {
+        if (_selectedCalling == 'Otro') {
+          finalCalling = _callingCtrl.text.trim();
+        } else {
+          finalCalling = _selectedCalling;
+        }
+      } else {
+        finalCalling = _callingCtrl.text.trim();
+      }
+
       final newMember = MemberModel(
         id: widget.memberToEdit?.id ?? '',
         firstName: _firstNameCtrl.text.trim(),
@@ -141,25 +155,22 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         birthDate: _selectedBirthDate,
         phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
         email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-
-        ward: _selectedWard!, // 👇 NUEVO: Pasamos el barrio al modelo
+        ward: _selectedWard!,
         primaryOrganization: _primaryOrganization,
-        isYSA: _isYSA,
-
         servingOrganization: _servingOrganization,
-        calling: _selectedCalling,
-
+        calling: (finalCalling == null || finalCalling.isEmpty) ? null : finalCalling,
+        isYSA: _isYSA,
         relatedUserId: widget.memberToEdit?.relatedUserId,
       );
 
       await _memberService.saveMember(newMember);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Miembro guardado con éxito')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Ficha guardada con éxito'), backgroundColor: Colors.green));
         Navigator.pop(context);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -167,13 +178,18 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Lista combinada usando la constante importada
+    final orgList = ['Miembro General', ...kLdsStructure.keys.toList()];
+    final availableCallings = kLdsStructure[_servingOrganization] ?? [];
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
-        title: Text(widget.memberToEdit == null ? 'Nuevo Miembro' : 'Editar Miembro'),
-        backgroundColor: const Color(0xFF164772),
+        title: Text(widget.memberToEdit == null ? 'Nuevo Miembro' : 'Editar Ficha', style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
         centerTitle: true,
+        elevation: 0,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -186,9 +202,9 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // TARJETA 1: DATOS PERSONALES
+                  // 🚀 TARJETA 1: IDENTIDAD
                   _buildCard(
-                    title: 'Datos Personales',
+                    title: 'Identidad y Contacto',
                     icon: Icons.person,
                     children: [
                       Row(
@@ -201,20 +217,22 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       const SizedBox(height: 15),
                       Row(
                         children: [
-                          const Text('Género:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          const Text('Género:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
                           const SizedBox(width: 15),
                           ChoiceChip(
-                            label: const Text('Hermano'),
+                            label: const Text('Hombre'),
                             selected: _gender == 'M',
                             onSelected: (sel) => setState(() => _gender = 'M'),
                             avatar: const Icon(Icons.male, size: 18),
+                            selectedColor: Colors.blue.shade100,
                           ),
                           const SizedBox(width: 10),
                           ChoiceChip(
-                            label: const Text('Hermana'),
+                            label: const Text('Mujer'),
                             selected: _gender == 'F',
                             onSelected: (sel) => setState(() => _gender = 'F'),
                             avatar: const Icon(Icons.female, size: 18),
+                            selectedColor: Colors.pink.shade100,
                           ),
                         ],
                       ),
@@ -224,28 +242,33 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                         decoration: const InputDecoration(
                           labelText: 'Fecha de Nacimiento',
                           border: OutlineInputBorder(),
-                          suffixIcon: Icon(Icons.calendar_today),
+                          prefixIcon: Icon(Icons.calendar_today),
+                          isDense: true,
                         ),
                         readOnly: true,
                         onTap: _pickDate,
                       ),
+                      const SizedBox(height: 15),
+                      _buildTextField('Celular / WhatsApp', _phoneCtrl, icon: Icons.phone, isPhone: true),
+                      const SizedBox(height: 15),
+                      _buildTextField('Correo Electrónico', _emailCtrl, icon: Icons.email, isEmail: true),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // TARJETA 2: PERTENENCIA
+                  // 🚀 TARJETA 2: PERTENENCIA ECLESIÁSTICA (DOBLE PIVOTE)
                   _buildCard(
-                    title: 'Pertenencia Eclesiástica',
-                    icon: Icons.groups,
+                    title: 'Organización y Llamamiento',
+                    icon: Icons.account_balance,
                     children: [
-                      // 👇 NUEVO: El selector de Barrio agregado a la tarjeta de pertenencia
                       DropdownButtonFormField<String>(
                         value: _selectedWard,
                         decoration: const InputDecoration(
-                          labelText: 'Barrio',
+                          labelText: 'Barrio Actual',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.location_city),
+                          isDense: true,
                         ),
                         items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
                         onChanged: (v) => setState(() => _selectedWard = v),
@@ -253,96 +276,99 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       ),
                       const SizedBox(height: 15),
 
+                      // 2. ORGANIZACIÓN PRINCIPAL (Usa kOrganizationsList)
                       DropdownButtonFormField<String>(
                         value: _primaryOrganization,
-                        decoration: const InputDecoration(labelText: 'Organización Principal', border: OutlineInputBorder()),
-                        items: _primaryOrgsList.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                        decoration: const InputDecoration(
+                          labelText: 'Org. Principal (Membresía)',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person_pin),
+                          isDense: true,
+                        ),
+                        // 🚀 Aquí usamos la lista simple de membresía
+                        items: kOrganizationsList.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                         onChanged: (v) => setState(() => _primaryOrganization = v!),
                       ),
                       const SizedBox(height: 15),
 
-                      // Diseño JAS Destacado
+                      // 3. ORGANIZACIÓN DEL LLAMAMIENTO (Usa las llaves de kLdsStructure)
+                      DropdownButtonFormField<String>(
+                        value: _servingOrganization,
+                        decoration: const InputDecoration(
+                          labelText: '¿En qué organización sirve?',
+                          helperText: 'Esto filtra la lista de llamamientos de abajo',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.assignment_ind),
+                          isDense: true,
+                        ),
+                        // 🚀 Aquí usamos las llaves del mapa de llamamientos
+                        items: ['Miembro General', ...kLdsStructure.keys.toList()]
+                            .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+                            .toList(),
+                        onChanged: (v) {
+                          setState(() {
+                            _servingOrganization = v!;
+                            _selectedCalling = null;
+                            _callingCtrl.clear();
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 15),
+
+                      if (availableCallings.isNotEmpty) ...[
+                        DropdownButtonFormField<String>(
+                          value: _selectedCalling,
+                          decoration: const InputDecoration(
+                            labelText: 'Llamamiento Oficial',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.badge),
+                            isDense: true,
+                          ),
+                          items: [...availableCallings, 'Otro'].map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
+                          onChanged: (v) => setState(() => _selectedCalling = v),
+                        ),
+                        if (_selectedCalling == 'Otro') ...[
+                          const SizedBox(height: 15),
+                          TextFormField(
+                            controller: _callingCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Especificar Llamamiento',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.edit),
+                              isDense: true,
+                            ),
+                          ),
+                        ]
+                      ] else ...[
+                        TextFormField(
+                          controller: _callingCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Asignación / Tarea (Opcional)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.badge),
+                            isDense: true,
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 20),
                       Container(
                         decoration: BoxDecoration(
-                          color: _isYSA ? const Color(0xFF164772).withOpacity(0.1) : Colors.transparent,
-                          border: Border.all(color: _isYSA ? const Color(0xFF164772) : Colors.grey.shade300),
+                          color: _isYSA ? _brandBlue.withOpacity(0.05) : Colors.transparent,
+                          border: Border.all(color: _isYSA ? _brandBlue : Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: SwitchListTile(
                           title: Text(
                             '¿Es Joven Adulto Soltero (JAS)?',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: _isYSA ? const Color(0xFF164772) : Colors.black87
-                            ),
+                            style: TextStyle(fontWeight: FontWeight.bold, color: _isYSA ? _brandBlue : Colors.black87),
                           ),
                           subtitle: const Text('Marcar si tiene 18-35 años y es soltero(a)'),
                           value: _isYSA,
-                          activeColor: const Color(0xFF164772),
+                          activeColor: _brandBlue,
                           onChanged: (val) => setState(() => _isYSA = val),
                         ),
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // TARJETA 3: LLAMAMIENTO (Cascada Automática)
-                  _buildCard(
-                    title: 'Llamamiento y Servicio',
-                    icon: Icons.work,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: _servingOrganization,
-                        decoration: const InputDecoration(
-                          labelText: 'Organización de Servicio',
-                          border: OutlineInputBorder(),
-                          helperText: 'Seleccione "Ninguno" para relevar',
-                          prefixIcon: Icon(Icons.business),
-                        ),
-                        items: [
-                          const DropdownMenuItem<String>(value: null, child: Text('Ninguno (Sin llamamiento)')),
-                          ...kLdsStructure.keys.map((orgKey) => DropdownMenuItem(value: orgKey, child: Text(orgKey))),
-                        ],
-                        onChanged: (newValue) {
-                          setState(() {
-                            _servingOrganization = newValue;
-                            _selectedCalling = null;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 15),
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(_servingOrganization),
-                        value: _selectedCalling,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Llamamiento Específico',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.badge),
-                        ),
-                        items: _servingOrganization == null || !kLdsStructure.containsKey(_servingOrganization)
-                            ? []
-                            : kLdsStructure[_servingOrganization]!.map((cargo) => DropdownMenuItem(value: cargo, child: Text(cargo, overflow: TextOverflow.ellipsis))).toList(),
-                        onChanged: _servingOrganization == null
-                            ? null
-                            : (newValue) => setState(() => _selectedCalling = newValue),
-                        hint: Text(_servingOrganization == null ? 'Seleccione organización primero' : 'Seleccione el cargo'),
-                        disabledHint: const Text('Primero seleccione organización'),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // TARJETA 4: CONTACTO
-                  _buildCard(
-                    title: 'Contacto',
-                    icon: Icons.contact_phone,
-                    children: [
-                      _buildTextField('Teléfono / WhatsApp', _phoneCtrl, icon: Icons.phone, isPhone: true),
-                      const SizedBox(height: 15),
-                      _buildTextField('Correo Electrónico', _emailCtrl, icon: Icons.email, isEmail: true),
                     ],
                   ),
 
@@ -350,17 +376,18 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
                   SizedBox(
                     height: 50,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _save,
+                      icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.save),
                       style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF164772),
+                          backgroundColor: _brandBlue,
                           foregroundColor: Colors.white,
                           elevation: 3,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))
                       ),
-                      child: _isLoading
+                      label: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('GUARDAR DATOS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          : const Text('GUARDAR FICHA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -376,21 +403,22 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   // Helpers visuales
   Widget _buildCard({required String title, required IconData icon, required List<Widget> children}) {
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
             Row(
               children: [
-                Icon(icon, color: const Color(0xFF164772)),
-                const SizedBox(width: 10),
-                Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF164772))),
+                Icon(icon, color: _brandBlue, size: 28),
+                const SizedBox(width: 12),
+                Expanded(child: Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _brandBlue))),
               ],
             ),
-            const Divider(thickness: 1, height: 25),
+            const Divider(thickness: 1, height: 30),
             ...children,
           ],
         ),
@@ -405,7 +433,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         labelText: label,
         prefixIcon: icon != null ? Icon(icon) : null,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+        isDense: true,
       ),
       keyboardType: isPhone ? TextInputType.phone : (isEmail ? TextInputType.emailAddress : TextInputType.text),
       validator: required ? (v) => v!.isEmpty ? 'Requerido' : null : null,

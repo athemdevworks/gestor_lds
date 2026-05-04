@@ -13,6 +13,9 @@ import 'package:gestor_lds/features/auth/screens/pending_access_screen.dart';
 import 'package:gestor_lds/features/dashboard/home_screen.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 
+// 🚀 NUEVA IMPORTACIÓN: Agregamos la pantalla de estadísticas para las rutas
+import 'package:gestor_lds/features/statistics/screens/manager_dashboard_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
@@ -89,6 +92,11 @@ class GestorLDSApp extends StatelessWidget {
         ],
 
         home: const AuthWrapper(),
+
+        // 🚀 MAPA DE RUTAS: Aquí le decimos a Flutter qué pantalla cargar al pedir una ruta
+        routes: {
+          '/statistics': (context) => const ManagerDashboardScreen(),
+        },
       ),
     );
   }
