@@ -11,7 +11,7 @@ class HistoriaFamiliarScreen extends StatefulWidget {
 }
 
 class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   // --- VARIABLES DE FILTROS ---
   String _barrioSeleccionado = 'Todos';

@@ -21,26 +21,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _nombresController;
   late TextEditingController _apellidosController;
   late TextEditingController _phoneController;
-  late TextEditingController _callingController; // 🚀 Reemplazamos el Dropdown por este controlador
 
-  late String _fixedOrganization;
   DateTime? _selectedBirthDate;
 
   final UserService _userService = UserService();
   bool _isLoading = false;
 
-  final Color _brandBlue = const Color(0xFF164772); // 🚀 Color Institucional
+  final Color _brandBlue = const Color(0xFF22539A);
 
   @override
   void initState() {
     super.initState();
     _nombresController = TextEditingController(text: widget.user.firstName);
     _apellidosController = TextEditingController(text: widget.user.lastName);
-    _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
-    _callingController = TextEditingController(text: widget.user.calling); // 🚀 Inicializamos con el texto actual
-
+    _phoneController = TextEditingController(text: widget.user.phone ?? '');
     _selectedBirthDate = widget.user.birthDate;
-    _fixedOrganization = widget.user.organization;
   }
 
   @override
@@ -48,13 +43,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nombresController.dispose();
     _apellidosController.dispose();
     _phoneController.dispose();
-    _callingController.dispose();
     super.dispose();
   }
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-
       if (_selectedBirthDate == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor indica tu fecha de nacimiento', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange));
         return;
@@ -66,8 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           uid: widget.user.uid,
           nombres: _nombresController.text.trim(),
           apellidos: _apellidosController.text.trim(),
-          calling: _callingController.text.trim().isEmpty ? 'Pendiente' : _callingController.text.trim(), // 🚀 Guardamos el texto libre
-          phoneNumber: _phoneController.text.trim(),
+          phone: _phoneController.text.trim(),
           birthDate: _selectedBirthDate,
         );
 
@@ -98,7 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               try {
-                await AuthService().sendPasswordResetEmail(widget.user.email);
+                await AuthService().sendPasswordResetEmail(widget.user.email!);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Correo enviado. Revisa tu bandeja de entrada.'), backgroundColor: Colors.blue),
@@ -124,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      backgroundColor: const Color(0xFFEEF2F6), // Fondo unificado con el resto de la app
+      backgroundColor: const Color(0xFFEEF2F6),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -152,9 +144,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Text(widget.user.email, style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+                        Text(widget.user.email ?? 'Sin correo', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
 
-                        if (widget.user.phoneNumber != null && widget.user.phoneNumber!.isNotEmpty)
+                        if (widget.user.phone != null && widget.user.phone!.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Row(
@@ -162,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               children: [
                                 Icon(Icons.phone, size: 18, color: _brandBlue),
                                 const SizedBox(width: 6),
-                                Text(widget.user.phoneNumber!, style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold, fontSize: 15)),
+                                Text(widget.user.phone!, style: TextStyle(color: Colors.grey[800], fontWeight: FontWeight.bold, fontSize: 15)),
                               ],
                             ),
                           ),
@@ -190,12 +182,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             border: Border.all(color: _brandBlue.withOpacity(0.3)),
                           ),
                           child: Text(
-                            widget.user.role.name.toUpperCase(),
+                            widget.user.role.name.toUpperCase().replaceAll('_', ' '),
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _brandBlue),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(_fixedOrganization, style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[600])),
                       ],
                     ),
                   ),
@@ -221,7 +211,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             children: [
                               Icon(Icons.edit_document, color: _brandBlue),
                               const SizedBox(width: 10),
-                              const Text('Editar Información', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              const Text('Datos Personales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             ],
                           ),
                           const Divider(height: 30),
@@ -287,17 +277,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 15),
+                          const SizedBox(height: 25),
+
+                          // ==========================================
+                          // DATOS ECLESIÁSTICOS (SOLO LECTURA)
+                          // ==========================================
+                          Row(
+                            children: [
+                              Icon(Icons.church, color: _brandBlue),
+                              const SizedBox(width: 10),
+                              const Text('Registro Oficial', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const Divider(height: 30),
 
                           TextFormField(
-                            initialValue: _fixedOrganization,
+                            initialValue: widget.user.ward,
                             readOnly: true,
                             enabled: false,
                             decoration: InputDecoration(
-                              labelText: 'Organización (Fija)',
+                              labelText: 'Barrio',
                               border: const OutlineInputBorder(),
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              helperText: 'Contacta al Admin para cambiar de organización',
+                              prefixIcon: const Icon(Icons.location_city),
                               fillColor: Colors.grey.shade100,
                               filled: true,
                               isDense: true,
@@ -305,13 +306,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // 🚀 NUEVO: Campo de texto libre para el llamamiento
                           TextFormField(
-                            controller: _callingController,
-                            decoration: const InputDecoration(
-                              labelText: 'Llamamiento Actual',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.badge),
+                            initialValue: widget.user.organization,
+                            readOnly: true,
+                            enabled: false,
+                            decoration: InputDecoration(
+                              labelText: 'Clase Dominical',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.group),
+                              fillColor: Colors.grey.shade100,
+                              filled: true,
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+
+                          // 🚀 NUEVO CAMPO: Áreas de Servicio (Listas unidas por coma)
+                          TextFormField(
+                            initialValue: widget.user.callingOrganizations.join(', '),
+                            readOnly: true,
+                            enabled: false,
+                            decoration: InputDecoration(
+                              labelText: 'Área(s) de Servicio',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.work_outline),
+                              fillColor: Colors.grey.shade100,
+                              filled: true,
+                              isDense: true,
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+
+                          // 🚀 ACTUALIZADO: Llamamientos (Listas unidas por coma)
+                          TextFormField(
+                            initialValue: widget.user.callings.join(', '),
+                            readOnly: true,
+                            enabled: false,
+                            decoration: InputDecoration(
+                              labelText: 'Llamamiento(s)',
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.badge),
+                              helperText: 'Contacta a un Secretario para actualizar estos datos',
+                              fillColor: Colors.grey.shade100,
+                              filled: true,
                               isDense: true,
                             ),
                           ),
@@ -334,7 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           const SizedBox(height: 20),
 
-                          // 🚀 Mejor visual para el reseteo de contraseña
                           Container(
                             decoration: BoxDecoration(
                               border: Border.all(color: Colors.red.shade200),

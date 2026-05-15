@@ -1,82 +1,107 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum UserRole {
-  admin,    // <--- TÚ (Desarrollador / Superusuario)
-  obispado, // Acceso Total Eclesiástico
-  lider,    // Acceso a Presupuestos/Agendas de su org
-  miembro,  // Solo ver información básica
+  admin,
+  presidencia_estaca,
+  obispado,
+  lider_estaca,
+  lider_barrio,
+  miembro,
 }
 
 class UserModel {
+  // --- IDENTIFICADORES Y CREDENCIALES ---
   final String uid;
-  final String email;
-  final String username;
+  final String? email;
+  final String? username;
+  final String? phone;
 
-  // Datos Visuales
+  // --- DATOS PERSONALES ---
   final String firstName;
   final String lastName;
+  final String gender;
+  final bool isYSA;
+  final DateTime? birthDate;
 
-  // Datos Eclesiásticos (Snapshot)
-  final String calling;
-  final String organization;
-
-  // --- PARA ESTACA
+  // --- DATOS ECLESIÁSTICOS ---
   final String ward;
+  final String organization; // Su clase dominical (Ej. Cuórum de Élderes)
+
+  // 🚀 LLAMAMIENTOS MÚLTIPLES (¡Ahora son Listas!)
+  final List<String> callingOrganizations; // Donde sirve (Ej. ["Música", "Escuela Dominical"])
+  final List<String> callings;             // Sus cargos (Ej. ["Coordinador", "Maestro"])
 
   // --- CONTROL DE ACCESO ---
   final UserRole role;
   final bool isApproved;
   final bool isActive;
-
-  // --- VINCULACIÓN ---
-  final String? memberId;
-
-  // Datos Opcionales
-  final String? phoneNumber;
-  final DateTime? birthDate;
+  final bool isRegistered;
 
   UserModel({
     required this.uid,
-    required this.email,
-    required this.username,
+    this.email,
+    this.username,
+    this.phone,
     required this.firstName,
     required this.lastName,
-    required this.calling,
-    required this.organization,
+    required this.gender,
+    required this.isYSA,
+    this.birthDate,
     required this.ward,
+    required this.organization,
+    required this.callingOrganizations, // 🚀 Lista
+    required this.callings,             // 🚀 Lista
     required this.role,
     this.isApproved = false,
     this.isActive = true,
-    this.memberId,
-    this.phoneNumber,
-    this.birthDate,
+    this.isRegistered = true,
   });
 
   factory UserModel.fromMap(Map<String, dynamic> map, String id) {
+    String rawRole = map['role'] ?? 'miembro';
+    if (rawRole == 'lider') rawRole = 'lider_barrio';
+
+    DateTime? parsedDate;
+    if (map['birthDate'] is Timestamp) {
+      parsedDate = (map['birthDate'] as Timestamp).toDate();
+    } else if (map['birthDate'] is String) {
+      parsedDate = DateTime.tryParse(map['birthDate']);
+    }
+
+    // 🚀 TÁCTICA DE MIGRACIÓN SILENCIOSA
+    // Si viene como String (del JSON antiguo o código viejo), lo convertimos a Lista automáticamente.
+    List<String> parseToList(dynamic value, String defaultValue) {
+      if (value is List) return List<String>.from(value);
+      if (value is String) return [value];
+      return [defaultValue];
+    }
+
     return UserModel(
       uid: id,
-      email: map['email'] ?? '',
-      username: map['username'] ?? '',
+      email: map['email'],
+      username: map['username'],
+      phone: map['phone'],
       firstName: map['firstName'] ?? '',
       lastName: map['lastName'] ?? '',
-      calling: map['calling'] ?? '',
-      organization: map['organization'] ?? '',
-      ward: map['ward'] ?? 'Jerusalén',
+      gender: map['gender'] ?? 'M',
+      isYSA: map['isYSA'] ?? false,
+      birthDate: parsedDate,
 
-      // La magia para leer 'admin' ya funciona aquí automáticamente
+      ward: map['ward'] ?? 'Sin Barrio',
+      organization: map['organization'] ?? 'Sin Organización',
+
+      // 🚀 Extraemos y convertimos a Listas
+      callingOrganizations: parseToList(map['callingOrganization'] ?? map['callingOrganizations'], 'Ninguna'),
+      callings: parseToList(map['calling'] ?? map['callings'], 'Sin Llamamiento'),
+
       role: UserRole.values.firstWhere(
-            (e) => e.toString().split('.').last == (map['role'] ?? 'miembro'),
+            (e) => e.name == rawRole,
         orElse: () => UserRole.miembro,
       ),
 
       isApproved: map['isApproved'] ?? false,
       isActive: map['isActive'] ?? true,
-      memberId: map['memberId'],
-
-      phoneNumber: map['phoneNumber'],
-      birthDate: map['birthDate'] != null
-          ? (map['birthDate'] as Timestamp).toDate()
-          : null,
+      isRegistered: map['isRegistered'] ?? false,
     );
   }
 
@@ -85,37 +110,36 @@ class UserModel {
       'uid': uid,
       'email': email,
       'username': username,
+      'phone': phone,
       'firstName': firstName,
       'lastName': lastName,
-      'calling': calling,
-      'organization': organization,
+      'gender': gender,
+      'isYSA': isYSA,
+      'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
       'ward': ward,
-      'role': role.toString().split('.').last, // Esto guardará "admin"
+      'organization': organization,
+
+      // 🚀 Guardamos como Listas
+      'callingOrganizations': callingOrganizations,
+      'callings': callings,
+
+      'role': role.name,
       'isApproved': isApproved,
       'isActive': isActive,
-      'memberId': memberId,
-      'phoneNumber': phoneNumber,
-      'birthDate': birthDate != null ? Timestamp.fromDate(birthDate!) : null,
+      'isRegistered': isRegistered,
     };
   }
 
-  // --- 🌟 GETTERS DE PODER (Úsalos en tu UI) ---
-
-  // 1. ¿Puede entrar al sistema?
-  bool get canAccess => isApproved && isActive;
-
-  // 2. ¿Es el Jefe Supremo? (Admin u Obispo)
-  // Úsalo para: Ver datos sensibles, aprobar usuarios, editar directorio global.
-  bool get isAdminOrBishop => role == UserRole.admin || role == UserRole.obispado;
-
-  // 3. ¿Tiene algún liderazgo? (Admin, Obispo o Líder)
-  // Úsalo para: Ver presupuestos, crear agendas.
-  bool get isLeaderOrBetter =>
-          role == UserRole.admin ||
-          role == UserRole.obispado ||
-          role == UserRole.lider;
-
-  // 4. ¿Es estrictamente Admin?
-  // Úsalo para: Borrar base de datos, configuraciones técnicas, ver logs.
+  // ==========================================================
+  // 🌟 GETTERS DE PODER PARA GESTIÓN DE ESTACA
+  // ==========================================================
+  bool get canAccess => isApproved && isActive && isRegistered;
   bool get isAdmin => role == UserRole.admin;
+  bool get isGlobalAdmin => role == UserRole.admin || role == UserRole.presidencia_estaca;
+  bool get isLocalAdmin => role == UserRole.obispado;
+  bool get canSeeAllWards => role == UserRole.admin || role == UserRole.presidencia_estaca || role == UserRole.lider_estaca;
+  bool get isAnyLeader => role != UserRole.miembro;
+
+  // 🚀 NUEVO GETTER: Para mostrar su llamamiento principal en la interfaz (El primero de la lista)
+  String get primaryCalling => callings.isNotEmpty ? callings.first : 'Sin Llamamiento';
 }

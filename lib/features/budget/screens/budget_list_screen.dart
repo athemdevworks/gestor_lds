@@ -19,7 +19,7 @@ class BudgetListScreen extends StatefulWidget {
 
 class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final brandColor = const Color(0xFF164772);
+  final brandColor = const Color(0xFF22539A);
 
   @override
   void initState() {
@@ -104,7 +104,7 @@ class _BudgetListScreenState extends State<BudgetListScreen> with SingleTickerPr
       child: ListTile(
         leading: CircleAvatar(
           backgroundColor: Colors.indigo.shade50,
-          child: const Icon(Icons.event_note, color: Color(0xFF164772)),
+          child: const Icon(Icons.event_note, color: Color(0xFF22539A)),
         ),
         title: Text(budget.activityName, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Column(

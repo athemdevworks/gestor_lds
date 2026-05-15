@@ -24,7 +24,7 @@ class FamilyHistoryListScreen extends StatefulWidget {
 }
 
 class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   // Variables de filtro locales para que funcionen dentro de esta pantalla
   late String _barrio;

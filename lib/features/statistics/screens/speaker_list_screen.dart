@@ -11,7 +11,7 @@ class SpeakerListScreen extends StatefulWidget {
 
 class _SpeakerListScreenState extends State<SpeakerListScreen> {
   final MeetingService _meetingService = MeetingService();
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   int _currentYear = DateTime.now().year;
 

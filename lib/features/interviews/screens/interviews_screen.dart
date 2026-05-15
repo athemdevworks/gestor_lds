@@ -15,7 +15,7 @@ class InterviewsScreen extends StatefulWidget {
 
 class _InterviewsScreenState extends State<InterviewsScreen> {
   final InterviewService _service = InterviewService();
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   bool get _isAdmin => widget.currentUser.role == UserRole.obispado || widget.currentUser.role == UserRole.admin;
 

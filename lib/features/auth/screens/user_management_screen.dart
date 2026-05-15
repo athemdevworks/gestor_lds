@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Asegúrate de tener esta dependencia
+import 'package:url_launcher/url_launcher.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/services/user_service.dart';
 
@@ -21,7 +21,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> with Single
 
   @override
   Widget build(BuildContext context) {
-    const brandBlue = Color(0xFF164772);
+    const brandBlue = Color(0xFF22539A);
 
     return Scaffold(
       appBar: AppBar(
@@ -84,7 +84,6 @@ class _UserList extends StatelessWidget {
     final UserService userService = UserService();
 
     return StreamBuilder<List<UserModel>>(
-      // 1. USAMOS EL STREAM UNIFICADO DEL NUEVO SERVICIO
       stream: userService.streamUsersByApproval(showApproved),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -114,7 +113,13 @@ class _UserList extends StatelessWidget {
           separatorBuilder: (_, __) => const Divider(),
           itemBuilder: (context, index) {
             final user = users[index];
-            final hasPhone = user.phoneNumber != null && user.phoneNumber!.isNotEmpty;
+            // 🚀 Actualizado a user.phone
+            final hasPhone = user.phone != null && user.phone!.isNotEmpty;
+
+            // 🚀 Tomamos la primera organización de servicio, o mostramos su clase base si no tiene
+            final displayOrg = user.callingOrganizations.isNotEmpty && user.callingOrganizations.first != 'Ninguna'
+                ? user.callingOrganizations.first
+                : user.organization;
 
             return ListTile(
               contentPadding: EdgeInsets.zero,
@@ -132,45 +137,43 @@ class _UserList extends StatelessWidget {
               subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${user.calling} • ${user.organization}'),
+                  // 🚀 Usamos primaryCalling y displayOrg
+                  Text('${user.primaryCalling} • $displayOrg'),
                   Row(
                     children: [
-                      // Rol (Chip pequeño)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(4)),
-                        child: Text(user.role.toString().split('.').last.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Text(user.role.name.toUpperCase().replaceAll('_', ' '), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
                       ),
-                      // Teléfono (si tiene)
                       if (hasPhone) ...[
                         const SizedBox(width: 8),
                         Icon(Icons.phone_android, size: 12, color: Colors.grey[600]),
                         const SizedBox(width: 2),
-                        Text(user.phoneNumber!, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+                        Text(user.phone!, style: TextStyle(fontSize: 11, color: Colors.grey[600])), // 🚀 Actualizado a user.phone
                       ]
                     ],
                   )
                 ],
               ),
 
-              // ACCIONES
               trailing: !showApproved
                   ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // BOTÓN APROBAR
                   IconButton(
                     icon: const Icon(Icons.check_circle, color: Colors.green),
                     onPressed: () => userService.updateUserAccess(
                       uid: user.uid,
                       role: user.role,
-                      isApproved: true, // <--- AQUÍ APROBAMOS
-                      calling: user.calling,
-                      phoneNumber: user.phoneNumber,
+                      isApproved: true,
+                      // 🚀 Pasamos las listas intactas
+                      callings: user.callings,
+                      callingOrganizations: user.callingOrganizations,
+                      phone: user.phone,
                     ),
                     tooltip: 'Aprobar',
                   ),
-                  // BOTÓN RECHAZAR
                   IconButton(
                     icon: const Icon(Icons.cancel, color: Colors.red),
                     onPressed: () => _showDeleteConfirm(context, user, userService),
@@ -181,11 +184,8 @@ class _UserList extends StatelessWidget {
                   : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // BOTONES DE CONTACTO (Solo si está aprobado)
-                  if (hasPhone) IconButton(icon: const Icon(Icons.message, color: Colors.green), onPressed: () => _launchWhatsApp(context, user.phoneNumber!), tooltip: 'WhatsApp'),
-                  if (hasPhone) IconButton(icon: const Icon(Icons.phone, color: Colors.blue), onPressed: () => _launchCall(context, user.phoneNumber!), tooltip: 'Llamar'),
-
-                  // BOTÓN EDITAR
+                  if (hasPhone) IconButton(icon: const Icon(Icons.message, color: Colors.green), onPressed: () => _launchWhatsApp(context, user.phone!), tooltip: 'WhatsApp'),
+                  if (hasPhone) IconButton(icon: const Icon(Icons.phone, color: Colors.blue), onPressed: () => _launchCall(context, user.phone!), tooltip: 'Llamar'),
                   IconButton(
                     icon: const Icon(Icons.edit_note, color: Colors.grey),
                     onPressed: () => showDialog(
@@ -203,6 +203,7 @@ class _UserList extends StatelessWidget {
   }
 
   void _showDeleteConfirm(BuildContext context, UserModel user, UserService service) {
+    // ... (Se mantiene igual)
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -224,7 +225,7 @@ class _UserList extends StatelessWidget {
   }
 }
 
-// --- DIÁLOGO DE EDICIÓN COMPLETO (Rol, Llamamiento, Teléfono) ---
+// --- DIÁLOGO DE EDICIÓN COMPLETO ---
 class _EditUserDialog extends StatefulWidget {
   final UserModel user;
   const _EditUserDialog({required this.user});
@@ -237,7 +238,10 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   final UserService _userService = UserService();
   late UserRole _selectedRole;
   late bool _isApproved;
-  late TextEditingController _callingController;
+
+  // 🚀 Controladores para las listas (separadas por coma)
+  late TextEditingController _callingsController;
+  late TextEditingController _callingOrgsController;
   late TextEditingController _phoneController;
 
   @override
@@ -245,13 +249,16 @@ class _EditUserDialogState extends State<_EditUserDialog> {
     super.initState();
     _selectedRole = widget.user.role;
     _isApproved = widget.user.isApproved;
-    _callingController = TextEditingController(text: widget.user.calling);
-    _phoneController = TextEditingController(text: widget.user.phoneNumber ?? '');
+    // 🚀 Mostramos las listas unidas por comas
+    _callingsController = TextEditingController(text: widget.user.callings.join(', '));
+    _callingOrgsController = TextEditingController(text: widget.user.callingOrganizations.join(', '));
+    _phoneController = TextEditingController(text: widget.user.phone ?? '');
   }
 
   @override
   void dispose() {
-    _callingController.dispose();
+    _callingsController.dispose();
+    _callingOrgsController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -267,8 +274,21 @@ class _EditUserDialogState extends State<_EditUserDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: _callingController,
-                decoration: const InputDecoration(labelText: 'Llamamiento', border: OutlineInputBorder()),
+                controller: _callingsController,
+                decoration: const InputDecoration(
+                    labelText: 'Llamamientos',
+                    border: OutlineInputBorder(),
+                    helperText: 'Separa múltiples con comas (Ej: Obispo, Organista)'
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: _callingOrgsController,
+                decoration: const InputDecoration(
+                    labelText: 'Área de Servicio (Filtros)',
+                    border: OutlineInputBorder(),
+                    helperText: 'Ej: Obispado, Música'
+                ),
               ),
               const SizedBox(height: 15),
               TextField(
@@ -278,9 +298,9 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               ),
               const SizedBox(height: 15),
               DropdownButtonFormField<UserRole>(
-                decoration: const InputDecoration(labelText: 'Rol', border: OutlineInputBorder()),
+                decoration: const InputDecoration(labelText: 'Nivel de Permiso', border: OutlineInputBorder()),
                 value: _selectedRole,
-                items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.toString().split('.').last.toUpperCase()))).toList(),
+                items: UserRole.values.map((r) => DropdownMenuItem(value: r, child: Text(r.name.toUpperCase().replaceAll('_', ' ')))).toList(),
                 onChanged: (v) => setState(() => _selectedRole = v!),
               ),
               const SizedBox(height: 15),
@@ -301,13 +321,21 @@ class _EditUserDialogState extends State<_EditUserDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () async {
-            // 2. USAMOS LA NUEVA FUNCIÓN DE ACTUALIZACIÓN MASIVA
+            // 🚀 Convertimos los textos separados por coma de vuelta a List<String>
+            List<String> newCallings = _callingsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+            List<String> newOrgs = _callingOrgsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+
+            // Si lo dejan vacío, le ponemos valores por defecto
+            if (newCallings.isEmpty) newCallings = ['Sin Llamamiento'];
+            if (newOrgs.isEmpty) newOrgs = ['Ninguna'];
+
             await _userService.updateUserAccess(
               uid: widget.user.uid,
               role: _selectedRole,
               isApproved: _isApproved,
-              calling: _callingController.text,
-              phoneNumber: _phoneController.text.trim(),
+              callings: newCallings,         // 🚀 Pasamos la lista
+              callingOrganizations: newOrgs, // 🚀 Pasamos la lista
+              phone: _phoneController.text.trim(),
             );
             if (mounted) Navigator.pop(context);
           },

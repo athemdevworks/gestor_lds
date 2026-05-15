@@ -1,25 +1,24 @@
+import 'dart:convert'; // 🚀 IMPORTANTE PARA LEER EL JSON
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // 🚀 IMPORTANTE: Agregado para el Radar
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/svg.dart';
 
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
-import 'package:gestor_lds/features/dashboard/screens/user_management_screen.dart';
+import 'package:gestor_lds/features/auth/screens/user_management_screen.dart';
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
 import 'package:gestor_lds/features/commitments/screens/my_commitments_screen.dart';
 import 'package:gestor_lds/features/auth/screens/profile_screen.dart';
-// 👇 AGREGADO: Import de la nueva pantalla de Historia Familiar
 import 'package:gestor_lds/features/family_history/screens/historia_familiar_screen.dart';
-import '../../core/constants/wards_list.dart';
-import '../budget/screens/budget_list_screen.dart';
-import '../calendar/screens/calendar_screen.dart';
+import '../../../core/constants/wards_list.dart';
+import '../../budget/screens/budget_list_screen.dart';
+import '../../calendar/screens/calendar_screen.dart';
 import 'package:gestor_lds/features/activities/screens/activities_screen.dart';
 import 'package:gestor_lds/features/interviews/screens/interviews_screen.dart';
 import 'package:gestor_lds/features/communications/screens/document_generator_screen.dart';
 import 'package:gestor_lds/features/members/screens/members_screen.dart';
 import 'package:gestor_lds/features/dashboard/widgets/birthdays_card.dart';
 import 'package:gestor_lds/features/statistics/screens/manager_dashboard_screen.dart';
-
-import '../members/services/member_service.dart';
 
 class HomeScreen extends StatelessWidget {
   final UserModel user;
@@ -28,48 +27,49 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isAdmin = user.role == UserRole.obispado|| user.role == UserRole.admin;
-    final bool isLeader = user.role == UserRole.lider;
+    final bool isAdmin = user.isGlobalAdmin || user.isLocalAdmin;
+    final bool isLeader = user.isAnyLeader;
 
     final double screenWidth = MediaQuery.of(context).size.width;
     final bool isMobile = screenWidth < 700;
     final bool isWideScreen = screenWidth > 900;
 
-    // Color Azul Institucional
-    const Color brandBlue = Color(0xFF164772);
+    const Color brandBlue = Color(0xFF22539A);
+
+    Query radarQuery = FirebaseFirestore.instance
+        .collection('users')
+        .where('isApproved', isEqualTo: false)
+        .where('isRegistered', isEqualTo: true);
+
+    if (!user.canSeeAllWards) {
+      radarQuery = radarQuery.where('ward', isEqualTo: user.ward);
+    }
 
     return PopScope(
         canPop: false,
         child: Scaffold(
           backgroundColor: const Color(0xFFEEF2F6),
-
           appBar: AppBar(
-            title: isMobile
-                ? Image.asset(
-              'assets/images/logont.png',
+            title: SvgPicture.asset(
+              'images/logo-hor.svg',
               height: 35,
-              color: Colors.white,
               fit: BoxFit.contain,
               alignment: Alignment.centerLeft,
-            )
-                : const Text(
-              'GestorLDS',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-            ),
-            centerTitle: false,
-            flexibleSpace: isMobile
-                ? null
-                : SafeArea(
-              child: Center(
-                child: Image.asset(
-                  'assets/images/logont.png',
-                  height: 45,
-                  color: Colors.white,
-                  fit: BoxFit.contain,
-                ),
+              colorFilter: const ColorFilter.mode(
+                Colors.white,
+                BlendMode.srcIn,
               ),
             ),
+            centerTitle: false,
+            flexibleSpace: null,
             actions: [
+              // 🚀 AQUÍ ESTÁ EL BOTÓN SECRETO (Solo lo ves tú como Admin)
+              if (isAdmin)
+                IconButton(
+                  icon: const Icon(Icons.upload_file),
+                  tooltip: 'Importar JSON',
+                  onPressed: () => _showImportJsonDialog(context),
+                ),
               IconButton(
                 icon: const Icon(Icons.account_circle),
                 tooltip: 'Mi Perfil',
@@ -91,7 +91,6 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
 
-
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -99,18 +98,12 @@ class HomeScreen extends StatelessWidget {
               children: [
                 _buildWelcomeBanner(context),
 
-                // ==========================================================
-                // 🚀 EL RADAR: ALERTA DE SOLICITUDES PENDIENTES
-                // ==========================================================
                 if (isAdmin)
                   StreamBuilder<QuerySnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users')
-                        .where('isApproved', isEqualTo: false)
-                        .snapshots(),
+                    stream: radarQuery.snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const SizedBox(height: 30); // Espacio normal si no hay pendientes
+                        return const SizedBox(height: 30);
                       }
 
                       int pendingCount = snapshot.data!.docs.length;
@@ -146,27 +139,7 @@ class HomeScreen extends StatelessWidget {
                     },
                   ),
                 if (!isAdmin) const SizedBox(height: 30),
-                // ==========================================================
 
-
-              // BOTÓN PARA IMPORTAR
-                /*ElevatedButton.icon(
-                  icon: const Icon(Icons.cloud_upload),
-                  label: const Text('⚠️ Importar Directorio LCR (JSON)'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepOrange,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  onPressed: () {
-                    _mostrarDialogoDeImportacion(context);
-                  },
-                ),
-                const SizedBox(height: 20),*/
-
-
-
-                //Cumpleaños
                 const SizedBox(
                   height: 250,
                   width: double.infinity,
@@ -174,7 +147,6 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // SECCIÓN 1: MÓDULOS PRINCIPALES
                 const Text(
                     'MODULOS PRINCIPALES',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: brandBlue)
@@ -184,10 +156,9 @@ class HomeScreen extends StatelessWidget {
                 _buildGridOrList(
                   isWideScreen,
                   children: [
-                    // --- CALENDARIO ---
                     _DashboardCard(
                       title: 'CALENDARIO',
-                      subtitle: 'Cronograma de actividades del barrio',
+                      subtitle: 'Cronograma de actividades',
                       icon: Icons.calendar_month,
                       iconColor: Colors.deepPurple.shade600,
                       textColor: Colors.black,
@@ -198,42 +169,35 @@ class HomeScreen extends StatelessWidget {
                           )
                       ),
                     ),
-                    // --- ENTREVISTAS ---
                     _DashboardCard(
                       title: 'ENTREVISTAS',
                       subtitle: 'Gestión de citas y entrevistas',
                       icon: Icons.upcoming,
                       iconColor: Colors.teal.shade600,
                       textColor: Colors.black,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => InterviewsScreen(currentUser: user),
-                            settings: const RouteSettings(name: '/interviews'),
-                          ),
-                        );
-                      },
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => InterviewsScreen(currentUser: user),
+                          settings: const RouteSettings(name: '/interviews'),
+                        ),
+                      ),
                     ),
-                    // 👇 AGREGADO: --- HISTORIA FAMILIAR ---
                     _DashboardCard(
                       title: 'HISTORIA FAMILIAR',
                       subtitle: 'Seguimiento de metas y progreso',
                       icon: Icons.account_tree_rounded,
                       iconColor: Colors.cyan.shade700,
                       textColor: Colors.black,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => HistoriaFamiliarScreen(currentUser: user),
-                            settings: const RouteSettings(name: '/family_history'),
-                          ),
-                        );
-                      },
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => HistoriaFamiliarScreen(currentUser: user),
+                          settings: const RouteSettings(name: '/family_history'),
+                        ),
+                      ),
                     ),
                   ],
                 ),
 
-                // SECCIÓN 2: GESTIÓN DE REUNIONES
                 if (isAdmin || isLeader) ...[
                   const SizedBox(height: 30),
                   const Text(
@@ -245,7 +209,6 @@ class HomeScreen extends StatelessWidget {
                   _buildGridOrList(
                     isWideScreen,
                     children: [
-                      // --- ACTIVIDADES ---
                       _DashboardCard(
                         title: 'ACTIVIDADES',
                         subtitle: 'Organización y control de actividades',
@@ -302,7 +265,6 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
 
-                // SECCIÓN 3: ADMINISTRACIÓN
                 if (isAdmin) ...[
                   const SizedBox(height: 30),
                   const Text(
@@ -320,15 +282,13 @@ class HomeScreen extends StatelessWidget {
                         icon: Icons.pie_chart_rounded,
                         iconColor: Colors.amber.shade700,
                         textColor: Colors.black,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ManagerDashboardScreen(),
-                              settings: const RouteSettings(name: '/statistics'),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ManagerDashboardScreen(),
+                            settings: const RouteSettings(name: '/statistics'),
+                          ),
+                        ),
                       ),
                       _DashboardCard(
                         title: 'USUARIOS',
@@ -343,44 +303,36 @@ class HomeScreen extends StatelessWidget {
                             )
                         ),
                       ),
-                      // --- COMUNICACIONES ---
                       _DashboardCard(
                         title: 'COMUNICACIONES',
                         subtitle: 'Citaciones y documentos oficiales',
                         icon: Icons.campaign_rounded,
                         iconColor: const Color(0xFF25D366),
                         textColor: Colors.black,
-                        onTap: () {
-                          Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const DocumentGeneratorScreen(),
-                                settings: const RouteSettings(name: '/communications'),
-                              )
-                          );
-                        },
+                        onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const DocumentGeneratorScreen(),
+                              settings: const RouteSettings(name: '/communications'),
+                            )
+                        ),
                       ),
-
                       _DashboardCard(
                         title: 'DIRECTORIO',
-                        subtitle: 'Base de datos del barrio',
+                        subtitle: 'Base de datos de miembros',
                         icon: Icons.people_alt_rounded,
                         iconColor: Colors.deepOrange,
                         textColor: Colors.black,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const MembersScreen(),
-                              settings: const RouteSettings(name: '/members'),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MembersScreen(),
+                            settings: const RouteSettings(name: '/members'),
+                          ),
+                        ),
                       ),
-
                     ],
                   ),
                 ],
-
                 const SizedBox(height: 50),
               ],
             ),
@@ -388,15 +340,13 @@ class HomeScreen extends StatelessWidget {
         ));
   }
 
-  // --- WIDGETS AUXILIARES ---
-
   Widget _buildWelcomeBanner(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Theme.of(context).primaryColor, const Color(0xFF164772)],
+          colors: [Theme.of(context).primaryColor, const Color(0xFF22539A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -420,7 +370,7 @@ class HomeScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              user.calling,
+              user.primaryCalling,
               style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
             ),
           ),
@@ -468,86 +418,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // 🚀 LA NUEVA JUGADA: POP-UP PARA ELEGIR EL BARRIO ANTES DE IMPORTAR
-  void _mostrarDialogoDeImportacion(BuildContext context) {
-    String? _barrioSeleccionado;
-
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: const Row(
-                  children: [
-                    Icon(Icons.file_upload, color: Colors.deepOrange),
-                    SizedBox(width: 10),
-                    Text('Importar JSON', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Selecciona a qué Barrio pertenece la lista de miembros que vas a importar:'),
-                    const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      decoration: const InputDecoration(
-                        labelText: 'Barrio de Destino',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_city),
-                        isDense: true,
-                      ),
-                      items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
-                      onChanged: (val) => setState(() => _barrioSeleccionado = val),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Cancelar', style: TextStyle(color: Colors.grey))
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, foregroundColor: Colors.white),
-                    onPressed: () async {
-                      if (_barrioSeleccionado == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona un barrio'), backgroundColor: Colors.orange));
-                        return;
-                      }
-
-                      Navigator.pop(ctx); // Cerramos el pop-up
-
-                      // 1. Avisamos que el proceso empezó
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importando miembros para $_barrioSeleccionado...')));
-
-                      try {
-                        // 2. Ejecutamos el script enviando el barrio por parámetro
-                        await MemberService().importarBarrioDesdeJson(barrioDestino: _barrioSeleccionado!);
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ ¡Importación Exitosa!'), backgroundColor: Colors.green));
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ Error: $e'), backgroundColor: Colors.red));
-                        }
-                      }
-                    },
-                    child: const Text('Importar Ahora'),
-                  ),
-                ],
-              );
-            }
-        );
-      },
-    );
-  }
-
-
-  // ==========================================================
-  // 🚀 PANEL INFERIOR PARA APROBACIONES
-  // ==========================================================
   void _mostrarPanelAprobaciones(BuildContext context, List<QueryDocumentSnapshot> pendingUsers) {
     showModalBottomSheet(
       context: context,
@@ -564,7 +434,7 @@ class HomeScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                color: Color(0xFF164772),
+                color: Color(0xFF22539A),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
               ),
               child: const Row(
@@ -583,33 +453,28 @@ class HomeScreen extends StatelessWidget {
                   var userData = pendingUsers[index].data() as Map<String, dynamic>;
                   String uid = pendingUsers[index].id;
 
+                  List<dynamic> rawCallings = userData['callings'] ?? ['Sin Llamamiento'];
+                  String displayCalling = rawCallings.isNotEmpty ? rawCallings.first.toString() : 'Sin Llamamiento';
+
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.orange.shade100,
-                        child: const Icon(Icons.person_outline, color: Colors.orange),
+                        backgroundColor: Colors.green.shade50,
+                        child: const Icon(Icons.person, color: Colors.green),
                       ),
                       title: Text('${userData['firstName']} ${userData['lastName']}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('${userData['email']}\nBarrio: ${userData['ward']}'),
+                      subtitle: Text('$displayCalling\n${userData['ward']}'),
                       isThreeLine: true,
-                      trailing: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                        onPressed: () {
-                          Navigator.pop(context); // Cerramos la lista
-                          // Abrimos el buscador para vincular
-                          showDialog(
-                            context: context,
-                            builder: (context) => _LinkMemberDialog(
-                              userUid: uid,
-                              userEmail: userData['email'],
-                              userFullName: '${userData['firstName']} ${userData['lastName']}',
-                              userWard: userData['ward'],
-                            ),
-                          );
-                        },
-                        child: const Text('Vincular'),
+                      trailing: ElevatedButton.icon(
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Aprobar'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => _aprobarDirecto(context, uid),
                       ),
                     ),
                   );
@@ -621,148 +486,110 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-// ==========================================================
-// 🚀 EL DIÁLOGO MÁGICO DE VINCULACIÓN
-// ==========================================================
-class _LinkMemberDialog extends StatefulWidget {
-  final String userUid;
-  final String userEmail;
-  final String userFullName;
-  final String userWard;
-
-  const _LinkMemberDialog({
-    required this.userUid,
-    required this.userEmail,
-    required this.userFullName,
-    required this.userWard,
-  });
-
-  @override
-  State<_LinkMemberDialog> createState() => _LinkMemberDialogState();
-}
-
-class _LinkMemberDialogState extends State<_LinkMemberDialog> {
-  String _searchQuery = '';
-  String _selectedRole = 'miembro';
-  bool _isLoading = false;
-
-  final List<String> _roles = ['miembro', 'lider', 'obispado', 'admin'];
-
-  Future<void> _aprobarYVincular(String memberId, Map<String, dynamic> memberData) async {
-    setState(() => _isLoading = true);
+  Future<void> _aprobarDirecto(BuildContext context, String uid) async {
     try {
-      // 1. Actualizamos el Usuario (Le damos acceso, rol y el ID oficial)
-      await FirebaseFirestore.instance.collection('users').doc(widget.userUid).update({
+      await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'isApproved': true,
-        'role': _selectedRole,
-        'memberId': memberId,
-        'calling': memberData['calling'] ?? 'Sin llamamiento',
       });
-
-      // 2. Actualizamos el Directorio Oficial
-      await FirebaseFirestore.instance.collection('members').doc(memberId).update({
-        'relatedUserId': widget.userUid,
-        'email': widget.userEmail,
-      });
-
-      if (mounted) {
-        Navigator.pop(context); // Cierra el modal
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ ¡Usuario Aprobado y Vinculado Exitosamente!'), backgroundColor: Colors.green));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ ¡Usuario Aprobado Exitosamente!'), backgroundColor: Colors.green)
+        );
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al aprobar: $e'), backgroundColor: Colors.red)
+        );
+      }
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Vincular a ${widget.userFullName}'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('1. Asignar Nivel de Permiso:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _selectedRole,
-              decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-              items: _roles.map((r) => DropdownMenuItem(value: r, child: Text(r.toUpperCase()))).toList(),
-              onChanged: (val) => setState(() => _selectedRole = val!),
-            ),
-            const SizedBox(height: 20),
-            Text('2. Buscar en el directorio de ${widget.userWard}:', style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Ej: Apellido, Nombre',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-                isDense: true,
+  // =======================================================
+  // 🚀 LA PUERTA TRASERA: IMPORTADOR DE JSON
+  // =======================================================
+  void _showImportJsonDialog(BuildContext context) {
+    final TextEditingController jsonController = TextEditingController();
+    bool isImporting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Importar Fichas (JSON)', style: TextStyle(fontWeight: FontWeight.bold)),
+              content: SizedBox(
+                width: 500,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Abre tu archivo import_arevalo.json, copia todo el texto y pégalo aquí abajo:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: jsonController,
+                      maxLines: 10,
+                      decoration: const InputDecoration(
+                        hintText: '[{"firstName": "Juan", "lastName": "Perez"...}]',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
-            ),
-            const SizedBox(height: 15),
+              actions: [
+                TextButton(
+                  onPressed: isImporting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+                ),
+                isImporting
+                    ? const CircularProgressIndicator()
+                    : ElevatedButton.icon(
+                  icon: const Icon(Icons.upload),
+                  label: const Text('Inyectar a Firebase'),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF22539A), foregroundColor: Colors.white),
+                  onPressed: () async {
+                    if (jsonController.text.trim().isEmpty) return;
 
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('members')
-                    .where('ward', isEqualTo: widget.userWard)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                    setStateDialog(() => isImporting = true);
+                    try {
+                      // 1. Convertimos el texto a una Lista de Mapas
+                      List<dynamic> usersToImport = jsonDecode(jsonController.text.trim());
 
-                  var members = snapshot.data!.docs.where((doc) {
-                    var data = doc.data() as Map<String, dynamic>;
-                    String fullName = "${data['lastName']} ${data['firstName']}".toLowerCase();
-                    return fullName.contains(_searchQuery);
-                  }).toList();
+                      // 2. Inyectamos uno por uno en Firestore
+                      final batch = FirebaseFirestore.instance.batch();
+                      final usersCollection = FirebaseFirestore.instance.collection('users');
 
-                  if (members.isEmpty) return const Center(child: Text('No se encontraron miembros con ese nombre.'));
+                      for (var userMap in usersToImport) {
+                        var newDocRef = usersCollection.doc();
+                        batch.set(newDocRef, userMap);
+                      }
 
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: members.length,
-                    itemBuilder: (context, index) {
-                      var data = members[index].data() as Map<String, dynamic>;
-                      bool alreadyLinked = data.containsKey('relatedUserId') && data['relatedUserId'] != null;
+                      // 3. Ejecutamos la inyección masiva
+                      await batch.commit();
 
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text("${data['lastName']}, ${data['firstName']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        subtitle: Text(data['calling'] ?? 'Sin llamamiento', style: const TextStyle(fontSize: 12)),
-                        trailing: alreadyLinked
-                            ? const Icon(Icons.link_off, color: Colors.red)
-                            : _isLoading
-                            ? const CircularProgressIndicator()
-                            : IconButton(
-                          icon: const Icon(Icons.check_circle, color: Colors.green, size: 30),
-                          onPressed: () => _aprobarYVincular(members[index].id, data),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                      if (context.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('✅ ¡${usersToImport.length} fichas importadas con éxito!'), backgroundColor: Colors.green));
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error en el JSON: $e'), backgroundColor: Colors.red));
+                      }
+                    } finally {
+                      if (context.mounted) setStateDialog(() => isImporting = false);
+                    }
+                  },
+                ),
+              ],
+            );
+          }
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-      ],
     );
   }
 }
 
-// --- TARJETA DEFINITIVA ---
 class _DashboardCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -783,7 +610,7 @@ class _DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isWide = MediaQuery.of(context).size.width > 900;
-    const Color brandBlue = Color(0xFF164772);
+    const Color brandBlue = Color(0xFF22539A);
 
     return Card(
       color: Colors.white,

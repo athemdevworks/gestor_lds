@@ -3,7 +3,7 @@ import 'package:gestor_lds/features/members/models/member_model.dart';
 import 'package:gestor_lds/features/members/services/member_service.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
 // 🚀 IMPORTAMOS TU MAPA DE CONSTRAINTS DESDE SU ARCHIVO
-import 'package:gestor_lds/core/constants/callings_list.dart';
+import 'package:gestor_lds/core/constants/callings_ward_list.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/constants/organizations_list.dart';
@@ -20,7 +20,7 @@ class MemberFormScreen extends StatefulWidget {
 class _MemberFormScreenState extends State<MemberFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final MemberService _memberService = MemberService();
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   // Controladores
   final _firstNameCtrl = TextEditingController();

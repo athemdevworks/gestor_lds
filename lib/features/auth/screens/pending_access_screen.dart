@@ -6,7 +6,7 @@ class PendingAccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color brandBlue = Color(0xFF164772);
+    const Color brandBlue = Color(0xFF22539A);
 
     return Scaffold(
       backgroundColor: Colors.white,

@@ -35,7 +35,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isLoading = true;
 
   // COLORES CORPORATIVOS
-  final Color colorMeeting = const Color(0xFF164772);
+  final Color colorMeeting = const Color(0xFF22539A);
   final Color colorActivity = const Color(0xFF43A047);
   final Color colorCommitment = const Color(0xFFF57C00);
 
@@ -64,7 +64,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           canView = true;
         }
         // B. Líderes
-        else if (widget.currentUser.role == UserRole.lider) {
+        else if (widget.currentUser.role == UserRole.lider_barrio || widget.currentUser.role == UserRole.lider_estaca) {
           if (meeting.type == MeetingType.sacramental) {
             canView = false;
           } else if (meeting.type == MeetingType.wardCouncil || meeting.organization == widget.currentUser.organization) {

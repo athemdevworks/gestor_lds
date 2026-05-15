@@ -124,7 +124,7 @@ class MeetingDetailScreen extends StatelessWidget {
             const SizedBox(height: 30),
             const Text('Agenda de Reunión', style: TextStyle(fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF164772))),
+                color: Color(0xFF22539A))),
             const Divider(),
 
             if (meeting.type == MeetingType.sacramental &&
@@ -232,7 +232,7 @@ class MeetingDetailScreen extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(
-                                  Icons.add_task, color: Color(0xFF164772)),
+                                  Icons.add_task, color: Color(0xFF22539A)),
                               onPressed: () =>
                                   _showAddCommitmentDialog(context, agendaItem),
                             ),
@@ -300,7 +300,7 @@ class MeetingDetailScreen extends StatelessWidget {
         if (agenda.wardBusiness.isNotEmpty) ...[
           const SizedBox(height: 15),
           const Text('Asuntos del Barrio', style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
+              fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF22539A))),
           const Divider(),
           ...agenda.wardBusiness.map((b) {
             // Mostramos "Sostenimiento: Juan Perez (Secretario)"
@@ -316,14 +316,14 @@ class MeetingDetailScreen extends StatelessWidget {
           const SizedBox(height: 15),
         ],
         const Text('Asuntos de Estaca', style: TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF22539A))),
         const Divider(),
 
         const Text('Bendición y Reparto de la Santa Cena', style: TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF164772))),
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF22539A))),
         const Divider(),
         const Text('(Si reparte solo Sacerdocio Aarónico se indica que está a cargo del Sacerdocio Aarónico. De lo contrario, se indica que está a cargo del Sacerdocio del Barrio.)', style: TextStyle(
-            fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF164772), fontStyle: FontStyle.italic)),
+            fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF22539A), fontStyle: FontStyle.italic)),
 
         _buildSimpleItem(
             'Himno Sacramental', agenda.sacramentHymn, icon: Icons.music_note),
@@ -347,7 +347,7 @@ class MeetingDetailScreen extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF164772) // Tu azul corporativo
+                      color: Color(0xFF22539A) // Tu azul corporativo
                   ),
                 ),
               ),
@@ -389,7 +389,7 @@ class MeetingDetailScreen extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       visualDensity: compact ? VisualDensity.compact : null,
-      leading: Icon(icon, color: Color(0xFF164772)),
+      leading: Icon(icon, color: Color(0xFF22539A)),
       title: Text(title,
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 14)),
@@ -402,7 +402,7 @@ class MeetingDetailScreen extends StatelessWidget {
     if (personName.isEmpty) return const SizedBox.shrink();
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: Color(0xFF164772)),
+      leading: Icon(icon, color: Color(0xFF22539A)),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text('$personName ${topic != null ? "($topic)" : ""}'),
       trailing: IconButton(
@@ -452,7 +452,7 @@ class MeetingDetailScreen extends StatelessWidget {
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
         if(organization != null) Chip(label: Text(organization)),
         Text("$date - $time",
-            style: const TextStyle(fontSize: 16, color: Color(0xFF164772))),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF22539A))),
       ],
     );
   }

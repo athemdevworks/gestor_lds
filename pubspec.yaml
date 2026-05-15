@@ -29,6 +29,7 @@ dependencies:
   url_launcher: ^6.3.2
   add_2_calendar: ^3.0.1
   fl_chart: ^1.1.1
+  flutter_svg: ^2.3.0
   # FIN DE DEPENDENCIAS
 
 dev_dependencies:
@@ -45,13 +46,13 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icons/app_icon.png"
+  image_path: "assets/images/icon_launcher.png"
   min_sdk_android: 21
   adaptive_icon_background: "#164772"
-  adaptive_icon_foreground: "assets/icons/app_icon.png"
+  adaptive_icon_foreground: "assets/icons/icon_launcher.png"
   web:
     generate: true
-    image_path: "assets/icons/app_icon.png"
+    image_path: "assets/icons/icon_launcher.png"
     background_color: "#164772"
     theme_color: "#164772"
 

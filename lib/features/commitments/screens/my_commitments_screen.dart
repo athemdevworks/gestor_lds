@@ -26,7 +26,7 @@ class _MyCommitmentsScreenState extends State<MyCommitmentsScreen> with SingleTi
   @override
   Widget build(BuildContext context) {
     // Color corporativo (puedes usar Theme.of(context).primaryColor si prefieres)
-    const brandBlue = Color(0xFF164772);
+    const brandBlue = Color(0xFF22539A);
 
     return Scaffold(
       appBar: AppBar(

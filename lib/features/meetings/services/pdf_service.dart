@@ -11,7 +11,7 @@ import 'package:printing/printing.dart';
 class PdfService {
 
   // Color Azul Corporativo
-  final PdfColor brandColor = PdfColor.fromInt(0xFF164772);
+  final PdfColor brandColor = PdfColor.fromInt(0xFF22539A);
 
   Future<Uint8List> generateAgendaPdf(MeetingModel meeting) async {
     final pdf = pw.Document();

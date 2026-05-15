@@ -51,7 +51,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Comunicaciones'),
-        backgroundColor: const Color(0xFF164772), // Tu brandBlue
+        backgroundColor: const Color(0xFF22539A), // Tu brandBlue
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -133,7 +133,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
                   icon: const Icon(Icons.picture_as_pdf),
                   label: const Text('PDF Formal'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF164772),
+                      backgroundColor: const Color(0xFF22539A),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16)
                   ),

@@ -9,7 +9,7 @@ import 'package:printing/printing.dart';
 class BudgetPdfService {
 
   // Color Corporativo
-  final PdfColor brandColor = PdfColor.fromInt(0xFF164772);
+  final PdfColor brandColor = PdfColor.fromInt(0xFF22539A);
 
   Future<Uint8List> generateActivityBudgetPdf(ActivityBudgetModel budget) async {
     final pdf = pw.Document();

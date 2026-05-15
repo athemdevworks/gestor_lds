@@ -20,7 +20,7 @@ class ManagerDashboardScreen extends StatefulWidget {
 
 class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   final StatisticsService _statsService = StatisticsService();
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   Map<String, int>? _commitmentsStats;
   Map<String, double>? _budgetStats;
@@ -410,7 +410,7 @@ class FamilyHistoryStatsPanel extends StatefulWidget {
 }
 
 class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
 
   String _mesSeleccionado = DateTime.now().month.toString().padLeft(2, '0');
   String _barrioSeleccionado = 'Todos';

@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+
 import 'package:gestor_lds/features/auth/models/user_model.dart';
-import 'package:gestor_lds/features/members/models/member_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -65,20 +64,22 @@ class AuthService {
     }
   }
 
-  // --- 4. REGISTRO ESTÁNDAR (Dual-Write) ---
+  // --- 4. REGISTRO ESTÁNDAR (Reclamo de Ficha) ---
   Future<User?> registerUser({
     required String email,
     required String password,
     required String username,
-    required String firstName, // ✅ Cambiado a Inglés
-    required String lastName,  // ✅ Cambiado a Inglés
-    required String calling,
-    required String organization,
-    required String ward,      // ✅ El ward está aquí
+    required String firstName,
+    required String lastName,
+    required String gender,
+    required bool isYSA,
+    required String organization, // Su clase dominical (Ej. Cuórum de Élderes)
+    required List<String> callingOrganizations, // 🚀 AHORA ES LISTA
+    required List<String> callings,             // 🚀 AHORA ES LISTA
+    required String ward,
     required UserRole role,
-    String? phoneNumber,
+    String? phone,
     DateTime? birthDate,
-    String? memberId,
   }) async {
     try {
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -95,32 +96,31 @@ class AuthService {
           uid: user.uid,
           email: email,
           username: cleanUsername,
-          firstName: firstName, // ✅ Actualizado
-          lastName: lastName,   // ✅ Actualizado
-          calling: calling,
+          firstName: firstName,
+          lastName: lastName,
+          gender: gender,
+          isYSA: isYSA,
           organization: organization,
-          ward: ward,           // ✅ Actualizado
+          callingOrganizations: callingOrganizations, // 🚀 Asignamos la lista
+          callings: callings,                         // 🚀 Asignamos la lista
+          ward: ward,
           role: role,
           isApproved: false,
           isActive: true,
-          memberId: memberId,
-          phoneNumber: phoneNumber,
+          isRegistered: true,
+          phone: phone,
           birthDate: birthDate,
         );
 
+        // Guardamos el perfil en Firestore
         await _db.collection('users').doc(user.uid).set(newUser.toMap());
 
+        // Guardamos el Username para el login inteligente
         await _db.collection('usernames').doc(cleanUsername).set({
           'email': email,
           'uid': user.uid,
         });
 
-        if (memberId != null) {
-          await _db.collection('members').doc(memberId).update({
-            'relatedUserId': user.uid,
-            'email': email,
-          });
-        }
         return user;
       }
     } on FirebaseAuthException catch (e) {
@@ -131,72 +131,14 @@ class AuthService {
     return null;
   }
 
-  // --- 5. CREAR USUARIO PARA UN MIEMBRO (Dual-Write) ---
-  Future<void> createAccountForMember({
-    required MemberModel member,
-    required String email,
-    required String password,
-    required UserRole role,
-    required String username,
-  }) async {
-    FirebaseApp? tempApp;
-    try {
-      tempApp = await Firebase.initializeApp(
-        name: 'TemporaryRegisterApp',
-        options: Firebase.app().options,
-      );
-
-      UserCredential result = await FirebaseAuth.instanceFor(app: tempApp)
-          .createUserWithEmailAndPassword(email: email, password: password);
-
-      final String newUid = result.user!.uid;
-      final cleanUsername = username.trim().toLowerCase();
-
-      final newUser = UserModel(
-        uid: newUid,
-        email: email,
-        username: cleanUsername,
-        firstName: member.firstName, // ✅ Cambiado a Inglés y extraído del member
-        lastName: member.lastName,   // ✅ Cambiado a Inglés y extraído del member
-        calling: member.calling ?? 'Sin Llamamiento',
-        organization: member.servingOrganization ?? member.primaryOrganization,
-        ward: member.ward,           // ✅ Extrae automáticamente el barrio del miembro
-        role: role,
-        isApproved: true,
-        isActive: true,
-        memberId: member.id,
-        phoneNumber: member.phone,
-        birthDate: member.birthDate,
-      );
-
-      await _db.collection('users').doc(newUid).set(newUser.toMap());
-
-      await _db.collection('usernames').doc(cleanUsername).set({
-        'email': email,
-        'uid': newUid,
-      });
-
-      await _db.collection('members').doc(member.id).update({
-        'relatedUserId': newUid,
-        'email': email,
-      });
-
-      await tempApp.delete();
-
-    } catch (e) {
-      if (tempApp != null) await tempApp.delete();
-      throw 'Error al crear usuario para miembro: $e';
-    }
-  }
-
-  // --- 6. CONTROL DE ACCESO ---
+  // --- 5. CONTROL DE ACCESO ---
   Future<void> toggleUserAccess(String uid, bool isActive) async {
     await _db.collection('users').doc(uid).update({
       'isActive': isActive,
     });
   }
 
-  // --- 7. UTILS Y RECUPERACIÓN ---
+  // --- 6. UTILS Y RECUPERACIÓN ---
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);

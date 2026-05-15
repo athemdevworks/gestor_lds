@@ -40,11 +40,13 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    const brandBlue = Color(0xFF164772);
+    const brandBlue = Color(0xFF22539A);
     // 🚀 Lógica de permisos limpia
     final bool canManageActivities = widget.currentUser.role == UserRole.admin ||
         widget.currentUser.role == UserRole.obispado ||
-        widget.currentUser.role == UserRole.lider;
+        widget.currentUser.role == UserRole.lider_estaca||
+        widget.currentUser.role == UserRole.lider_barrio;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -404,7 +406,7 @@ Organiza: ${activity.organization}
       case 'Templo e Historia Familiar': return Colors.cyan.shade700;
       case 'Obra Misional': return Colors.orange.shade700;
       case 'Obispado': return Colors.deepPurple.shade700;
-      default: return const Color(0xFF164772); // Brand Blue genérico
+      default: return const Color(0xFF22539A); // Brand Blue genérico
     }
   }
 

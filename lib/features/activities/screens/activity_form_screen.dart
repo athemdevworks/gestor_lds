@@ -116,7 +116,7 @@ class _ActivityFormScreenState extends State<ActivityFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const brandBlue = Color(0xFF164772);
+    const brandBlue = Color(0xFF22539A);
 
     return Scaffold(
       appBar: AppBar(

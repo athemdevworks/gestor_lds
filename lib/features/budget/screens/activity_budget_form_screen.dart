@@ -112,7 +112,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hoja de Presupuesto'),
-        backgroundColor: const Color(0xFF164772), // Azul Corporativo
+        backgroundColor: const Color(0xFF22539A), // Azul Corporativo
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -334,7 +334,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                 child: ElevatedButton(
                   onPressed: _saveBudget,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF164772),
+                    backgroundColor: const Color(0xFF22539A),
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('GUARDAR Y GENERAR PDF', style: TextStyle(fontSize: 16)),
@@ -352,9 +352,9 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF164772)),
+        Icon(icon, color: const Color(0xFF22539A)),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF164772))),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF22539A))),
       ],
     );
   }

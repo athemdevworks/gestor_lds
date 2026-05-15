@@ -81,7 +81,7 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     // Color corporativo
-    const brandBlue = Color(0xFF164772);
+    const brandBlue = Color(0xFF22539A);
 
     return Scaffold(
       appBar: AppBar(
@@ -181,7 +181,7 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
             return true;
           }
           // CASO 2: Líder de Organización
-          if (widget.currentUser.role == UserRole.lider) {
+          if (widget.currentUser.role == UserRole.lider_barrio || widget.currentUser.role == UserRole.lider_estaca) {
             if (meeting.type == MeetingType.wardCouncil) return true;
             if (meeting.organization == widget.currentUser.organization) return true;
           }
@@ -247,7 +247,7 @@ class _MeetingsListScreenState extends State<MeetingsListScreen> with SingleTick
   // Helpers visuales
   Color _getColorForType(MeetingType type) {
     switch (type) {
-      case MeetingType.bishopric: return const Color(0xFF164772);
+      case MeetingType.bishopric: return const Color(0xFF22539A);
       case MeetingType.wardCouncil: return Colors.orange.shade800;
       case MeetingType.presidency: return Colors.green.shade700;
       case MeetingType.sacramental: return Colors.purple.shade700;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/registration_screen.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,7 +13,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final Color _brandBlue = const Color(0xFF164772); // 🚀 Color corporativo
+  final Color _brandBlue = const Color(0xFF22539A); // 🚀 Color corporativo
 
   // Controladores
   final TextEditingController _emailController = TextEditingController();
@@ -144,11 +145,13 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: const Color(0xFFEEF2F6), // 🚀 Fondo unificado
       appBar: AppBar(
         backgroundColor: _brandBlue, // 🚀 Usamos la variable local por si el Theme falla
-        title: Image.asset(
-          'assets/images/logont.png',
-          height: 40,
-          color: Colors.white,
-          fit: BoxFit.contain,
+        title: SvgPicture.asset(
+          'images/logo-hor.svg',
+          height: 45,
+          colorFilter: const ColorFilter.mode(
+            Colors.white,
+            BlendMode.srcIn,
+          ),
         ),
         centerTitle: true,
         elevation: 0,
@@ -171,7 +174,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Icon(Icons.account_circle, size: 60, color: _brandBlue.withOpacity(0.8)),
+                        SvgPicture.asset(
+                          'images/glds-isotipo.svg', // Tu logo vertical
+                          height: 130,            // 🚀 Aquí controlas qué tan "grande" se ve
+                          fit: BoxFit.contain,
+                        ),
                         const SizedBox(height: 10),
                         Text(
                           'Portal de Acceso', // 🚀 Texto más corporativo

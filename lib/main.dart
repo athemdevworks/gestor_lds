@@ -10,7 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/auth/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
 import 'package:gestor_lds/features/auth/screens/pending_access_screen.dart';
-import 'package:gestor_lds/features/dashboard/home_screen.dart';
+import 'package:gestor_lds/features/dashboard/screens/home_screen.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 
 // 🚀 NUEVA IMPORTACIÓN: Agregamos la pantalla de estadísticas para las rutas
@@ -47,7 +47,7 @@ class GestorLDSApp extends StatelessWidget {
           scaffoldBackgroundColor: Colors.white,
           colorScheme: const ColorScheme(
             brightness: Brightness.light,
-            primary: Color(0xFF164772),
+            primary: Color(0xFF22539A),
             onPrimary: Colors.white,
             secondary: Colors.black,
             onSecondary: Colors.white,
@@ -57,14 +57,14 @@ class GestorLDSApp extends StatelessWidget {
             onSurface: Colors.black,
           ),
           appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF164772),
+            backgroundColor: Color(0xFF22539A),
             foregroundColor: Colors.white,
             elevation: 0,
             centerTitle: true,
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF164772),
+              backgroundColor: const Color(0xFF22539A),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -76,7 +76,7 @@ class GestorLDSApp extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF164772), width: 2),
+              borderSide: const BorderSide(color: Color(0xFF22539A), width: 2),
             ),
             labelStyle: const TextStyle(color: Color(0xFF999999)),
           ),

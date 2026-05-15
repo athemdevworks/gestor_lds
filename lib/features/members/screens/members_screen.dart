@@ -24,7 +24,7 @@ class _MembersScreenState extends State<MembersScreen> {
   String _generoFiltro = 'Todos'; // 'Todos', 'M', 'F'
   bool _soloJAS = false;
 
-  final Color _brandBlue = const Color(0xFF164772);
+  final Color _brandBlue = const Color(0xFF22539A);
   final Color _brandGold = const Color(0xFFD4AF37);
 
   @override
