@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/services/auth_service.dart';
 
 class PendingAccessScreen extends StatelessWidget {
   const PendingAccessScreen({super.key});

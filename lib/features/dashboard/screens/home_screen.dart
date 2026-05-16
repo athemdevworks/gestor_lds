@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 
-import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/features/auth/screens/user_management_screen.dart';
 import 'package:gestor_lds/features/meetings/screens/meetings_list_screen.dart';
@@ -277,7 +277,7 @@ class HomeScreen extends StatelessWidget {
                     isWideScreen,
                     children: [
                       _DashboardCard(
-                        title: 'ESTADISTICAS',
+                        title: 'REPORTES',
                         subtitle: 'Panel de métricas y rendimiento',
                         icon: Icons.pie_chart_rounded,
                         iconColor: Colors.amber.shade700,

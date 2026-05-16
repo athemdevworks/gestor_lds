@@ -26,10 +26,12 @@ class FamilyHistoryListScreen extends StatefulWidget {
 class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
   final Color _brandBlue = const Color(0xFF22539A);
 
-  // Variables de filtro locales para que funcionen dentro de esta pantalla
   late String _barrio;
   late String _mes;
   late String _org;
+
+  // 🚀 TÁCTICA AÑO DINÁMICO
+  final int _anioActual = DateTime.now().year;
 
   @override
   void initState() {
@@ -67,7 +69,7 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                             items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
                             onChanged: (val) {
                               setModalState(() => _barrio = val!);
-                              setState(() {}); // Actualiza la lista de fondo
+                              setState(() {});
                             },
                           ),
                         ),
@@ -113,10 +115,13 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Query query = FirebaseFirestore.instance.collection('members');
+    // 🚀 REDIRECCIÓN TÁCTICA A LA COLECCIÓN UNIFICADA "USERS"
+    Query query = FirebaseFirestore.instance.collection('users');
     if (_barrio != 'Todos') {
       query = query.where('ward', isEqualTo: _barrio);
     }
+
+    final String keyRegistroAnio = 'registro_$_anioActual';
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
@@ -131,7 +136,6 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
       ),
       body: Column(
         children: [
-          // RESUMEN DE FILTROS
           Container(
             padding: const EdgeInsets.all(12),
             color: Colors.white,
@@ -149,22 +153,23 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
               stream: query.snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return Center(child: Text('No hay registros disponibles.', style: TextStyle(color: Colors.grey.shade600)));
 
-                // Filtrado local inteligente
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
 
-                  // 1. Filtro de la meta específica
-                  final reg = data['registro_2026'] as Map<String, dynamic>? ?? {};
+                  // 1. Filtro de la meta específica usando el AÑO DINÁMICO
+                  final reg = data[keyRegistroAnio] as Map<String, dynamic>? ?? {};
                   final mesData = reg[_mes] as Map<String, dynamic>? ?? {};
                   if (mesData[widget.fieldKey] != true) return false;
 
-                  // 2. Filtro demográfico
+                  // 2. Filtro demográfico usando la nueva propiedad 'organization'
+                  final userOrg = data['organization'] ?? 'Miembro General';
                   if (_org == 'JAS' && data['isYSA'] != true) return false;
                   if (_org == 'Hombres' && data['gender'] != 'M') return false;
                   if (_org == 'Mujeres' && data['gender'] != 'F') return false;
-                  if (_org == 'Jóvenes' && !['Hombres Jóvenes', 'Mujeres Jóvenes'].contains(data['primaryOrganization'])) return false;
-                  if (kOrganizationsList.contains(_org) && data['primaryOrganization'] != _org) return false;
+                  if (_org == 'Jóvenes' && !['Hombres Jóvenes', 'Mujeres Jóvenes'].contains(userOrg)) return false;
+                  if (kOrganizationsList.contains(_org) && userOrg != _org) return false;
 
                   return true;
                 }).toList();
@@ -173,12 +178,20 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                   return Center(child: Text('No hay registros con estos filtros.', style: TextStyle(color: Colors.grey.shade600)));
                 }
 
+                // Ordenamos alfabéticamente por apellido
+                filteredDocs.sort((a, b) {
+                  String nameA = (a.data() as Map<String, dynamic>)['lastName'] ?? '';
+                  String nameB = (b.data() as Map<String, dynamic>)['lastName'] ?? '';
+                  return nameA.compareTo(nameB);
+                });
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: filteredDocs.length,
                   itemBuilder: (context, index) {
                     final data = filteredDocs[index].data() as Map<String, dynamic>;
                     final isMale = data['gender'] == 'M';
+                    final userOrg = data['organization'] ?? 'Miembro General';
 
                     return Card(
                       elevation: 2,
@@ -190,8 +203,7 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                           child: Icon(Icons.person, color: isMale ? Colors.blue : Colors.pink, size: 20),
                         ),
                         title: Text("${data['firstName']} ${data['lastName']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        // 🚀 AQUÍ INDICAMOS EL BARRIO Y ORGANIZACIÓN
-                        subtitle: Text("${data['ward']} • ${data['primaryOrganization']}", style: const TextStyle(fontSize: 12)),
+                        subtitle: Text("${data['ward']} • $userOrg", style: const TextStyle(fontSize: 12)),
                         trailing: const Icon(Icons.check_circle, color: Colors.green, size: 20),
                       ),
                     );

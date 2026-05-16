@@ -7,9 +7,10 @@ import 'package:gestor_lds/features/statistics/screens/speaker_list_screen.dart'
 import 'package:gestor_lds/features/statistics/services/statistics_service.dart';
 import 'package:gestor_lds/features/statistics/screens/hymn_list_screen.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
-import 'package:gestor_lds/core/constants/organizations_list.dart'; // 🚀 Importante para los nuevos filtros
+import 'package:gestor_lds/core/constants/organizations_list.dart';
 
 import 'family_history_list_screen.dart';
+import 'family_history_report_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({super.key});
@@ -62,7 +63,8 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
-        title: const Text('Panel Manager', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        // 🚀 CAMBIO DE NOMBRE DE MANAGER A REPORTES
+        title: const Text('Panel de Reportes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -372,14 +374,9 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   }
 
   void _mostrarPanelHistoriaFamiliar() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
-      builder: (context) => const Padding(
-        padding: EdgeInsets.only(top: 10),
-        child: FamilyHistoryStatsPanel(),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FamilyHistoryReportScreen()),
     );
   }
 }
@@ -400,7 +397,7 @@ Widget _legendIndicator(Color color, String text) {
 }
 
 // ============================================================================
-// 🚀 PANEL DE HISTORIA FAMILIAR (REDISEÑADO CON FILTRO EMERGENTE)
+// 🚀 PANEL DE HISTORIA FAMILIAR REDISEÑADO CON INDICADORES Y HISTÓRICO EN VIVO
 // ============================================================================
 class FamilyHistoryStatsPanel extends StatefulWidget {
   const FamilyHistoryStatsPanel({super.key});
@@ -414,19 +411,19 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
 
   String _mesSeleccionado = DateTime.now().month.toString().padLeft(2, '0');
   String _barrioSeleccionado = 'Todos';
-  String _filtroOrganizacion = 'Todos'; // 🚀 Nuevo filtro demográfico
+  String _filtroOrganizacion = 'Todos';
+
+  final int _anioActual = DateTime.now().year;
 
   final Map<String, String> _nombresMeses = {
-    '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
-    '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
-    '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
+    '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr', '05': 'May', '06': 'Jun',
+    '07': 'Jul', '08': 'Ago', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
   };
 
   final List<String> _opcionesDemograficas = [
     'Todos', 'JAS', 'Hombres', 'Mujeres', 'Jóvenes', ...kOrganizationsList
   ];
 
-  // 🚀 EL PANEL DE FILTROS SECUNDARIO
   void _mostrarFiltros() {
     showModalBottomSheet(
         context: context,
@@ -447,7 +444,6 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
                       const Text('Filtros de Estadísticas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 20),
 
-                      // Fila: Barrio y Mes
                       Row(
                         children: [
                           Expanded(
@@ -457,7 +453,7 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
                               items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
                               onChanged: (val) {
                                 setModalState(() => _barrioSeleccionado = val!);
-                                setState(() {}); // Refresca el panel de atrás
+                                setState(() {});
                               },
                             ),
                           ),
@@ -478,7 +474,6 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Filtro Demográfico
                       DropdownButtonFormField<String>(
                         value: _filtroOrganizacion,
                         decoration: InputDecoration(labelText: 'Organización', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
@@ -511,17 +506,20 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    Query query = FirebaseFirestore.instance.collection('members');
+    // 🚀 REDIRECCIÓN A LA COLECCIÓN UNIFICADA USERS
+    Query query = FirebaseFirestore.instance.collection('users');
     if (_barrioSeleccionado != 'Todos') {
       query = query.where('ward', isEqualTo: _barrioSeleccionado);
     }
+
+    final String keyRegistroAnio = 'registro_$_anioActual';
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // CABECERA LIMPIA
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -533,7 +531,6 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
             ],
           ),
 
-          // ETIQUETAS DE FILTROS ACTIVOS
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -546,70 +543,122 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
           ),
           const SizedBox(height: 20),
 
-          // 🚀 CÁLCULO EN VIVO CON FILTRO DEMOGRÁFICO
           StreamBuilder<QuerySnapshot>(
             stream: query.snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const LinearProgressIndicator();
 
-              List<String> listLogin = [];
-              List<String> listArbol = [];
-              List<String> listRecuerdos = [];
-              List<String> listTemplo = [];
-              List<String> list4Gen = [];
+              final usersDocs = snapshot.data!.docs;
 
-              for (var doc in snapshot.data!.docs) {
+              int loginFsCount = 0;
+              int arbolCrecidoCount = 0;
+              int recuerdosCount = 0;
+              int nombresTemploCount = 0;
+              int cuatroGeneracionesCount = 0;
+              int totalFiltrado = 0;
+
+              // Histórico dinámico automatizado de últimos 4 meses
+              List<String> ultimosMesesKeys = [];
+              int mesInt = int.parse(_mesSeleccionado);
+              for (int i = 3; i >= 0; i--) {
+                int targetMonth = mesInt - i;
+                if (targetMonth > 0) {
+                  ultimosMesesKeys.add(targetMonth.toString().padLeft(2, '0'));
+                }
+              }
+              Map<String, int> metasPorMes = { for (var k in ultimosMesesKeys) k : 0 };
+
+              for (var doc in usersDocs) {
                 var data = doc.data() as Map<String, dynamic>;
 
-                // 🚀 Aplicamos el filtro demográfico a las estadísticas
-                bool esJAS = data['isYSA'] == true;
-                if (_filtroOrganizacion == 'JAS' && !esJAS) continue;
-                else if (_filtroOrganizacion == 'Hombres' && data['gender'] != 'M') continue;
-                else if (_filtroOrganizacion == 'Mujeres' && data['gender'] != 'F') continue;
-                else if (_filtroOrganizacion == 'Jóvenes') {
-                  bool esJoven = ['Mujeres Jóvenes', 'Hombres Jóvenes'].contains(data['primaryOrganization']);
-                  if (!esJoven) continue;
-                }
-                else if (_filtroOrganizacion != 'Todos' && kOrganizationsList.contains(_filtroOrganizacion)) {
-                  if (data['primaryOrganization'] != _filtroOrganizacion) continue;
-                }
+                // Filtro Demográfico
+                bool esYSA = data['isYSA'] == true;
+                String userOrg = data['organization'] ?? 'Miembro General';
+                if (_filtroOrganizacion == 'JAS' && !esYSA) continue;
+                if (_filtroOrganizacion == 'Hombres' && data['gender'] != 'M') continue;
+                if (_filtroOrganizacion == 'Mujeres' && data['gender'] != 'F') continue;
+                if (_filtroOrganizacion == 'Jóvenes' && !['Mujeres Jóvenes', 'Hombres Jóvenes'].contains(userOrg)) continue;
+                if (_filtroOrganizacion != 'Todos' && kOrganizationsList.contains(_filtroOrganizacion) && userOrg != _filtroOrganizacion) continue;
 
-                // Si pasa el filtro, medimos sus metas
-                var reg = data['registro_2026'] as Map<String, dynamic>? ?? {};
-                var mesData = reg[_mesSeleccionado] as Map<String, dynamic>? ?? {};
-                String fullName = "${data['lastName']}, ${data['firstName']}";
+                totalFiltrado++;
 
-                if (mesData['login_fs'] == true) listLogin.add(fullName);
-                if (mesData['arbol_crecido'] == true) listArbol.add(fullName);
-                if (mesData['recuerdos'] == true) listRecuerdos.add(fullName);
-                if (mesData['nombres_templo'] == true) listTemplo.add(fullName);
-                if (mesData['cuatro_generaciones'] == true) list4Gen.add(fullName);
+                var regAnio = data[keyRegistroAnio] as Map<String, dynamic>? ?? {};
+
+                // Conteo mes seleccionado
+                var mesData = regAnio[_mesSeleccionado] as Map<String, dynamic>? ?? {};
+                if (mesData['login_fs'] == true) loginFsCount++;
+                if (mesData['arbol_crecido'] == true) arbolCrecidoCount++;
+                if (mesData['recuerdos'] == true) recuerdosCount++;
+                if (mesData['nombres_templo'] == true) nombresTemploCount++;
+                if (mesData['cuatro_generaciones'] == true) cuatroGeneracionesCount++;
+
+                // Conteo histórico acumulado por mes
+                for (String mKey in ultimosMesesKeys) {
+                  var mData = regAnio[mKey] as Map<String, dynamic>? ?? {};
+                  int checks = 0;
+                  if (mData['login_fs'] == true) checks++;
+                  if (mData['arbol_crecido'] == true) checks++;
+                  if (mData['recuerdos'] == true) checks++;
+                  if (mData['nombres_templo'] == true) checks++;
+                  if (mData['cuatro_generaciones'] == true) checks++;
+                  metasPorMes[mKey] = (metasPorMes[mKey] ?? 0) + checks;
+                }
               }
 
-              return GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                childAspectRatio: 2.2,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                physics: const NeverScrollableScrollPhysics(),
+              int maxMetas = metasPorMes.values.fold(1, (max, e) => e > max ? e : max);
+
+              if (totalFiltrado == 0) {
+                return const Center(child: Padding(padding: EdgeInsets.all(20), child: Text('No hay miembros que coincidan con los filtros.', style: TextStyle(fontStyle: FontStyle.italic))));
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _miniCard('Inició Sesión FS', listLogin, Colors.blue),
-                  _miniCard('Agregó Antepasado', listArbol, Colors.green),
-                  _miniCard('Agregó Recuerdo', listRecuerdos, Colors.orange),
-                  _miniCard('Enviar un Nombre', listTemplo, Colors.purple),
-                  _miniCard('4 Generaciones', list4Gen, Colors.teal),
+                  _buildMetricRow('Sesión en FamilySearch', loginFsCount, totalFiltrado, Colors.blue),
+                  _buildMetricRow('Antepasados agregados', arbolCrecidoCount, totalFiltrado, Colors.orange),
+                  _buildMetricRow('Recuerdos subidos', recuerdosCount, totalFiltrado, Colors.purple),
+                  _buildMetricRow('Nombres enviados al Templo', nombresTemploCount, totalFiltrado, Colors.green),
+                  _buildMetricRow('4 Generaciones completas', cuatroGeneracionesCount, totalFiltrado, Colors.teal),
+
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider()),
+                  const Text('LOGROS ACUMULADOS ÚLTIMOS MESES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black45, letterSpacing: 1.1)),
+                  const SizedBox(height: 15),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: ultimosMesesKeys.map((mKey) {
+                      final int totalMetas = metasPorMes[mKey] ?? 0;
+                      final double barraHeight = (totalMetas / maxMetas) * 60;
+
+                      return Column(
+                        children: [
+                          Text('$totalMetas', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: mKey == _mesSeleccionado ? _brandBlue : Colors.black54)),
+                          const SizedBox(height: 4),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 400),
+                            width: 24,
+                            height: barraHeight < 4 ? 4 : barraHeight,
+                            decoration: BoxDecoration(
+                              color: mKey == _mesSeleccionado ? _brandBlue : _brandBlue.withOpacity(0.3),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(_nombresMeses[mKey] ?? '', style: TextStyle(fontSize: 10, fontWeight: mKey == _mesSeleccionado ? FontWeight.bold : FontWeight.normal, color: mKey == _mesSeleccionado ? _brandBlue : Colors.black54)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ],
               );
             },
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // WIDGETS AUXILIARES
   Widget _buildFiltroTag(IconData icon, String text) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -630,38 +679,30 @@ class _FamilyHistoryStatsPanelState extends State<FamilyHistoryStatsPanel> {
     );
   }
 
-  Widget _miniCard(String label, List<String> list, Color col) {
-    return InkWell(
-      onTap: () {
-        String key = "";
-        if (label == 'Inició Sesión FS') key = 'login_fs';
-        if (label == 'Agregó Antepasado') key = 'arbol_crecido';
-        if (label == 'Agregó Recuerdo') key = 'recuerdos';
-        if (label == 'Enviar un Nombre') key = 'nombres_templo';
-        if (label == '4 Generaciones') key = 'cuatro_generaciones';
-
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FamilyHistoryListScreen(
-              title: label,
-              fieldKey: key, // Pasamos la llave de Firebase
-              initialWard: _barrioSeleccionado,
-              initialMonth: _mesSeleccionado,
-              initialOrg: _filtroOrganizacion,
+  Widget _buildMetricRow(String title, int count, int total, Color color) {
+    final double porcentaje = total > 0 ? count / total : 0.0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+              Text('$count (${(porcentaje * 100).toStringAsFixed(0)}%)', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: porcentaje,
+              backgroundColor: color.withOpacity(0.1),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 5,
             ),
           ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(color: col.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: col.withOpacity(0.2))),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(list.length.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: col)),
-            Text(label, textAlign: TextAlign.center, style: TextStyle(fontSize: 10, color: col.withOpacity(0.8), fontWeight: FontWeight.bold)),
-          ],
-        ),
+        ],
       ),
     );
   }

@@ -6,8 +6,8 @@ class UserAutocompleteField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData? icon;
-  final Function(UserModel)? onUserSelected; // Callback para devolver todo el objeto
-  final String? wardFilter; // 🚀 EXTRA: Por si quieres que solo busque en un barrio específico
+  final Function(UserModel)? onUserSelected;
+  final String? wardFilter;
 
   const UserAutocompleteField({
     super.key,
@@ -32,12 +32,11 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
     _loadUsers();
   }
 
-  // 🚀 Carga inicial optimizada desde nuestra nueva colección
+  // 🚀 CARGA OPTIMIZADA (Ahora trae a TODOS los miembros, usen la app o no)
   Future<void> _loadUsers() async {
     try {
-      Query query = FirebaseFirestore.instance
-          .collection('users')
-          .where('isApproved', isEqualTo: true); // Solo buscamos gente validada
+      // 🚀 QUITAMOS LA RESTRICCIÓN DE isApproved
+      Query query = FirebaseFirestore.instance.collection('users');
 
       if (widget.wardFilter != null) {
         query = query.where('ward', isEqualTo: widget.wardFilter);
@@ -47,7 +46,16 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
 
       if (mounted) {
         setState(() {
-          _allUsers = snapshot.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+          // 🚀 ESCUDO TÁCTICO: Si una ficha del JSON está incompleta, la salta en lugar de romper toda la lista
+          _allUsers = snapshot.docs.map((doc) {
+            try {
+              return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+            } catch (e) {
+              debugPrint('Error parseando usuario (Ignorado): $e');
+              return null;
+            }
+          }).whereType<UserModel>().toList(); // Filtramos los nulos
+
           _isLoading = false;
         });
       }
@@ -61,7 +69,7 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
     }
   }
 
-  // 🚀 Lógica de filtrado local (Súper rápida) adaptada al UserModel
+  // Lógica de filtrado local
   List<UserModel> _getSuggestions(String query) {
     final lowerQuery = query.toLowerCase();
     return _allUsers.where((user) {
@@ -74,16 +82,14 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const LinearProgressIndicator(minHeight: 2); // Feedback visual de carga
+      return const LinearProgressIndicator(minHeight: 2);
     }
 
     return LayoutBuilder(
         builder: (context, constraints) {
           return Autocomplete<UserModel>(
-            // 1. Qué mostramos en el Input tras seleccionar
             displayStringForOption: (UserModel option) => '${option.firstName} ${option.lastName}',
 
-            // 2. Lógica de búsqueda
             optionsBuilder: (TextEditingValue textEditingValue) {
               if (textEditingValue.text.isEmpty) {
                 return const Iterable<UserModel>.empty();
@@ -91,7 +97,6 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
               return _getSuggestions(textEditingValue.text);
             },
 
-            // 3. Acción al seleccionar
             onSelected: (UserModel selection) {
               widget.controller.text = '${selection.firstName} ${selection.lastName}';
               if (widget.onUserSelected != null) {
@@ -99,7 +104,6 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
               }
             },
 
-            // 4. Input Field Personalizado
             fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
               if (widget.controller.text.isNotEmpty && textController.text.isEmpty) {
                 textController.text = widget.controller.text;
@@ -125,7 +129,6 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
               );
             },
 
-            // 5. Lista Desplegable Personalizada
             optionsViewBuilder: (context, onSelected, options) {
               return Align(
                 alignment: Alignment.topLeft,
@@ -148,7 +151,6 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
                         final UserModel option = options.elementAt(index);
                         final isMale = option.gender == 'M';
 
-                        // 🚀 Construimos subtítulo con las listas del UserModel
                         String subText = option.organization;
                         if (option.primaryCalling.isNotEmpty && option.primaryCalling != 'Ninguno') {
                           subText += " • ${option.primaryCalling}";

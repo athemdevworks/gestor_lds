@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/features/members/models/member_model.dart';
-import 'package:gestor_lds/features/members/services/member_service.dart';
-import 'package:gestor_lds/core/constants/wards_list.dart';
-// 🚀 IMPORTAMOS TU MAPA DE CONSTRAINTS DESDE SU ARCHIVO
-import 'package:gestor_lds/core/constants/callings_ward_list.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-import '../../../core/constants/organizations_list.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+import 'package:gestor_lds/core/constants/wards_list.dart';
+import 'package:gestor_lds/core/constants/organizations_list.dart';
+import 'package:gestor_lds/core/constants/callings_ward_list.dart';
+import 'package:gestor_lds/core/constants/callings_stake_list.dart';
 
 class MemberFormScreen extends StatefulWidget {
-  final MemberModel? memberToEdit;
+  final UserModel? memberToEdit;
 
   const MemberFormScreen({super.key, this.memberToEdit});
 
@@ -19,7 +19,6 @@ class MemberFormScreen extends StatefulWidget {
 
 class _MemberFormScreenState extends State<MemberFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final MemberService _memberService = MemberService();
   final Color _brandBlue = const Color(0xFF22539A);
 
   // Controladores
@@ -28,7 +27,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _birthDateCtrl = TextEditingController();
-  final _callingCtrl = TextEditingController(); // Usado si el llamamiento es "Otro"
+  final _callingCtrl = TextEditingController();
 
   // Variables de Estado
   String _gender = 'M';
@@ -36,7 +35,9 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   bool _isLoading = false;
   bool _isYSA = false;
 
-  // 🚀 VARIABLES DEL DOBLE PIVOTE
+  bool _isStakeCalling = false;
+
+  // Variables del Doble Pivote
   String? _selectedWard;
   String _primaryOrganization = 'Miembro General';
   String _servingOrganization = 'Miembro General';
@@ -51,48 +52,50 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
   }
 
   void _loadExistingData() {
-    final m = widget.memberToEdit!;
-    _firstNameCtrl.text = m.firstName;
-    _lastNameCtrl.text = m.lastName;
-    _phoneCtrl.text = m.phone ?? '';
-    _emailCtrl.text = m.email ?? '';
-    _gender = m.gender;
-    _isYSA = m.isYSA;
+    final u = widget.memberToEdit!;
+    _firstNameCtrl.text = u.firstName;
+    _lastNameCtrl.text = u.lastName;
+    _phoneCtrl.text = u.phoneNumber ?? ''; // Asumiendo phoneNumber según el modelo
+    _emailCtrl.text = u.email ?? '';
+    _gender = u.gender;
+    _isYSA = u.isYSA;
 
-    // Barrio
-    if (kWardsList.contains(m.ward)) {
-      _selectedWard = m.ward;
+    if (kWardsList.contains(u.ward)) {
+      _selectedWard = u.ward;
     }
 
-// 🚀 1. Cargar Organización Principal (Validado contra kOrganizationsList)
-    if (kOrganizationsList.contains(m.primaryOrganization)) {
-      _primaryOrganization = m.primaryOrganization;
-    } else {
-      _primaryOrganization = 'Miembro General'; // Fallback por seguridad
+    if (kOrganizationsList.contains(u.organization)) {
+      _primaryOrganization = u.organization;
     }
 
-    // 🚀 2. Cargar Organización de Llamamiento (Validado contra kLdsStructure)
-    String servingOrg = m.servingOrganization ?? m.primaryOrganization;
-    if (kLdsStructure.containsKey(servingOrg)) {
+    String servingOrg = u.callingOrganizations.isNotEmpty ? u.callingOrganizations.first : u.organization;
+
+    if (kStakeStructure.containsKey(servingOrg)) {
+      _isStakeCalling = true;
+      _servingOrganization = servingOrg;
+    } else if (kLdsStructure.containsKey(servingOrg)) {
+      _isStakeCalling = false;
       _servingOrganization = servingOrg;
     } else {
-      _servingOrganization = 'Miembro General'; // Fallback por seguridad
+      _servingOrganization = 'Miembro General';
     }
 
-    // 3. Cargar Llamamiento
-    if (m.calling != null && m.calling!.isNotEmpty) {
-      final availableCallings = kLdsStructure[_servingOrganization] ?? [];
-      if (availableCallings.contains(m.calling)) {
-        _selectedCalling = m.calling;
+    String primaryCall = u.primaryCalling;
+    if (primaryCall.isNotEmpty && primaryCall != 'Ninguno') {
+      final currentMap = _isStakeCalling ? kStakeStructure : kLdsStructure;
+      final availableCallings = currentMap[_servingOrganization] ?? [];
+
+      if (availableCallings.contains(primaryCall)) {
+        _selectedCalling = primaryCall;
       } else {
         _selectedCalling = 'Otro';
-        _callingCtrl.text = m.calling!;
+        _callingCtrl.text = primaryCall;
       }
     }
 
-    if (m.birthDate != null) {
-      _selectedBirthDate = m.birthDate;
-      _birthDateCtrl.text = DateFormat('dd/MM/yyyy').format(m.birthDate!);
+    if (u.birthDate != null) {
+      _selectedBirthDate = u.birthDate;
+      _birthDateCtrl.text = DateFormat('dd/MM/yyyy').format(u.birthDate!);
     }
   }
 
@@ -134,36 +137,64 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String? finalCalling;
-      final availableCallings = kLdsStructure[_servingOrganization] ?? [];
+      String finalCalling = 'Ninguno';
+      final currentMap = _isStakeCalling ? kStakeStructure : kLdsStructure;
+      final availableCallings = currentMap[_servingOrganization] ?? [];
 
       if (availableCallings.isNotEmpty) {
         if (_selectedCalling == 'Otro') {
           finalCalling = _callingCtrl.text.trim();
-        } else {
-          finalCalling = _selectedCalling;
+        } else if (_selectedCalling != null) {
+          finalCalling = _selectedCalling!;
         }
-      } else {
+      } else if (_callingCtrl.text.trim().isNotEmpty) {
         finalCalling = _callingCtrl.text.trim();
       }
 
-      final newMember = MemberModel(
-        id: widget.memberToEdit?.id ?? '',
-        firstName: _firstNameCtrl.text.trim(),
-        lastName: _lastNameCtrl.text.trim(),
-        gender: _gender,
-        birthDate: _selectedBirthDate,
-        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-        email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-        ward: _selectedWard!,
-        primaryOrganization: _primaryOrganization,
-        servingOrganization: _servingOrganization,
-        calling: (finalCalling == null || finalCalling.isEmpty) ? null : finalCalling,
-        isYSA: _isYSA,
-        relatedUserId: widget.memberToEdit?.relatedUserId,
-      );
+      // 🚀 LÓGICA DE ARRAYS INTELIGENTE: Añadimos sin destruir
+      List<String> callingsActuales = widget.memberToEdit != null 
+          ? List<String>.from(widget.memberToEdit!.callings) 
+          : [];
+      List<String> orgsActuales = widget.memberToEdit != null 
+          ? List<String>.from(widget.memberToEdit!.callingOrganizations) 
+          : [];
 
-      await _memberService.saveMember(newMember);
+      if (!callingsActuales.contains(finalCalling) && finalCalling != 'Ninguno') {
+        callingsActuales.add(finalCalling);
+      }
+      if (!orgsActuales.contains(_servingOrganization) && _servingOrganization != 'Miembro General') {
+        orgsActuales.add(_servingOrganization);
+      }
+
+      if (callingsActuales.isEmpty) callingsActuales = ['Ninguno'];
+      if (orgsActuales.isEmpty) orgsActuales = [_primaryOrganization];
+
+      final collection = FirebaseFirestore.instance.collection('users');
+      final docId = widget.memberToEdit?.uid ?? collection.doc().id;
+
+      final userData = {
+        'firstName': _firstNameCtrl.text.trim(),
+        'lastName': _lastNameCtrl.text.trim(),
+        'gender': _gender,
+        'birthDate': _selectedBirthDate?.toIso8601String(),
+        'phoneNumber': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'ward': _selectedWard!,
+        'organization': _primaryOrganization,
+        // 🚀 GUARDAMOS LOS ARRAYS EN LA BASE DE DATOS
+        'callingOrganizations': orgsActuales,
+        'callings': callingsActuales,
+        'isYSA': _isYSA,
+      };
+
+      if (widget.memberToEdit == null) {
+        userData['role'] = 'miembro';
+        userData['isApproved'] = false;
+        userData['isActive'] = true;
+        userData['isRegistered'] = false;
+      }
+
+      await collection.doc(docId).set(userData, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Ficha guardada con éxito'), backgroundColor: Colors.green));
@@ -178,9 +209,8 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Lista combinada usando la constante importada
-    final orgList = ['Miembro General', ...kLdsStructure.keys.toList()];
-    final availableCallings = kLdsStructure[_servingOrganization] ?? [];
+    final currentStructure = _isStakeCalling ? kStakeStructure : kLdsStructure;
+    final availableCallings = currentStructure[_servingOrganization] ?? [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
@@ -202,7 +232,6 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // 🚀 TARJETA 1: IDENTIDAD
                   _buildCard(
                     title: 'Identidad y Contacto',
                     icon: Icons.person,
@@ -251,13 +280,12 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       const SizedBox(height: 15),
                       _buildTextField('Celular / WhatsApp', _phoneCtrl, icon: Icons.phone, isPhone: true),
                       const SizedBox(height: 15),
-                      _buildTextField('Correo Electrónico', _emailCtrl, icon: Icons.email, isEmail: true),
+                      _buildTextField('Correo Electrónico (Opcional)', _emailCtrl, icon: Icons.email, isEmail: true),
                     ],
                   ),
 
                   const SizedBox(height: 20),
 
-                  // 🚀 TARJETA 2: PERTENENCIA ECLESIÁSTICA (DOBLE PIVOTE)
                   _buildCard(
                     title: 'Organización y Llamamiento',
                     icon: Icons.account_balance,
@@ -276,7 +304,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // 2. ORGANIZACIÓN PRINCIPAL (Usa kOrganizationsList)
+                      // 🚀 CURA APLICADA: .toSet().toList() elimina duplicados, agregamos 'Miembro General'
                       DropdownButtonFormField<String>(
                         value: _primaryOrganization,
                         decoration: const InputDecoration(
@@ -285,24 +313,48 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                           prefixIcon: Icon(Icons.person_pin),
                           isDense: true,
                         ),
-                        // 🚀 Aquí usamos la lista simple de membresía
-                        items: kOrganizationsList.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                        items: ['Miembro General', ...kOrganizationsList].toSet().map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                         onChanged: (v) => setState(() => _primaryOrganization = v!),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _isStakeCalling ? Colors.purple.shade50 : Colors.transparent,
+                          border: Border.all(color: _isStakeCalling ? Colors.purple : Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: SwitchListTile(
+                          title: Text(
+                            'Llamamiento de Estaca',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: _isStakeCalling ? Colors.purple : Colors.black87),
+                          ),
+                          subtitle: const Text('Actívalo para asignar llamamientos de Estaca'),
+                          value: _isStakeCalling,
+                          activeColor: Colors.purple,
+                          onChanged: (val) {
+                            setState(() {
+                              _isStakeCalling = val;
+                              _servingOrganization = 'Miembro General';
+                              _selectedCalling = null;
+                              _callingCtrl.clear();
+                            });
+                          },
+                        ),
                       ),
                       const SizedBox(height: 15),
 
-                      // 3. ORGANIZACIÓN DEL LLAMAMIENTO (Usa las llaves de kLdsStructure)
+                      // 🚀 CURA APLICADA: Protección contra duplicados en las llaves
                       DropdownButtonFormField<String>(
                         value: _servingOrganization,
                         decoration: const InputDecoration(
                           labelText: '¿En qué organización sirve?',
-                          helperText: 'Esto filtra la lista de llamamientos de abajo',
+                          helperText: 'Filtra la lista de llamamientos',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.assignment_ind),
                           isDense: true,
                         ),
-                        // 🚀 Aquí usamos las llaves del mapa de llamamientos
-                        items: ['Miembro General', ...kLdsStructure.keys.toList()]
+                        items: ['Miembro General', ...currentStructure.keys].toSet()
                             .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                             .toList(),
                         onChanged: (v) {
@@ -324,7 +376,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                             prefixIcon: Icon(Icons.badge),
                             isDense: true,
                           ),
-                          items: [...availableCallings, 'Otro'].map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
+                          items: [...availableCallings, 'Otro'].toSet().map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
                           onChanged: (v) => setState(() => _selectedCalling = v),
                         ),
                         if (_selectedCalling == 'Otro') ...[
@@ -400,7 +452,6 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     );
   }
 
-  // Helpers visuales
   Widget _buildCard({required String title, required IconData icon, required List<Widget> children}) {
     return Card(
       elevation: 4,

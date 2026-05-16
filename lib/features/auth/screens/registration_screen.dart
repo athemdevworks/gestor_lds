@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';

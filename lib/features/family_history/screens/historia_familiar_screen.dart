@@ -20,6 +20,9 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
   String _filtroProgreso = 'Todos';
   String _filtroOrganizacion = 'Todos';
 
+  // 🚀 TÁCTICA AÑO DINÁMICO: Evita romper la base de datos al cambiar de año
+  final int _anioActual = DateTime.now().year;
+
   final List<String> _meses = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
   final Map<String, String> _nombresMeses = {
     '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
@@ -54,15 +57,14 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
   }
 
   // ==========================================
-  // 🚀 EL PANEL EMERGENTE DE FILTROS (BOTTOM SHEET)
+  // 🚀 PANEL EMERGENTE DE FILTROS (BOTTOM SHEET INTACTO)
   // ==========================================
   void _mostrarPanelFiltros() {
     showModalBottomSheet(
         context: context,
-        isScrollControlled: true, // Permite que el panel suba más si es necesario
-        backgroundColor: Colors.transparent, // Fondo transparente para ver los bordes redondeados
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
         builder: (context) {
-          // Usamos StatefulBuilder para que el panel se actualice sin cerrar
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setModalState) {
                 return Container(
@@ -71,16 +73,15 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 20, // Respeta el teclado si se abre
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                     top: 24,
                     left: 20,
                     right: 20,
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min, // Se adapta al contenido
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // Título del Panel
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -93,7 +94,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                       ),
                       const Divider(height: 20),
 
-                      // Fila de Barrio y Mes
                       Row(
                         children: [
                           Expanded(
@@ -103,7 +103,7 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                               items: _barriosSelectable.map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
                               onChanged: (val) {
                                 setModalState(() => _barrioSeleccionado = val!);
-                                setState(() {}); // Actualiza la pantalla del fondo
+                                setState(() {});
                               },
                             ),
                           ),
@@ -123,7 +123,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Filtro de Organización
                       DropdownButtonFormField<String>(
                         value: _filtroOrganizacion,
                         decoration: InputDecoration(labelText: 'Organización', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
@@ -135,7 +134,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Chips de Progreso
                       const Text('Estado de las Metas:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black54)),
                       const SizedBox(height: 8),
                       Wrap(
@@ -158,7 +156,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Botón de Aplicar
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _brandBlue,
@@ -167,7 +164,7 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         onPressed: () => Navigator.pop(context),
-                        child: const Text('APLICAR FILTROS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: const Text('APLICAR FILTROS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                       ),
                     ],
                   ),
@@ -180,10 +177,13 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Query query = FirebaseFirestore.instance.collection('members');
+    // 🚀 REDIRECCIÓN TÁCTICA A LA COLECCIÓN UNIFICADA "USERS"
+    Query query = FirebaseFirestore.instance.collection('users');
     if (_barrioSeleccionado != 'Todos') {
       query = query.where('ward', isEqualTo: _barrioSeleccionado);
     }
+
+    final String keyRegistroAnio = 'registro_$_anioActual';
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
@@ -193,7 +193,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // 🚀 EL BOTÓN TÁCTICO EN EL APPBAR
           IconButton(
             icon: const Icon(Icons.filter_list_alt),
             tooltip: 'Filtros',
@@ -203,9 +202,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
       ),
       body: Column(
         children: [
-          // ==========================================
-          // CABECERA FIJA (Solo Buscador y Resumen Visual)
-          // ==========================================
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -229,7 +225,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                 ),
                 const SizedBox(height: 10),
 
-                // 🚀 RESUMEN DE FILTROS ACTIVOS (UX TOP)
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -245,9 +240,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
             ),
           ),
 
-          // ==========================================
-          // LISTA DE MIEMBROS (¡Ahora con toda la cancha libre!)
-          // ==========================================
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: query.snapshots(),
@@ -256,32 +248,35 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No hay miembros en este barrio.'));
+                  return const Center(child: Text('No hay miembros registrados en este barrio.'));
                 }
 
                 var docsFiltrados = snapshot.data!.docs.where((doc) {
                   var data = doc.data() as Map<String, dynamic>;
 
-                  // A. Filtro de Búsqueda
-                  String fullName = "${data['firstName']} ${data['lastName']}".toLowerCase();
+                  // A. Filtro de Búsqueda Seguro (Usando los nuevos campos)
+                  String firstName = data['firstName'] ?? '';
+                  String lastName = data['lastName'] ?? '';
+                  String fullName = "$firstName $lastName".toLowerCase();
                   if (_searchQuery.isNotEmpty && !fullName.contains(_searchQuery)) return false;
 
                   bool esJAS = data['isYSA'] == true;
+                  String primaryOrganization = data['organization'] ?? 'Miembro General';
 
                   // B. Filtro Demográfico
                   if (_filtroOrganizacion == 'JAS' && !esJAS) return false;
                   else if (_filtroOrganizacion == 'Hombres' && data['gender'] != 'M') return false;
                   else if (_filtroOrganizacion == 'Mujeres' && data['gender'] != 'F') return false;
                   else if (_filtroOrganizacion == 'Jóvenes') {
-                    bool esJoven = ['Mujeres Jóvenes', 'Hombres Jóvenes'].contains(data['primaryOrganization']);
+                    bool esJoven = ['Mujeres Jóvenes', 'Hombres Jóvenes'].contains(primaryOrganization);
                     if (!esJoven) return false;
                   }
                   else if (_filtroOrganizacion != 'Todos' && kOrganizationsList.contains(_filtroOrganizacion)) {
-                    if (data['primaryOrganization'] != _filtroOrganizacion) return false;
+                    if (primaryOrganization != _filtroOrganizacion) return false;
                   }
 
-                  // C. Filtro de Progreso (5 METAS)
-                  var reg = data['registro_2026'] as Map<String, dynamic>? ?? {};
+                  // C. Filtro de Progreso Dinámico
+                  var reg = data[keyRegistroAnio] as Map<String, dynamic>? ?? {};
                   var mesData = reg[_mesSeleccionado] as Map<String, dynamic>? ?? {};
 
                   int checksCompletados = 0;
@@ -311,6 +306,13 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                   );
                 }
 
+                // Ordenamos alfabéticamente por apellido para que el consultor trabaje cómodo
+                docsFiltrados.sort((a, b) {
+                  String nameA = (a.data() as Map<String, dynamic>)['lastName'] ?? '';
+                  String nameB = (b.data() as Map<String, dynamic>)['lastName'] ?? '';
+                  return nameA.compareTo(nameB);
+                });
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(12),
                   itemCount: docsFiltrados.length,
@@ -318,10 +320,11 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                     var doc = docsFiltrados[index];
                     var data = doc.data() as Map<String, dynamic>;
 
-                    var reg = data['registro_2026'] as Map<String, dynamic>? ?? {};
+                    var reg = data[keyRegistroAnio] as Map<String, dynamic>? ?? {};
                     var mesData = reg[_mesSeleccionado] as Map<String, dynamic>? ?? {};
 
                     bool esJAS = data['isYSA'] == true;
+                    String primaryOrganization = data['organization'] ?? 'Miembro General';
 
                     return Card(
                       elevation: 2,
@@ -334,17 +337,17 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
                           child: Icon(Icons.person, color: data['gender'] == 'M' ? Colors.blue.shade700 : Colors.pink.shade700),
                         ),
                         title: Text("${data['firstName']} ${data['lastName']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        subtitle: Text("${data['primaryOrganization']} ${esJAS ? '• JAS' : ''}", style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                        subtitle: Text("$primaryOrganization ${esJAS ? '• JAS' : ''}", style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: Column(
                               children: [
-                                _buildCheckRow(doc.id, 'login_fs', '1. Inició Sesión en FamilySearch', mesData['login_fs'] ?? false),
-                                _buildCheckRow(doc.id, 'arbol_crecido', '2. Agregó un Antepasado al Árbol', mesData['arbol_crecido'] ?? false),
-                                _buildCheckRow(doc.id, 'recuerdos', '3. Agregó un Recuerdo (Foto/Audio)', mesData['recuerdos'] ?? false),
-                                _buildCheckRow(doc.id, 'nombres_templo', '4. Envió nombres para el Templo', mesData['nombres_templo'] ?? false),
-                                _buildCheckRow(doc.id, 'cuatro_generaciones', '5. Árbol de 4 Generaciones completo', mesData['cuatro_generaciones'] ?? false),
+                                _buildCheckRow(doc.id, 'login_fs', '1. Inició Sesión en FamilySearch', mesData['login_fs'] ?? false, keyRegistroAnio),
+                                _buildCheckRow(doc.id, 'arbol_crecido', '2. Agregó un Antepasado al Árbol', mesData['arbol_crecido'] ?? false, keyRegistroAnio),
+                                _buildCheckRow(doc.id, 'recuerdos', '3. Agregó un Recuerdo (Foto/Audio)', mesData['recuerdos'] ?? false, keyRegistroAnio),
+                                _buildCheckRow(doc.id, 'nombres_templo', '4. Envió nombres para el Templo', mesData['nombres_templo'] ?? false, keyRegistroAnio),
+                                _buildCheckRow(doc.id, 'cuatro_generaciones', '5. Árbol de 4 Generaciones completo', mesData['cuatro_generaciones'] ?? false, keyRegistroAnio),
                               ],
                             ),
                           )
@@ -361,7 +364,6 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
     );
   }
 
-  // 🚀 WIDGET AUXILIAR PARA LAS ETIQUETAS DE RESUMEN
   Widget _buildFiltroTag(IconData icon, String text) {
     return Container(
       margin: const EdgeInsets.only(right: 8),
@@ -382,7 +384,7 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
     );
   }
 
-  Widget _buildCheckRow(String memberId, String fieldKey, String title, bool currentValue) {
+  Widget _buildCheckRow(String userId, String fieldKey, String title, bool currentValue, String keyAnio) {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
@@ -397,8 +399,9 @@ class _HistoriaFamiliarScreenState extends State<HistoriaFamiliarScreen> {
         dense: true,
         onChanged: (bool? newValue) {
           if (newValue != null) {
-            FirebaseFirestore.instance.collection('members').doc(memberId).set({
-              'registro_2026': {
+            // 🚀 ESCRITURA DIRECTA EN LA VARIABLE ANIO DINÁMICO
+            FirebaseFirestore.instance.collection('users').doc(userId).set({
+              keyAnio: {
                 _mesSeleccionado: {
                   fieldKey: newValue
                 }

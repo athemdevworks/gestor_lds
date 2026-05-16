@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <--- IMPORTANTE PARA EL PORTAPAPELES
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
-import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart'; // 🚀 Nuevo Modelo
+import 'package:gestor_lds/core/widgets/user_autocomplete_field.dart'; // 🚀 Nuevo Autocompletador
 
 class DocumentGeneratorScreen extends StatefulWidget {
   const DocumentGeneratorScreen({super.key});
@@ -51,7 +52,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Comunicaciones'),
-        backgroundColor: const Color(0xFF22539A), // Tu brandBlue
+        backgroundColor: const Color(0xFF22539A),
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -74,7 +75,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  // --- FORMULARIO DE ASIGNACIONES ---
   Widget _buildAssignmentForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -112,7 +112,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
 
           const SizedBox(height: 30),
 
-          // --- BOTONES UNIFICADOS ---
           Row(
             children: [
               Expanded(
@@ -146,7 +145,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  // --- FORMULARIO DE ENTREVISTAS ---
   Widget _buildInterviewForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -168,7 +166,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
 
           const SizedBox(height: 30),
 
-          // --- BOTONES UNIFICADOS ---
           Row(
             children: [
               Expanded(
@@ -202,21 +199,21 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  // --- CAMPOS COMUNES ---
   Widget _buildCommonFields() {
     return Column(
       children: [
-        MemberAutocompleteField(
+        // 🚀 ACTUALIZADO AL NUEVO AUTOCOMPLETADOR
+        UserAutocompleteField(
           label: 'Nombre del Miembro',
           controller: _nameController,
           icon: Icons.person_search,
-          onMemberSelected: (member) {
+          onUserSelected: (user) {
             setState(() {
-              _isMale = member.gender == 'M';
+              _isMale = user.gender == 'M'; // 🚀 DETECTA GÉNERO AUTOMÁTICAMENTE
             });
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text('Seleccionado: ${member.fullName}'),
+              content: Text('Seleccionado: ${user.firstName} ${user.lastName}'),
               duration: const Duration(seconds: 1),
             ));
           },
@@ -263,10 +260,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
       ],
     );
   }
-
-  // ==========================================
-  // LÓGICA DE WHATSAPP (COPIAR AL PORTAPAPELES)
-  // ==========================================
 
   void _copyAssignmentToWhatsApp() {
     if (_nameController.text.isEmpty) {
@@ -324,10 +317,6 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     Clipboard.setData(ClipboardData(text: message));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
   }
-
-  // ==========================================
-  // LÓGICA DE PDF (MANTENIDA INTACTA)
-  // ==========================================
 
   void _generateAssignmentPdf() async {
     if (_nameController.text.isEmpty) {

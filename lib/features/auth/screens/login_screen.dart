@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/registration_screen.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:flutter_svg/flutter_svg.dart';

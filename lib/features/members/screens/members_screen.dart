@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:gestor_lds/features/members/models/member_model.dart';
-import 'package:gestor_lds/features/members/services/member_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
 import 'package:gestor_lds/core/constants/organizations_list.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'member_form_screen.dart';
+import 'package:gestor_lds/features/members/screens/member_form_screen.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({super.key});
@@ -14,7 +16,6 @@ class MembersScreen extends StatefulWidget {
 }
 
 class _MembersScreenState extends State<MembersScreen> {
-  final MemberService _memberService = MemberService();
   final TextEditingController _searchController = TextEditingController();
 
   // --- ESTADO DE FILTROS ---
@@ -26,6 +27,32 @@ class _MembersScreenState extends State<MembersScreen> {
 
   final Color _brandBlue = const Color(0xFF22539A);
   final Color _brandGold = const Color(0xFFD4AF37);
+
+  // 🚀 VARIABLES PARA SEGURIDAD Y REGLAS DE FIRESTORE
+  UserModel? _currentUser;
+  bool _isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentUser();
+  }
+
+  // 🚀 Cargamos quién está viendo el directorio para aplicar las Reglas de Privacidad
+  Future<void> _loadCurrentUser() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        setState(() {
+          _currentUser = UserModel.fromMap(doc.data()!, doc.id);
+          _isLoadingUser = false;
+        });
+        return;
+      }
+    }
+    setState(() => _isLoadingUser = false);
+  }
 
   @override
   void dispose() {
@@ -90,7 +117,7 @@ class _MembersScreenState extends State<MembersScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // 3. GÉNERO (Usando SegmentedButton moderno)
+                    // 3. GÉNERO
                     const Text('Género:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
                     const SizedBox(height: 8),
                     SegmentedButton<String>(
@@ -142,6 +169,15 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingUser) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+    // 🚀 ARMAMOS LA CONSULTA A FIREBASE CON SEGURIDAD TÁCTICA
+    Query usersQuery = FirebaseFirestore.instance.collection('users');
+
+    if (_currentUser != null && !_currentUser!.canSeeAllWards) {
+      usersQuery = usersQuery.where('ward', isEqualTo: _currentUser!.ward);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
@@ -151,12 +187,6 @@ class _MembersScreenState extends State<MembersScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_download),
-            tooltip: 'Sincronizar Usuarios',
-            onPressed: _importUsers,
-          ),
-          // 🚀 BOTÓN DE FILTROS EN LA BARRA SUPERIOR
           IconButton(
             icon: const Icon(Icons.filter_list_alt),
             tooltip: 'Filtros Avanzados',
@@ -169,6 +199,7 @@ class _MembersScreenState extends State<MembersScreen> {
         foregroundColor: Colors.black87,
         elevation: 4,
         onPressed: () {
+          // 🚀 HABILITADO NAVEGACIÓN PARA CREAR
           Navigator.push(
               context,
               MaterialPageRoute(
@@ -212,7 +243,6 @@ class _MembersScreenState extends State<MembersScreen> {
                   onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
                 ),
 
-                // 🚀 TAGS DE FILTROS ACTIVOS (Resumen Visual)
                 if (_barrioFiltro != 'Todos' || _orgFiltro != 'Todos' || _generoFiltro != 'Todos' || _soloJAS) ...[
                   const SizedBox(height: 10),
                   SingleChildScrollView(
@@ -232,41 +262,39 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
 
           // ==========================================
-          // 2. LISTA DE MIEMBROS (Filtrado Maestro)
+          // 2. LISTA DE MIEMBROS EN TIEMPO REAL
           // ==========================================
           Expanded(
-            child: FutureBuilder<List<MemberModel>>(
-              future: _memberService.getMembers(),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: usersQuery.snapshots(), // 🚀 Escucha a Firebase en Vivo
               builder: (context, snapshot) {
                 if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-                final allMembers = snapshot.data ?? [];
+                // Convertimos el JSON de Firebase a nuestra lista de UserModel
+                final allMembers = snapshot.data!.docs.map((doc) {
+                  return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                }).toList();
 
                 // 🚀 LÓGICA DE FILTRADO COMBINADO
                 final filteredMembers = allMembers.where((m) {
-                  // A. Filtro de Texto (Nombre o Llamamiento)
                   final query = _searchQuery.trim();
                   if (query.isNotEmpty) {
-                    bool matchNombre = m.fullName.toLowerCase().contains(query);
-                    bool matchCargo = m.calling?.toLowerCase().contains(query) ?? false;
+                    bool matchNombre = '${m.firstName} ${m.lastName}'.toLowerCase().contains(query);
+                    bool matchCargo = m.primaryCalling.toLowerCase().contains(query);
                     if (!matchNombre && !matchCargo) return false;
                   }
 
-                  // B. Filtro de Barrio
                   if (_barrioFiltro != 'Todos' && m.ward != _barrioFiltro) return false;
-
-                  // C. Filtro de Organización
-                  if (_orgFiltro != 'Todos' && m.primaryOrganization != _orgFiltro) return false;
-
-                  // D. Filtro de Género
+                  if (_orgFiltro != 'Todos' && m.organization != _orgFiltro) return false;
                   if (_generoFiltro != 'Todos' && m.gender != _generoFiltro) return false;
-
-                  // E. Filtro JAS
                   if (_soloJAS && !m.isYSA) return false;
 
                   return true;
                 }).toList();
+
+                // 🚀 ORDENAMOS ALFABÉTICAMENTE
+                filteredMembers.sort((a, b) => a.lastName.compareTo(b.lastName));
 
                 if (filteredMembers.isEmpty) {
                   return Center(
@@ -320,18 +348,21 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
-  // 🚀 TU TARJETA INTACTA
-  Widget _buildMemberCard(MemberModel member) {
+  // 🚀 TARJETA ACTUALIZADA AL USERMODEL
+  Widget _buildMemberCard(UserModel member) {
     final isMale = member.gender == 'M';
     final hasPhone = member.phone != null && member.phone!.trim().isNotEmpty;
 
-    String subtitle = member.primaryOrganization;
-    if (member.calling != null && member.calling!.isNotEmpty) {
-      subtitle += " • ${member.calling}";
-      if (member.servingOrganization != null && member.servingOrganization != member.primaryOrganization) {
-        subtitle += " (${member.servingOrganization})";
-      }
+    // Mostramos la primera organización donde sirve (si la hay) o la organización a la que pertenece
+    String servingOrg = member.callingOrganizations.isNotEmpty ? member.callingOrganizations.first : member.organization;
+    String subtitle = servingOrg;
+
+    if (member.primaryCalling.isNotEmpty && member.primaryCalling != 'Ninguno') {
+      subtitle += " • ${member.primaryCalling}";
     }
+
+    // Identificador si es cuenta temporal (fichas del JSON que nadie ha reclamado)
+    bool isPendingClaim = !member.isRegistered;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -341,6 +372,7 @@ class _MembersScreenState extends State<MembersScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
+          // 🚀 HABILITADO NAVEGACIÓN PARA EDITAR
           Navigator.push(
               context,
               MaterialPageRoute(
@@ -360,8 +392,8 @@ class _MembersScreenState extends State<MembersScreen> {
                     backgroundColor: isMale ? Colors.blue.shade50 : Colors.pink.shade50,
                     radius: 26,
                     child: Icon(
-                      _getIconForOrg(member.primaryOrganization),
-                      color: _getColorForOrg(member.primaryOrganization),
+                      _getIconForOrg(member.organization),
+                      color: _getColorForOrg(member.organization),
                       size: 24,
                     ),
                   ),
@@ -388,11 +420,21 @@ class _MembersScreenState extends State<MembersScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      member.fullName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${member.firstName} ${member.lastName}',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: isPendingClaim ? Colors.grey.shade600 : Colors.black87
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -401,15 +443,40 @@ class _MembersScreenState extends State<MembersScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    // Etiqueta del Barrio
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(member.ward, style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    // Etiquetas de Estado y Barrio
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(member.ward, style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 6),
+                        if (isPendingClaim)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.orange.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.orange.shade200)
+                            ),
+                            child: const Text('No Registrado', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                          )
+                        else if (!member.isApproved)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.red.shade200)
+                            ),
+                            child: const Text('Pendiente', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                          )
+                      ],
                     )
                   ],
                 ),
@@ -421,8 +488,9 @@ class _MembersScreenState extends State<MembersScreen> {
                   icon: const Icon(Icons.message, color: Color(0xFF25D366)),
                   tooltip: 'Enviar WhatsApp',
                   onPressed: () => _launchWhatsApp(member.phone!),
-                ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                )
+              else
+                const SizedBox(width: 48), // Espacio para alinear si no hay botón
             ],
           ),
         ),
@@ -443,37 +511,6 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
-  Future<void> _importUsers() async {
-    bool? confirm = await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('¿Sincronizar Usuarios?'),
-          content: const Text('Se crearán fichas en el directorio para los líderes registrados en la app que aún no estén en la base de datos oficial.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sincronizar'),
-            ),
-          ],
-        )
-    );
-
-    if (confirm == true) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sincronizando datos...', style: TextStyle(color: Colors.white)), backgroundColor: Colors.blue));
-
-      await _memberService.importUsersToMembers();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Sincronización completada exitosamente.'), backgroundColor: Colors.green));
-        setState(() {}); // Refresca la lista
-      }
-    }
-  }
-
-  // 🚀 TUS COLORES E ÍCONOS INTACTOS
   Color _getColorForOrg(String org) {
     switch (org) {
       case 'Primaria': return Colors.yellow.shade800;

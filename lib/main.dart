@@ -7,7 +7,7 @@ import 'package:provider/provider.dart'; // <--- RECOMENDADO: Manejo de estado
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // Importamos las pantallas y servicios
-import 'package:gestor_lds/features/auth/auth_service.dart';
+import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
 import 'package:gestor_lds/features/auth/screens/pending_access_screen.dart';
 import 'package:gestor_lds/features/dashboard/screens/home_screen.dart';

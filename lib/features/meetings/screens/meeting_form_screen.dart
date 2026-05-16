@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
-import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
 import 'package:gestor_lds/features/meetings/widgets/agenda_list_editor.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 import 'package:gestor_lds/features/meetings/models/ward_business_model.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
-import 'package:gestor_lds/features/members/widgets/member_autocomplete_field.dart';
 
-import '../../../core/widgets/hymn_autocomplete.dart';
+// 🚀 IMPORTAMOS NUESTRO NUEVO AUTOCOMPLETADOR
+import 'package:gestor_lds/core/widgets/user_autocomplete_field.dart';
+import 'package:gestor_lds/core/widgets/hymn_autocomplete.dart';
 
 class MeetingFormScreen extends StatefulWidget {
   final MeetingModel? meetingToEdit;
@@ -171,7 +173,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   }
 
   void _showBusinessDialog({WardBusinessModel? itemToEdit, int? index}) {
-    // ... (El diálogo de Asuntos se mantiene exactamente igual)
     String type = itemToEdit?.type ?? 'Sostenimiento';
     final nameCtrl = TextEditingController(text: itemToEdit?.personName ?? '');
     final callingCtrl = TextEditingController(text: itemToEdit?.calling ?? '');
@@ -221,7 +222,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   }
 
   void _saveMeeting() async {
-    // Validación Manual Obligatoria para Reuniones que no son Sacramentales
     if (_selectedType != MeetingType.sacramental) {
       if (_openingPrayerController.text.trim().isEmpty || _closingPrayerController.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -248,7 +248,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
       final bool isSacramental = _selectedType == MeetingType.sacramental;
       SacramentAgendaModel? sacramentAgenda;
 
-      // Definir qué guardamos en "Organization" (Título)
       String? orgToSave;
       if (_selectedType == MeetingType.presidency) orgToSave = _selectedOrganization;
       if (_selectedType == MeetingType.other) orgToSave = _titleController.text;
@@ -278,7 +277,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           );
         }
 
-        // Preparamos los datos para enviar al servicio
         final Map<String, dynamic> meetingData = {
           'type': _selectedType,
           'organization': orgToSave,
@@ -296,7 +294,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         };
 
         if (isEditing) {
-          // NOTA: Asegúrate de que updateMeeting acepte los nuevos parámetros nombrados!
           await _meetingService.updateMeeting(
             id: meetingId!,
             type: meetingData['type'],
@@ -383,7 +380,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                       ),
                     ),
 
-                  // --- NUEVO: Campo de Título para "Otra Reunión" ---
                   if (_selectedType == MeetingType.other)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 20.0),
@@ -411,15 +407,17 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                     readOnly: true, onTap: _selectTime, validator: (v) => v == null || v.isEmpty ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 12),
-                  MemberAutocompleteField( label: 'Preside', controller: _presidedByController, icon: Icons.person_outline, ),
+                  // 🚀 USANDO EL NUEVO UserAutocompleteField
+                  UserAutocompleteField( label: 'Preside', controller: _presidedByController, icon: Icons.person_outline, ),
                   const SizedBox(height: 12),
-                  MemberAutocompleteField( label: 'Dirige', controller: _directedByController, icon: Icons.person_outline, ),
+                  // 🚀 USANDO EL NUEVO UserAutocompleteField
+                  UserAutocompleteField( label: 'Dirige', controller: _directedByController, icon: Icons.person_outline, ),
                   const SizedBox(height: 30),
 
                   if (isSacramentalMeeting)
                     _buildSacramentAgendaForm()
                   else if (isLeadershipMeeting)
-                    _buildLeadershipAgendaForm(), // Llama a la nueva función
+                    _buildLeadershipAgendaForm(),
 
                   const SizedBox(height: 30),
                   ElevatedButton(
@@ -436,7 +434,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     );
   }
 
-  // === AGENDA DE LIDERAZGO (Apertura, Puntos, Clausura) ===
   Widget _buildLeadershipAgendaForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -445,7 +442,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         const Divider(height: 20, color: Colors.black45),
         HymnAutocomplete(label: 'Himno Inicial (Opcional)', controller: _openingHymnController, icon: Icons.music_note),
         const SizedBox(height: 12),
-        MemberAutocompleteField(label: 'Oración Inicial (Obligatorio)', controller: _openingPrayerController, icon: Icons.person_outline),
+        // 🚀 USANDO EL NUEVO UserAutocompleteField
+        UserAutocompleteField(label: 'Oración Inicial (Obligatorio)', controller: _openingPrayerController, icon: Icons.person_outline),
         const SizedBox(height: 30),
 
         Text('Agenda y Puntos a Tratar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary)),
@@ -460,12 +458,12 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         const Divider(height: 20, color: Colors.black45),
         HymnAutocomplete(label: 'Himno Final (Opcional)', controller: _closingHymnController, icon: Icons.music_note),
         const SizedBox(height: 12),
-        MemberAutocompleteField(label: 'Oración Final (Obligatorio)', controller: _closingPrayerController, icon: Icons.person_outline),
+        // 🚀 USANDO EL NUEVO UserAutocompleteField
+        UserAutocompleteField(label: 'Oración Final (Obligatorio)', controller: _closingPrayerController, icon: Icons.person_outline),
       ],
     );
   }
 
-  // === AGENDA SACRAMENTAL (Se mantiene igual) ===
   Widget _buildSacramentAgendaForm() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -489,15 +487,18 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         const SizedBox(height: 12),
 
         Row(children: [
-          Expanded(child: MemberAutocompleteField( label: 'Director(a) de Música', controller: _choristerController, icon: Icons.person_outline, )),
+          // 🚀 USANDO EL NUEVO UserAutocompleteField
+          Expanded(child: UserAutocompleteField( label: 'Director(a) de Música', controller: _choristerController, icon: Icons.person_outline, )),
           const SizedBox(width: 10),
-          Expanded(child: MemberAutocompleteField( label: 'Pianista', controller: _pianistController, icon: Icons.person_outline, )),
+          // 🚀 USANDO EL NUEVO UserAutocompleteField
+          Expanded(child: UserAutocompleteField( label: 'Pianista', controller: _pianistController, icon: Icons.person_outline, )),
         ]),
         const SizedBox(height: 12),
 
         Row(
           children: [
-            Expanded(child: MemberAutocompleteField( label: 'Primera Oración', controller: _openingPrayerController, icon: Icons.person_outline, )),
+            // 🚀 USANDO EL NUEVO UserAutocompleteField
+            Expanded(child: UserAutocompleteField( label: 'Primera Oración', controller: _openingPrayerController, icon: Icons.person_outline, )),
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.print, color: Colors.blueGrey), tooltip: 'Imprimir Esquela',
@@ -507,7 +508,6 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Sección de Asuntos
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
@@ -561,7 +561,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: MemberAutocompleteField( label: '1er Discursante', controller: _firstSpeakerNameController, icon: Icons.person_outline, )),
+                  // 🚀 USANDO EL NUEVO UserAutocompleteField
+                  Expanded(child: UserAutocompleteField( label: '1er Discursante', controller: _firstSpeakerNameController, icon: Icons.person_outline, )),
                   const SizedBox(width: 8),
                   IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _firstSpeakerNameController.text, type: 'PRIMER DISCURSO', topic: _firstSpeakerTopicController.text, duration: '8')),
                 ],
@@ -577,7 +578,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
               Row(
                 children: [
-                  Expanded(child: MemberAutocompleteField( label: '2do Discursante', controller: _secondSpeakerNameController, icon: Icons.person_outline, )),
+                  // 🚀 USANDO EL NUEVO UserAutocompleteField
+                  Expanded(child: UserAutocompleteField( label: '2do Discursante', controller: _secondSpeakerNameController, icon: Icons.person_outline, )),
                   const SizedBox(width: 8),
                   IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _secondSpeakerNameController.text, type: _hasThirdSpeaker ? 'SEGUNDO DISCURSO' : 'ÚLTIMO DISCURSO', topic: _secondSpeakerTopicController.text, duration: _hasThirdSpeaker ? '8' : '15')),
                 ],
@@ -600,7 +602,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
                 Row(
                   children: [
-                    Expanded(child: MemberAutocompleteField( label: '3er Discursante', controller: _thirdSpeakerNameController, icon: Icons.person_outline, )),
+                    // 🚀 USANDO EL NUEVO UserAutocompleteField
+                    Expanded(child: UserAutocompleteField( label: '3er Discursante', controller: _thirdSpeakerNameController, icon: Icons.person_outline, )),
                     const SizedBox(width: 8),
                     IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _thirdSpeakerNameController.text, type: 'ÚLTIMO DISCURSO', topic: _thirdSpeakerTopicController.text, duration: '15')),
                   ],
@@ -617,7 +620,8 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
         Row(
           children: [
-            Expanded(child: MemberAutocompleteField( label: 'Última Oración', controller: _closingPrayerController, icon: Icons.person_outline, )),
+            // 🚀 USANDO EL NUEVO UserAutocompleteField
+            Expanded(child: UserAutocompleteField( label: 'Última Oración', controller: _closingPrayerController, icon: Icons.person_outline, )),
             const SizedBox(width: 8),
             IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _closingPrayerController.text, type: 'ULTIMA ORACIÓN')),
           ],
