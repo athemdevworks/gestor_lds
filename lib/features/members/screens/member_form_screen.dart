@@ -55,7 +55,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     final u = widget.memberToEdit!;
     _firstNameCtrl.text = u.firstName;
     _lastNameCtrl.text = u.lastName;
-    _phoneCtrl.text = u.phoneNumber ?? ''; // Asumiendo phoneNumber según el modelo
+    _phoneCtrl.text = u.phone ?? ''; // Asumiendo phoneNumber según el modelo
     _emailCtrl.text = u.email ?? '';
     _gender = u.gender;
     _isYSA = u.isYSA;
