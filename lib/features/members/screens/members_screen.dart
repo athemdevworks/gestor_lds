@@ -167,6 +167,96 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
+  // 🚀 TÁCTICA DE LIMPIEZA: Eliminar todos los usuarios de un barrio específico
+  // 🚀 TÁCTICA DE LIMPIEZA MANUAL ESTILO FIREBASE (Solo Admins)
+  Future<void> _eliminarBarrioManual() async {
+    final TextEditingController deleteController = TextEditingController();
+
+    bool? confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('⚠️ ¡ALERTA DE PURGA!', style: TextStyle(color: Colors.red)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estás a punto de eliminar a TODOS los miembros de un barrio. Esta acción NO se puede deshacer.',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 15),
+            const Text('Para confirmar, escribe exactamente el nombre del barrio que deseas eliminar (Ej: Arevalo):'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: deleteController,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Nombre del barrio...',
+              ),
+              autofocus: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('CANCELAR')
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              if (deleteController.text.trim().isNotEmpty) {
+                Navigator.pop(ctx, true);
+              }
+            },
+            child: const Text('ELIMINAR BARRIO'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    String barrioABorrar = deleteController.text.trim();
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Buscando miembros de "$barrioABorrar"...')));
+
+    try {
+      // Buscamos a todos los que pertenezcan a ese barrio escrito a mano
+      var snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('ward', isEqualTo: barrioABorrar)
+          .get();
+
+      // Si se equivocó al escribir, le avisamos y no borramos nada
+      if (snapshot.docs.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('No se encontraron miembros en "$barrioABorrar". Revisa las mayúsculas o tildes.'), backgroundColor: Colors.orange)
+          );
+        }
+        return;
+      }
+
+      // Si los encontró, ejecutamos la purga
+      int contador = 0;
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+        contador++;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('✅ Purga exitosa: Se eliminaron $contador miembros de "$barrioABorrar"'), backgroundColor: Colors.green)
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingUser) return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -187,6 +277,14 @@ class _MembersScreenState extends State<MembersScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
+          // 🚀 ESCUDO TÁCTICO: Solo aparece si el usuario es Admin Global
+          if (_currentUser != null && _currentUser!.canSeeAllWards)
+            IconButton(
+              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
+              tooltip: 'Purga Manual de Barrio',
+              onPressed: _eliminarBarrioManual, // Llamamos a la nueva función
+            ),
+
           IconButton(
             icon: const Icon(Icons.filter_list_alt),
             tooltip: 'Filtros Avanzados',

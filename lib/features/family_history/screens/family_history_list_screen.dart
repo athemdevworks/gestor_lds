@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
 import 'package:gestor_lds/core/constants/organizations_list.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
 
 class FamilyHistoryListScreen extends StatefulWidget {
-  final String title;     // Ej: "Inició Sesión FS"
-  final String fieldKey;  // Ej: "login_fs" (La llave en la base de datos)
+  final String title;
+  final String fieldKey;
   final String initialWard;
   final String initialMonth;
   final String initialOrg;
@@ -26,12 +28,20 @@ class FamilyHistoryListScreen extends StatefulWidget {
 class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
   final Color _brandBlue = const Color(0xFF22539A);
 
+  UserModel? _currentUser;
+  bool _isLoadingUser = true;
+
   late String _barrio;
   late String _mes;
   late String _org;
 
-  // 🚀 TÁCTICA AÑO DINÁMICO
   final int _anioActual = DateTime.now().year;
+
+  // 🚀 TÁCTICA 1: Diccionario de Meses amigables
+  final Map<String, String> _nombresMeses = {
+    '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr', '05': 'May', '06': 'Jun',
+    '07': 'Jul', '08': 'Ago', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
+  };
 
   @override
   void initState() {
@@ -39,9 +49,40 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
     _barrio = widget.initialWard;
     _mes = widget.initialMonth;
     _org = widget.initialOrg;
+    _loadCurrentUser();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        if (doc.exists) {
+          final user = UserModel.fromMap(doc.data()!, doc.id);
+          if (mounted) {
+            setState(() {
+              _currentUser = user;
+              // Fuerza Bruta para asegurar que arranque en tu propio barrio
+              if (_barrio == 'Todos' && !user.canSeeAllWards) {
+                _barrio = user.ward;
+              }
+              _isLoadingUser = false;
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error cargando usuario: $e');
+    }
+    if (mounted) {
+      setState(() => _isLoadingUser = false);
+    }
   }
 
   void _mostrarPanelFiltros() {
+    final bool esAdminEstaca = _currentUser?.canSeeAllWards ?? false;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -65,21 +106,30 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _barrio,
-                            decoration: InputDecoration(labelText: 'Barrio', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
-                            items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
-                            onChanged: (val) {
+                            decoration: InputDecoration(
+                              labelText: 'Barrio',
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              isDense: true,
+                              filled: !esAdminEstaca,
+                              fillColor: esAdminEstaca ? Colors.white : Colors.grey.shade100,
+                            ),
+                            items: esAdminEstaca
+                                ? ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList()
+                                : [_currentUser!.ward].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
+                            onChanged: esAdminEstaca ? (val) {
                               setModalState(() => _barrio = val!);
                               setState(() {});
-                            },
+                            } : null,
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
                             value: _mes,
-                            decoration: InputDecoration(labelText: 'Mes', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
+                            decoration: InputDecoration(labelText: 'Hasta el mes de', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
+                            // 🚀 TÁCTICA 1: Mostrar los nombres amigables de los meses
                             items: List.generate(12, (i) => (i + 1).toString().padLeft(2, '0'))
-                                .map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                                .map((m) => DropdownMenuItem(value: m, child: Text(_nombresMeses[m]!))).toList(),
                             onChanged: (val) {
                               setModalState(() => _mes = val!);
                               setState(() {});
@@ -115,7 +165,8 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 REDIRECCIÓN TÁCTICA A LA COLECCIÓN UNIFICADA "USERS"
+    if (_isLoadingUser) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     Query query = FirebaseFirestore.instance.collection('users');
     if (_barrio != 'Todos') {
       query = query.where('ward', isEqualTo: _barrio);
@@ -139,13 +190,17 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             color: Colors.white,
-            child: Row(
-              children: [
-                _tag(Icons.location_city, _barrio),
-                const SizedBox(width: 8),
-                _tag(Icons.calendar_month, 'Mes: $_mes'),
-                if (_org != 'Todos') ...[const SizedBox(width: 8), _tag(Icons.group, _org)],
-              ],
+            child: SingleChildScrollView( // Por si la pantalla es pequeña y los tags no caben
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _tag(Icons.location_city, _barrio),
+                  const SizedBox(width: 8),
+                  // 🚀 TÁCTICA 1: Etiqueta más clara
+                  _tag(Icons.show_chart, 'Acumulado a: ${_nombresMeses[_mes]}'),
+                  if (_org != 'Todos') ...[const SizedBox(width: 8), _tag(Icons.group, _org)],
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -158,12 +213,23 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                 final filteredDocs = snapshot.data!.docs.where((doc) {
                   final data = doc.data() as Map<String, dynamic>;
 
-                  // 1. Filtro de la meta específica usando el AÑO DINÁMICO
+                  // 🚀 TÁCTICA 2: Lógica Acumulativa Anual (Desde Enero hasta el Mes Seleccionado)
                   final reg = data[keyRegistroAnio] as Map<String, dynamic>? ?? {};
-                  final mesData = reg[_mes] as Map<String, dynamic>? ?? {};
-                  if (mesData[widget.fieldKey] != true) return false;
+                  bool metaCumplidaEnElAnio = false;
 
-                  // 2. Filtro demográfico usando la nueva propiedad 'organization'
+                  int mesLimite = int.parse(_mes);
+                  for (int i = 1; i <= mesLimite; i++) {
+                    String mesAnalizado = i.toString().padLeft(2, '0');
+                    final mesData = reg[mesAnalizado] as Map<String, dynamic>? ?? {};
+                    if (mesData[widget.fieldKey] == true) {
+                      metaCumplidaEnElAnio = true;
+                      break; // Si ya lo hizo en algún mes, no hace falta seguir buscando
+                    }
+                  }
+
+                  // Si revisó desde Enero hasta el mes de corte y no encontró la meta, se descarta
+                  if (!metaCumplidaEnElAnio) return false;
+
                   final userOrg = data['organization'] ?? 'Miembro General';
                   if (_org == 'JAS' && data['isYSA'] != true) return false;
                   if (_org == 'Hombres' && data['gender'] != 'M') return false;
@@ -175,10 +241,9 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
                 }).toList();
 
                 if (filteredDocs.isEmpty) {
-                  return Center(child: Text('No hay registros con estos filtros.', style: TextStyle(color: Colors.grey.shade600)));
+                  return Center(child: Text('Ningún miembro ha completado esta meta aún.', style: TextStyle(color: Colors.grey.shade600)));
                 }
 
-                // Ordenamos alfabéticamente por apellido
                 filteredDocs.sort((a, b) {
                   String nameA = (a.data() as Map<String, dynamic>)['lastName'] ?? '';
                   String nameB = (b.data() as Map<String, dynamic>)['lastName'] ?? '';
@@ -222,6 +287,7 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(color: _brandBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 12, color: _brandBlue),
           const SizedBox(width: 4),

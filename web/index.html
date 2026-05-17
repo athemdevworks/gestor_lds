@@ -38,6 +38,8 @@
     
 
     
+  
+  
   <style id="splash-screen-style">
     html {
       height: 100%
@@ -51,17 +53,12 @@
     }
 
     .center {
-        margin: 0;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        -ms-transform: translate(-50%, -50%);
-        transform: translate(-50%, -50%);
-
-        max-width: 90%;  /* Nunca ocupes más del 90% del ancho de la pantalla */
-        max-height: 90%; /* Nunca ocupes más del 90% del alto */
-        height: auto;    /* Mantén la proporción original (no te estires) */
-        width: auto;     /* Mantén la proporción original */
+      margin: 0;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      -ms-transform: translate(-50%, -50%);
+      transform: translate(-50%, -50%);
     }
 
     .contain {
@@ -108,6 +105,7 @@
       document.body.style.background = "transparent";
     }
   </script>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
 </head>
 <body>
   <picture id="splash">
@@ -115,6 +113,7 @@
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">
       <img class="center" aria-hidden="true" src="splash/img/light-1x.png" alt="">
   </picture>
+  
 
 
 <script src="flutter_bootstrap.js?v=1.7.0" async=""></script>

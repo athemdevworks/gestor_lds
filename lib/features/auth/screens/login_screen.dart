@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/registration_screen.dart';
 import 'package:gestor_lds/core/utils/alert_utils.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    // Cerramos el teclado para evitar solapamientos
     FocusScope.of(context).unfocus();
 
     if (_formKey.currentState!.validate()) {
@@ -42,7 +40,6 @@ class _LoginScreenState extends State<LoginScreen> {
         String password = _passwordController.text.trim();
         String? emailToUse;
 
-        // 1. Lógica: ¿Es correo o usuario?
         if (input.contains('@')) {
           emailToUse = input;
         } else {
@@ -52,9 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
 
-        // 2. Login
         await _authService.signInWithEmailAndPassword(emailToUse, password);
-        // Si pasa, AuthWrapper redirige mágicamente a la Sala de Espera o al Dashboard.
 
       } catch (e) {
         if (mounted) {
@@ -74,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // 🚀 Dialog más elegante
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Recuperar Contraseña', style: TextStyle(fontWeight: FontWeight.bold)),
         content: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
@@ -142,16 +137,12 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFEEF2F6), // 🚀 Fondo unificado
+      backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
-        backgroundColor: _brandBlue, // 🚀 Usamos la variable local por si el Theme falla
-        title: SvgPicture.asset(
-          'images/logo-hor.svg',
-          height: 45,
-          colorFilter: const ColorFilter.mode(
-            Colors.white,
-            BlendMode.srcIn,
-          ),
+        backgroundColor: _brandBlue,
+        title: Image.asset(
+          'assets/images/logo_hor_stake.png',
+          height: 40,
         ),
         centerTitle: true,
         elevation: 0,
@@ -167,21 +158,22 @@ class _LoginScreenState extends State<LoginScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               color: Colors.white,
               child: Padding(
-                padding: const EdgeInsets.all(32.0), // 🚀 Más respiro interior
+                padding: const EdgeInsets.all(32.0),
                 child: Form(
                   key: _formKey,
                   child: AutofillGroup(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SvgPicture.asset(
-                          'images/glds-isotipo.svg', // Tu logo vertical
-                          height: 130,            // 🚀 Aquí controlas qué tan "grande" se ve
+                        // 🚀 TÁCTICA: Reemplazo por el escudo PNG oficial a full color sin filtros
+                        Image.asset(
+                          'assets/images/icon_launcher.png',
+                          height: 130,
                           fit: BoxFit.contain,
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'Portal de Acceso', // 🚀 Texto más corporativo
+                          'Portal de Acceso',
                           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _brandBlue),
                           textAlign: TextAlign.center,
                         ),
@@ -244,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _brandBlue,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16), // 🚀 Botón más grueso
+                            padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -271,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               Text('GestorLDS', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                               Text('Desarrollado por ATHEM DevWorks © 2026', style: TextStyle(fontSize: 12, color: Colors.grey)),
                               SizedBox(height: 4),
-                              Text('Versión 2.1.2', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                              Text('Versión 2.1.4', style: TextStyle(fontSize: 11, color: Colors.grey)),
                             ],
                           ),
                         ),

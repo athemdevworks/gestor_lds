@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
@@ -37,7 +38,10 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
 
   bool _isStakeCalling = false;
 
-  // Variables del Doble Pivote
+  // 🚀 LA NUEVA LISTA DINÁMICA DE LLAMAMIENTOS
+  List<Map<String, String>> _activeCallings = [];
+
+  // Variables del Formulario
   String? _selectedWard;
   String _primaryOrganization = 'Miembro General';
   String _servingOrganization = 'Miembro General';
@@ -55,7 +59,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     final u = widget.memberToEdit!;
     _firstNameCtrl.text = u.firstName;
     _lastNameCtrl.text = u.lastName;
-    _phoneCtrl.text = u.phone ?? ''; // Asumiendo phoneNumber según el modelo
+    _phoneCtrl.text = u.phone ?? '';
     _emailCtrl.text = u.email ?? '';
     _gender = u.gender;
     _isYSA = u.isYSA;
@@ -68,28 +72,14 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       _primaryOrganization = u.organization;
     }
 
-    String servingOrg = u.callingOrganizations.isNotEmpty ? u.callingOrganizations.first : u.organization;
+    // 🚀 CARGAMOS LOS LLAMAMIENTOS DEL ARRAY EXISTENTE A LA LISTA VISUAL
+    int count = math.max(u.callings.length, u.callingOrganizations.length);
+    for (int i = 0; i < count; i++) {
+      String o = i < u.callingOrganizations.length ? u.callingOrganizations[i] : 'Miembro General';
+      String c = i < u.callings.length ? u.callings[i] : 'Ninguno';
 
-    if (kStakeStructure.containsKey(servingOrg)) {
-      _isStakeCalling = true;
-      _servingOrganization = servingOrg;
-    } else if (kLdsStructure.containsKey(servingOrg)) {
-      _isStakeCalling = false;
-      _servingOrganization = servingOrg;
-    } else {
-      _servingOrganization = 'Miembro General';
-    }
-
-    String primaryCall = u.primaryCalling;
-    if (primaryCall.isNotEmpty && primaryCall != 'Ninguno') {
-      final currentMap = _isStakeCalling ? kStakeStructure : kLdsStructure;
-      final availableCallings = currentMap[_servingOrganization] ?? [];
-
-      if (availableCallings.contains(primaryCall)) {
-        _selectedCalling = primaryCall;
-      } else {
-        _selectedCalling = 'Otro';
-        _callingCtrl.text = primaryCall;
+      if (c != 'Ninguno' && c.isNotEmpty) {
+        _activeCallings.add({'org': o, 'calling': c});
       }
     }
 
@@ -126,6 +116,40 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     }
   }
 
+  // 🚀 FUNCIÓN PARA AÑADIR A LA LISTA VISUAL
+  void _addCallingToList() {
+    String finalCalling = 'Ninguno';
+    final currentMap = _isStakeCalling ? kStakeStructure : kLdsStructure;
+    final availableCallings = currentMap[_servingOrganization] ?? [];
+
+    if (availableCallings.isNotEmpty) {
+      if (_selectedCalling == 'Otro') {
+        finalCalling = _callingCtrl.text.trim();
+      } else if (_selectedCalling != null) {
+        finalCalling = _selectedCalling!;
+      }
+    } else if (_callingCtrl.text.trim().isNotEmpty) {
+      finalCalling = _callingCtrl.text.trim();
+    }
+
+    if (finalCalling == 'Ninguno' || finalCalling.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Especifique un llamamiento antes de añadir.')));
+      return;
+    }
+
+    setState(() {
+      _activeCallings.add({
+        'org': _servingOrganization,
+        'calling': finalCalling
+      });
+      // Reseteamos el miniformulario
+      _servingOrganization = 'Miembro General';
+      _selectedCalling = null;
+      _callingCtrl.clear();
+      _isStakeCalling = false;
+    });
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -137,37 +161,12 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     setState(() => _isLoading = true);
 
     try {
-      String finalCalling = 'Ninguno';
-      final currentMap = _isStakeCalling ? kStakeStructure : kLdsStructure;
-      final availableCallings = currentMap[_servingOrganization] ?? [];
+      // 🚀 CONSTRUIMOS LOS ARRAYS FINALES PARA FIREBASE
+      List<String> finalOrgs = _activeCallings.map((e) => e['org']!).toList();
+      List<String> finalCalls = _activeCallings.map((e) => e['calling']!).toList();
 
-      if (availableCallings.isNotEmpty) {
-        if (_selectedCalling == 'Otro') {
-          finalCalling = _callingCtrl.text.trim();
-        } else if (_selectedCalling != null) {
-          finalCalling = _selectedCalling!;
-        }
-      } else if (_callingCtrl.text.trim().isNotEmpty) {
-        finalCalling = _callingCtrl.text.trim();
-      }
-
-      // 🚀 LÓGICA DE ARRAYS INTELIGENTE: Añadimos sin destruir
-      List<String> callingsActuales = widget.memberToEdit != null 
-          ? List<String>.from(widget.memberToEdit!.callings) 
-          : [];
-      List<String> orgsActuales = widget.memberToEdit != null 
-          ? List<String>.from(widget.memberToEdit!.callingOrganizations) 
-          : [];
-
-      if (!callingsActuales.contains(finalCalling) && finalCalling != 'Ninguno') {
-        callingsActuales.add(finalCalling);
-      }
-      if (!orgsActuales.contains(_servingOrganization) && _servingOrganization != 'Miembro General') {
-        orgsActuales.add(_servingOrganization);
-      }
-
-      if (callingsActuales.isEmpty) callingsActuales = ['Ninguno'];
-      if (orgsActuales.isEmpty) orgsActuales = [_primaryOrganization];
+      if (finalOrgs.isEmpty) finalOrgs = [_primaryOrganization];
+      if (finalCalls.isEmpty) finalCalls = ['Ninguno'];
 
       final collection = FirebaseFirestore.instance.collection('users');
       final docId = widget.memberToEdit?.uid ?? collection.doc().id;
@@ -181,9 +180,8 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
         'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
         'ward': _selectedWard!,
         'organization': _primaryOrganization,
-        // 🚀 GUARDAMOS LOS ARRAYS EN LA BASE DE DATOS
-        'callingOrganizations': orgsActuales,
-        'callings': callingsActuales,
+        'callingOrganizations': finalOrgs,
+        'callings': finalCalls,
         'isYSA': _isYSA,
       };
 
@@ -287,36 +285,94 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                   const SizedBox(height: 20),
 
                   _buildCard(
-                    title: 'Organización y Llamamiento',
-                    icon: Icons.account_balance,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        value: _selectedWard,
-                        decoration: const InputDecoration(
-                          labelText: 'Barrio Actual',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.location_city),
-                          isDense: true,
+                      title: 'Membresía',
+                      icon: Icons.account_balance,
+                      children: [
+                        DropdownButtonFormField<String>(
+                          value: _selectedWard,
+                          decoration: const InputDecoration(
+                            labelText: 'Barrio Actual',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.location_city),
+                            isDense: true,
+                          ),
+                          items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
+                          onChanged: (v) => setState(() => _selectedWard = v),
+                          validator: (v) => v == null ? 'Requerido' : null,
                         ),
-                        items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
-                        onChanged: (v) => setState(() => _selectedWard = v),
-                        validator: (v) => v == null ? 'Requerido' : null,
-                      ),
-                      const SizedBox(height: 15),
+                        const SizedBox(height: 15),
 
-                      // 🚀 CURA APLICADA: .toSet().toList() elimina duplicados, agregamos 'Miembro General'
-                      DropdownButtonFormField<String>(
-                        value: _primaryOrganization,
-                        decoration: const InputDecoration(
-                          labelText: 'Org. Principal (Membresía)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.person_pin),
-                          isDense: true,
+                        DropdownButtonFormField<String>(
+                          value: _primaryOrganization,
+                          decoration: const InputDecoration(
+                            labelText: 'Org. Principal (Membresía)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person_pin),
+                            isDense: true,
+                          ),
+                          items: ['Miembro General', ...kOrganizationsList].toSet().map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                          onChanged: (v) => setState(() => _primaryOrganization = v!),
                         ),
-                        items: ['Miembro General', ...kOrganizationsList].toSet().map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-                        onChanged: (v) => setState(() => _primaryOrganization = v!),
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 15),
+
+                        Container(
+                          decoration: BoxDecoration(
+                            color: _isYSA ? _brandBlue.withOpacity(0.05) : Colors.transparent,
+                            border: Border.all(color: _isYSA ? _brandBlue : Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: SwitchListTile(
+                            title: Text(
+                              '¿Es Joven Adulto Soltero (JAS)?',
+                              style: TextStyle(fontWeight: FontWeight.bold, color: _isYSA ? _brandBlue : Colors.black87),
+                            ),
+                            subtitle: const Text('Marcar si tiene 18-35 años y es soltero(a)'),
+                            value: _isYSA,
+                            activeColor: _brandBlue,
+                            onChanged: (val) => setState(() => _isYSA = val),
+                          ),
+                        ),
+                      ]
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // 🚀 TARJETA 3: LISTA DE LLAMAMIENTOS
+                  _buildCard(
+                    title: 'Llamamientos Asignados',
+                    icon: Icons.badge,
+                    children: [
+                      // 1. Mostrar los llamamientos actuales
+                      if (_activeCallings.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 20),
+                          child: Text('Sin llamamientos asignados.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _activeCallings.map((item) {
+                              return Chip(
+                                backgroundColor: _brandBlue.withOpacity(0.1),
+                                label: Text('${item['calling']} (${item['org']})', style: TextStyle(color: _brandBlue, fontWeight: FontWeight.bold)),
+                                deleteIcon: const Icon(Icons.cancel, size: 20, color: Colors.redAccent),
+                                onDeleted: () {
+                                  setState(() {
+                                    _activeCallings.remove(item);
+                                  });
+                                },
+                              );
+                            }).toList(),
+                          ),
+                        ),
+
+                      const Divider(),
+                      const SizedBox(height: 10),
+                      const Text('Añadir Nuevo Llamamiento', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 15),
 
                       Container(
                         decoration: BoxDecoration(
@@ -326,10 +382,9 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                         ),
                         child: SwitchListTile(
                           title: Text(
-                            'Llamamiento de Estaca',
+                            'Es un llamamiento de Estaca',
                             style: TextStyle(fontWeight: FontWeight.bold, color: _isStakeCalling ? Colors.purple : Colors.black87),
                           ),
-                          subtitle: const Text('Actívalo para asignar llamamientos de Estaca'),
                           value: _isStakeCalling,
                           activeColor: Colors.purple,
                           onChanged: (val) {
@@ -344,12 +399,10 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // 🚀 CURA APLICADA: Protección contra duplicados en las llaves
                       DropdownButtonFormField<String>(
                         value: _servingOrganization,
                         decoration: const InputDecoration(
                           labelText: '¿En qué organización sirve?',
-                          helperText: 'Filtra la lista de llamamientos',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.assignment_ind),
                           isDense: true,
@@ -373,7 +426,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Llamamiento Oficial',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.badge),
+                            prefixIcon: Icon(Icons.star),
                             isDense: true,
                           ),
                           items: [...availableCallings, 'Otro'].toSet().map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
@@ -397,30 +450,26 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                           decoration: const InputDecoration(
                             labelText: 'Asignación / Tarea (Opcional)',
                             border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.badge),
+                            prefixIcon: Icon(Icons.star),
                             isDense: true,
                           ),
                         ),
                       ],
+                      const SizedBox(height: 15),
 
-                      const SizedBox(height: 20),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: _isYSA ? _brandBlue.withOpacity(0.05) : Colors.transparent,
-                          border: Border.all(color: _isYSA ? _brandBlue : Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: SwitchListTile(
-                          title: Text(
-                            '¿Es Joven Adulto Soltero (JAS)?',
-                            style: TextStyle(fontWeight: FontWeight.bold, color: _isYSA ? _brandBlue : Colors.black87),
+                      // BOTÓN PARA AÑADIR A LA LISTA
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ElevatedButton.icon(
+                          onPressed: _addCallingToList,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Añadir a la lista'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade600,
+                            foregroundColor: Colors.white,
                           ),
-                          subtitle: const Text('Marcar si tiene 18-35 años y es soltero(a)'),
-                          value: _isYSA,
-                          activeColor: _brandBlue,
-                          onChanged: (val) => setState(() => _isYSA = val),
                         ),
-                      ),
+                      )
                     ],
                   ),
 
@@ -439,7 +488,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       ),
                       label: _isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('GUARDAR FICHA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          : const Text('GUARDAR FICHA COMPLETA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 30),
@@ -461,6 +510,7 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // Alineado a la izquierda para mejor lectura
           children: [
             Row(
               children: [

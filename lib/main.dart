@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart'; // <--- RECOMENDADO: Manejo de estado
+import 'features/family_history/screens/family_history_hub_screen.dart';
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // Importamos las pantallas y servicios
@@ -95,7 +96,8 @@ class GestorLDSApp extends StatelessWidget {
 
         // 🚀 MAPA DE RUTAS: Aquí le decimos a Flutter qué pantalla cargar al pedir una ruta
         routes: {
-          '/statistics': (context) => const ManagerDashboardScreen(),
+                    '/login': (context) => const LoginScreen(),
+
         },
       ),
     );

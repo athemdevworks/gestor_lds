@@ -9,11 +9,20 @@ import 'package:gestor_lds/features/statistics/screens/hymn_list_screen.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
 import 'package:gestor_lds/core/constants/organizations_list.dart';
 
-import 'family_history_list_screen.dart';
-import 'family_history_report_screen.dart';
+import '../../auth/models/user_model.dart';
+import '../../family_history/screens/family_history_list_screen.dart';
+import '../../family_history/screens/family_history_report_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
-  const ManagerDashboardScreen({super.key});
+
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const ManagerDashboardScreen({
+    super.key,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<ManagerDashboardScreen> createState() => _ManagerDashboardScreenState();
@@ -376,7 +385,12 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   void _mostrarPanelHistoriaFamiliar() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const FamilyHistoryReportScreen()),
+      MaterialPageRoute(
+        builder: (_) => FamilyHistoryReportScreen(
+          isStakeMode: widget.isStakeMode,     // Transmite el switch activo
+          currentUser: widget.currentUser,     // Transmite la ficha del usuario
+        ),
+      ),
     );
   }
 }
