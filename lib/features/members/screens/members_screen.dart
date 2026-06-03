@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:gestor_lds/features/auth/models/user_model.dart';
@@ -9,7 +8,15 @@ import 'package:gestor_lds/core/constants/organizations_list.dart';
 import 'package:gestor_lds/features/members/screens/member_form_screen.dart';
 
 class MembersScreen extends StatefulWidget {
-  const MembersScreen({super.key});
+  // 🚀 MANDOS DIRECTOS DESDE EL PADRE (El Sombrero Multiverso)
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const MembersScreen({
+    super.key,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<MembersScreen> createState() => _MembersScreenState();
@@ -20,7 +27,7 @@ class _MembersScreenState extends State<MembersScreen> {
 
   // --- ESTADO DE FILTROS ---
   String _searchQuery = '';
-  String _barrioFiltro = 'Todos';
+  late String _barrioFiltro; // 🚀 Ahora es dinámico
   String _orgFiltro = 'Todos';
   String _generoFiltro = 'Todos'; // 'Todos', 'M', 'F'
   bool _soloJAS = false;
@@ -28,30 +35,11 @@ class _MembersScreenState extends State<MembersScreen> {
   final Color _brandBlue = const Color(0xFF22539A);
   final Color _brandGold = const Color(0xFFD4AF37);
 
-  // 🚀 VARIABLES PARA SEGURIDAD Y REGLAS DE FIRESTORE
-  UserModel? _currentUser;
-  bool _isLoadingUser = true;
-
   @override
   void initState() {
     super.initState();
-    _loadCurrentUser();
-  }
-
-  // 🚀 Cargamos quién está viendo el directorio para aplicar las Reglas de Privacidad
-  Future<void> _loadCurrentUser() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (doc.exists) {
-        setState(() {
-          _currentUser = UserModel.fromMap(doc.data()!, doc.id);
-          _isLoadingUser = false;
-        });
-        return;
-      }
-    }
-    setState(() => _isLoadingUser = false);
+    // 🚀 INICIALIZACIÓN INTELIGENTE DEL RADAR
+    _barrioFiltro = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
   }
 
   @override
@@ -93,15 +81,23 @@ class _MembersScreenState extends State<MembersScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    // 1. BARRIO
+                    // 1. BARRIO (Bloqueado si no es modo Estaca)
                     DropdownButtonFormField<String>(
                       value: _barrioFiltro,
-                      decoration: InputDecoration(labelText: 'Barrio', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
-                      items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-                      onChanged: (val) {
+                      decoration: InputDecoration(
+                          labelText: 'Barrio / Estaca',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          isDense: true,
+                          fillColor: widget.isStakeMode ? Colors.white : Colors.grey.shade100,
+                          filled: !widget.isStakeMode
+                      ),
+                      items: widget.isStakeMode
+                          ? ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList()
+                          : [widget.currentUser.ward].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                      onChanged: widget.isStakeMode ? (val) {
                         setModalState(() => _barrioFiltro = val!);
                         setState(() {}); // Actualiza la lista principal
-                      },
+                      } : null,
                     ),
                     const SizedBox(height: 16),
 
@@ -167,8 +163,7 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
-  // 🚀 TÁCTICA DE LIMPIEZA: Eliminar todos los usuarios de un barrio específico
-  // 🚀 TÁCTICA DE LIMPIEZA MANUAL ESTILO FIREBASE (Solo Admins)
+  // 🚀 TÁCTICA DE LIMPIEZA MANUAL ESTILO FIREBASE (Solo VIP)
   Future<void> _eliminarBarrioManual() async {
     final TextEditingController deleteController = TextEditingController();
 
@@ -218,17 +213,14 @@ class _MembersScreenState extends State<MembersScreen> {
     if (confirmar != true) return;
 
     String barrioABorrar = deleteController.text.trim();
-
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Buscando miembros de "$barrioABorrar"...')));
 
     try {
-      // Buscamos a todos los que pertenezcan a ese barrio escrito a mano
       var snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('ward', isEqualTo: barrioABorrar)
           .get();
 
-      // Si se equivocó al escribir, le avisamos y no borramos nada
       if (snapshot.docs.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -238,7 +230,6 @@ class _MembersScreenState extends State<MembersScreen> {
         return;
       }
 
-      // Si los encontró, ejecutamos la purga
       int contador = 0;
       for (var doc in snapshot.docs) {
         await doc.reference.delete();
@@ -259,30 +250,34 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoadingUser) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-
-    // 🚀 ARMAMOS LA CONSULTA A FIREBASE CON SEGURIDAD TÁCTICA
+    // 🚀 ARMAMOS LA CONSULTA A FIREBASE CON SEGURIDAD TÁCTICA Y OPTIMIZADA
     Query usersQuery = FirebaseFirestore.instance.collection('users');
 
-    if (_currentUser != null && !_currentUser!.canSeeAllWards) {
-      usersQuery = usersQuery.where('ward', isEqualTo: _currentUser!.ward);
+    if (_barrioFiltro != 'Todos') {
+      usersQuery = usersQuery.where('ward', isEqualTo: _barrioFiltro);
+    } else if (!widget.isStakeMode) {
+      usersQuery = usersQuery.where('ward', isEqualTo: widget.currentUser.ward);
     }
+
+    // 🛡️ Permisos para acciones especiales
+    final bool isAdminOrStake = widget.currentUser.role == UserRole.admin || widget.currentUser.role == UserRole.presidencia_estaca;
+    final bool canAddMembers = widget.currentUser.role != UserRole.miembro; // Líderes pueden agregar fichas temporales
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
-        title: const Text('Directorio Oficial', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(widget.isStakeMode ? 'Directorio de Estaca' : 'Directorio de Barrio', style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // 🚀 ESCUDO TÁCTICO: Solo aparece si el usuario es Admin Global
-          if (_currentUser != null && _currentUser!.canSeeAllWards)
+          // 🚀 ESCUDO TÁCTICO: Solo aparece si el usuario es VIP de la Estaca
+          if (isAdminOrStake)
             IconButton(
               icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
               tooltip: 'Purga Manual de Barrio',
-              onPressed: _eliminarBarrioManual, // Llamamos a la nueva función
+              onPressed: _eliminarBarrioManual,
             ),
 
           IconButton(
@@ -292,22 +287,27 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: canAddMembers
+          ? FloatingActionButton(
         backgroundColor: _brandGold,
         foregroundColor: Colors.black87,
         elevation: 4,
         onPressed: () {
-          // 🚀 HABILITADO NAVEGACIÓN PARA CREAR
+          // 🚀 HABILITADO NAVEGACIÓN PARA CREAR (PASAMOS MANDOS)
           Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => const MemberFormScreen(),
+                builder: (_) => MemberFormScreen(
+                  isStakeMode: widget.isStakeMode,
+                  currentUser: widget.currentUser,
+                ),
                 settings: const RouteSettings(name: '/member-create'),
               )
           );
         },
         child: const Icon(Icons.person_add_alt_1),
-      ),
+      )
+          : null,
       body: Column(
         children: [
           // ==========================================
@@ -369,12 +369,11 @@ class _MembersScreenState extends State<MembersScreen> {
                 if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
-                // Convertimos el JSON de Firebase a nuestra lista de UserModel
                 final allMembers = snapshot.data!.docs.map((doc) {
                   return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
                 }).toList();
 
-                // 🚀 LÓGICA DE FILTRADO COMBINADO
+                // 🚀 LÓGICA DE FILTRADO COMBINADO EN LA UI
                 final filteredMembers = allMembers.where((m) {
                   final query = _searchQuery.trim();
                   if (query.isNotEmpty) {
@@ -383,7 +382,6 @@ class _MembersScreenState extends State<MembersScreen> {
                     if (!matchNombre && !matchCargo) return false;
                   }
 
-                  if (_barrioFiltro != 'Todos' && m.ward != _barrioFiltro) return false;
                   if (_orgFiltro != 'Todos' && m.organization != _orgFiltro) return false;
                   if (_generoFiltro != 'Todos' && m.gender != _generoFiltro) return false;
                   if (_soloJAS && !m.isYSA) return false;
@@ -446,20 +444,17 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
-  // 🚀 TARJETA ACTUALIZADA AL USERMODEL
   Widget _buildMemberCard(UserModel member) {
     final isMale = member.gender == 'M';
     final hasPhone = member.phone != null && member.phone!.trim().isNotEmpty;
 
-    // Mostramos la primera organización donde sirve (si la hay) o la organización a la que pertenece
-    String servingOrg = member.callingOrganizations.isNotEmpty ? member.callingOrganizations.first : member.organization;
+    String servingOrg = member.callingOrganizations.isNotEmpty ? member.callingOrganizations.first : member.organization ?? 'General';
     String subtitle = servingOrg;
 
     if (member.primaryCalling.isNotEmpty && member.primaryCalling != 'Ninguno') {
       subtitle += " • ${member.primaryCalling}";
     }
 
-    // Identificador si es cuenta temporal (fichas del JSON que nadie ha reclamado)
     bool isPendingClaim = !member.isRegistered;
 
     return Card(
@@ -470,11 +465,15 @@ class _MembersScreenState extends State<MembersScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // 🚀 HABILITADO NAVEGACIÓN PARA EDITAR
+          // 🚀 HABILITADO NAVEGACIÓN PARA EDITAR (PASAMOS MANDOS)
           Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => MemberFormScreen(memberToEdit: member),
+                builder: (_) => MemberFormScreen(
+                  memberToEdit: member,
+                  isStakeMode: widget.isStakeMode,
+                  currentUser: widget.currentUser,
+                ),
                 settings: const RouteSettings(name: '/member-edit'),
               )
           );
@@ -483,15 +482,14 @@ class _MembersScreenState extends State<MembersScreen> {
           padding: const EdgeInsets.all(12.0),
           child: Row(
             children: [
-              // AVATAR CON INDICADOR JAS
               Stack(
                 children: [
                   CircleAvatar(
                     backgroundColor: isMale ? Colors.blue.shade50 : Colors.pink.shade50,
                     radius: 26,
                     child: Icon(
-                      _getIconForOrg(member.organization),
-                      color: _getColorForOrg(member.organization),
+                      _getIconForOrg(member.organization ?? ''),
+                      color: _getColorForOrg(member.organization ?? ''),
                       size: 24,
                     ),
                   ),
@@ -513,7 +511,6 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
               const SizedBox(width: 16),
 
-              // TEXTOS PRINCIPALES
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -542,7 +539,6 @@ class _MembersScreenState extends State<MembersScreen> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    // Etiquetas de Estado y Barrio
                     Row(
                       children: [
                         Container(
@@ -580,7 +576,6 @@ class _MembersScreenState extends State<MembersScreen> {
                 ),
               ),
 
-              // ACCIONES
               if (hasPhone)
                 IconButton(
                   icon: const Icon(Icons.message, color: Color(0xFF25D366)),
@@ -588,7 +583,7 @@ class _MembersScreenState extends State<MembersScreen> {
                   onPressed: () => _launchWhatsApp(member.phone!),
                 )
               else
-                const SizedBox(width: 48), // Espacio para alinear si no hay botón
+                const SizedBox(width: 48),
             ],
           ),
         ),

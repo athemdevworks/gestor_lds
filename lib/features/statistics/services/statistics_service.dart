@@ -3,14 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class StatisticsService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // 1. ANILLO: ESTADO DE COMPROMISOS (Ya funciona)
-  Future<Map<String, int>> getCommitmentsStats() async {
+  // 1. ANILLO: ESTADO DE COMPROMISOS (Multiverso añadido)
+  Future<Map<String, int>> getCommitmentsStats({String ward = 'Todos'}) async {
     int completed = 0;
     int pending = 0;
     try {
-      final snapshot = await _db.collection('commitments').get();
+      // 🚀 INYECCIÓN DE FILTRO GEOGRÁFICO
+      Query query = _db.collection('commitments');
+      if (ward != 'Todos') {
+        query = query.where('ward', isEqualTo: ward);
+      }
+
+      final snapshot = await query.get();
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         final isCompleted = data['isCompleted'] ?? false;
         if (isCompleted) {
           completed++;
@@ -25,17 +31,20 @@ class StatisticsService {
     }
   }
 
-  // 2. BARRAS: GASTOS (Reembolsos vs Adelantos)
-  // Como no hay un "presupuesto asignado global" en la BD, compararemos
-  // cuánto dinero ha salido por reembolsos vs cuánto por adelantos.
-  Future<Map<String, double>> getBudgetStats() async {
+  // 2. BARRAS: GASTOS (Reembolsos vs Adelantos) (Multiverso añadido)
+  Future<Map<String, double>> getBudgetStats({String ward = 'Todos'}) async {
     double totalReimbursements = 0; // Reembolsos
     double totalAdvances = 0;       // Adelantos
     try {
-      // Asumo que tu colección de solicitudes de gastos se llama 'expense_requests'
-      final snapshot = await _db.collection('expense_requests').get();
+      // 🚀 INYECCIÓN DE FILTRO GEOGRÁFICO
+      Query query = _db.collection('expense_requests');
+      if (ward != 'Todos') {
+        query = query.where('ward', isEqualTo: ward);
+      }
+
+      final snapshot = await query.get();
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         final isReimbursement = data['isReimbursement'] ?? true;
 
         // Sumamos los montos de la lista de items
@@ -59,20 +68,27 @@ class StatisticsService {
     }
   }
 
-  // 3. MEDIDOR: ENTREVISTAS DEL MES ACTUAL
-  Future<Map<String, int>> getInterviewStats() async {
+  // 3. MEDIDOR: ENTREVISTAS DEL MES ACTUAL (Multiverso añadido)
+  Future<Map<String, int>> getInterviewStats({String ward = 'Todos'}) async {
     int reserved = 0;
     int available = 0;
     try {
       final now = DateTime.now();
       final firstDayOfMonth = DateTime(now.year, now.month, 1);
 
-      final snapshot = await _db.collection('interview_slots')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfMonth))
-          .get();
+      // 🚀 INYECCIÓN DE FILTRO GEOGRÁFICO
+      Query query = _db.collection('interview_slots')
+          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(firstDayOfMonth));
+
+      if (ward != 'Todos') {
+        query = query.where('ward', isEqualTo: ward);
+      }
+
+      final snapshot = await query.get();
 
       for (var doc in snapshot.docs) {
-        if (doc.data()['isReserved'] == true) {
+        final data = doc.data() as Map<String, dynamic>;
+        if (data['isReserved'] == true) {
           reserved++;
         } else {
           available++;
@@ -85,18 +101,23 @@ class StatisticsService {
     }
   }
 
-  // 4. ALERTA: FOCOS ROJOS (Compromisos atrasados más de 3 días)
-  Future<List<Map<String, dynamic>>> getOverdueCommitments() async {
+  // 4. ALERTA: FOCOS ROJOS (Multiverso añadido)
+  Future<List<Map<String, dynamic>>> getOverdueCommitments({String ward = 'Todos'}) async {
     List<Map<String, dynamic>> overdueList = [];
     try {
-      final snapshot = await _db.collection('commitments')
-          .where('isCompleted', isEqualTo: false)
-          .get();
+      // 🚀 INYECCIÓN DE FILTRO GEOGRÁFICO
+      Query query = _db.collection('commitments')
+          .where('isCompleted', isEqualTo: false);
 
+      if (ward != 'Todos') {
+        query = query.where('ward', isEqualTo: ward);
+      }
+
+      final snapshot = await query.get();
       final now = DateTime.now();
 
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         if (data['dueDate'] != null) {
           final dueDate = (data['dueDate'] as Timestamp).toDate();
 

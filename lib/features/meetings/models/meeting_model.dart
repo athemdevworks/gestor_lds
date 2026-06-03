@@ -12,6 +12,9 @@ class MeetingModel {
   final String presidedBy;
   final String directedBy;
 
+  // 🚀 NUEVO: DNI Geográfico (Diferencia reuniones de Barrio vs Estaca)
+  final String ward;
+
   // Título u Organización (Ideal para "Otra Reunión")
   final String? organization;
 
@@ -33,6 +36,7 @@ class MeetingModel {
     required this.time,
     required this.presidedBy,
     required this.directedBy,
+    required this.ward, // 🚀 Añadido al constructor principal
     this.organization,
 
     // Añadidos al constructor
@@ -81,6 +85,7 @@ class MeetingModel {
         time: parsedTime,
         presidedBy: data['presidedBy'] as String? ?? '',
         directedBy: data['directedBy'] as String? ?? '',
+        ward: data['ward'] as String? ?? 'Desconocido', // 🚀 Salvavidas para no crashear con reuniones viejas
         organization: data['organization'] as String?,
 
         // --- MAPEO DE NUEVOS CAMPOS ---
@@ -103,6 +108,7 @@ class MeetingModel {
         time: "Error",
         presidedBy: "Error de datos",
         directedBy: "",
+        ward: "Error", // 🚀 Manejo de error para la UI
         organization: "",
       );
     }
@@ -116,6 +122,7 @@ class MeetingModel {
       'time': time,
       'presidedBy': presidedBy,
       'directedBy': directedBy,
+      'ward': ward, // 🚀 Guardamos a qué nivel pertenece la reunión en Firebase
       'organization': organization,
 
       // --- GUARDADO DE NUEVOS CAMPOS ---

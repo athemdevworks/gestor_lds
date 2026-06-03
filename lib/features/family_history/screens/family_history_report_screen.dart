@@ -53,6 +53,36 @@ class _FamilyHistoryReportScreenState extends State<FamilyHistoryReportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // =========================================================================
+    // 🛡️ DEFENSA ESTRICTA: Filtros Cruzados (Barrio y Estaca)
+    // =========================================================================
+
+    // Convertimos el rol a texto puro para evitar el choque con los Enums
+    final String miRol = widget.currentUser.role.toString();
+
+    // 1. Escáner para Líderes de Barrio (Escanea TODA la matriz, no solo el 1ro)
+    final bool sirveEnOrgClaveBarrio = widget.currentUser.callingOrganizations?.contains('Cuórum de Élderes') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sociedad de Socorro') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar') == true;
+
+    final bool esLiderBarrioAutorizado = (miRol == 'lider_barrio' || miRol == 'UserRole.lider_barrio') && sirveEnOrgClaveBarrio;
+
+    // 2. Escáner para Líderes de Estaca (El Nuevo Candado)
+    final bool sirveEnOrgClaveEstaca = widget.currentUser.callingOrganizations?.contains('Sumo consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sumo Consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e historia familiar de estaca') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar de estaca') == true;
+
+    final bool esLiderEstacaAutorizado = (miRol == 'lider_estaca' || miRol == 'UserRole.lider_estaca') && sirveEnOrgClaveEstaca;
+
+    // 3. Pases VIP Absolutos (Capitanes Generales)
+    final bool tienePaseVip = miRol == 'admin' || miRol == 'UserRole.admin' ||
+        miRol == 'presidencia_estaca' || miRol == 'UserRole.presidencia_estaca' ||
+        miRol == 'obispado' || miRol == 'UserRole.obispado';
+
+    // 4. Permiso Total Final
+    final bool tienePermisoGestion = tienePaseVip || esLiderEstacaAutorizado || esLiderBarrioAutorizado;
+    // =========================================================================
     // 🚀 IDENTIFICAMOS LAS CREDENCIALES DINÁMICAS SIN DOBLE CONSULTA
     final bool esAdminEstaca = widget.isStakeMode;
 
@@ -71,7 +101,27 @@ class _FamilyHistoryReportScreenState extends State<FamilyHistoryReportScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
+      // 🚀 BLOQUEO ABSOLUTO: Si no tiene permiso, no se renderiza la información
+      body: !tienePermisoGestion
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.security_outlined, size: 80, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            const Text(
+              'Acceso restringido.',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Solo presidencias autorizadas pueden ver las métricas.',
+              style: TextStyle(fontSize: 14, color: Colors.black45),
+            ),
+          ],
+        ),
+      )
+          : Column(
         children: [
           // ==========================================
           // 🚀 BARRA DE FILTROS SUPERIOR

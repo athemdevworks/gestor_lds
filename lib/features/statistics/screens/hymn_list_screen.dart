@@ -2,8 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:intl/intl.dart';
 
+// 🚀 IMPORTACIONES DEL MULTIVERSO
+import 'package:gestor_lds/core/constants/wards_list.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+
 class HymnListScreen extends StatefulWidget {
-  const HymnListScreen({super.key});
+  // 🚀 RECIBIMOS LOS MANDOS DESDE EL PADRE
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const HymnListScreen({
+    super.key,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<HymnListScreen> createState() => _HymnListScreenState();
@@ -15,7 +27,9 @@ class _HymnListScreenState extends State<HymnListScreen> {
 
   int _currentYear = DateTime.now().year;
 
-  // ¡ATENCIÓN! Cambió el tipo de int a List<DateTime>
+  // 🚀 FILTRO GEOGRÁFICO
+  late String _targetWard;
+
   List<MapEntry<String, List<DateTime>>>? _allHymns;
   List<MapEntry<String, List<DateTime>>>? _filteredHymns;
 
@@ -25,6 +39,8 @@ class _HymnListScreenState extends State<HymnListScreen> {
   @override
   void initState() {
     super.initState();
+    // 🚀 INICIALIZAMOS EL FILTRO GEOGRÁFICO
+    _targetWard = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
     _loadRanking();
   }
 
@@ -36,7 +52,9 @@ class _HymnListScreenState extends State<HymnListScreen> {
 
   Future<void> _loadRanking() async {
     setState(() => _isLoading = true);
-    final ranking = await _meetingService.getYearlyHymnRanking(_currentYear);
+
+    // 🚀 AHORA LE ENVIAMOS EL BARRIO (o "Todos") A FIREBASE
+    final ranking = await _meetingService.getYearlyHymnRanking(_currentYear, _targetWard);
 
     if (mounted) {
       setState(() {
@@ -73,7 +91,6 @@ class _HymnListScreenState extends State<HymnListScreen> {
     });
   }
 
-  // --- NUEVA FUNCIÓN: PANEL INFERIOR CON FECHAS ---
   void _showDatesBottomSheet(String hymnName, List<DateTime> dates) {
     showModalBottomSheet(
       context: context,
@@ -108,7 +125,6 @@ class _HymnListScreenState extends State<HymnListScreen> {
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.event_available, color: Colors.green.shade600, size: 20),
                       title: Text(
-                        // Ponemos la primera letra del día en mayúscula
                         dateStr[0].toUpperCase() + dateStr.substring(1),
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
@@ -141,8 +157,9 @@ class _HymnListScreenState extends State<HymnListScreen> {
       ),
       body: Column(
         children: [
+          // CABECERA DE AÑO
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: const BoxDecoration(color: Colors.white),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -154,8 +171,32 @@ class _HymnListScreenState extends State<HymnListScreen> {
             ),
           ),
 
+          // 🚀 SELECTOR DE BARRIO (SOLO MODO ESTACA)
+          if (widget.isStakeMode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              color: Colors.white,
+              child: DropdownButtonFormField<String>(
+                value: _targetWard,
+                decoration: InputDecoration(
+                  labelText: 'Filtrar por Barrio',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                ),
+                items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _targetWard = val);
+                    _loadRanking(); // Recargamos Firebase
+                  }
+                },
+              ),
+            ),
+
+          // BUSCADOR DE TEXTO
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))],
@@ -186,6 +227,7 @@ class _HymnListScreenState extends State<HymnListScreen> {
             ),
           ),
 
+          // CONTADOR TOTAL
           if (!_isLoading && _allHymns != null && _allHymns!.isNotEmpty)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -215,8 +257,9 @@ class _HymnListScreenState extends State<HymnListScreen> {
                   Text(
                     _searchController.text.isNotEmpty
                         ? 'No se encontraron himnos con "${_searchController.text}"'
-                        : 'No hay himnos registrados en $_currentYear.',
+                        : 'No hay himnos registrados en $_currentYear${widget.isStakeMode && _targetWard != 'Todos' ? ' para $_targetWard' : ''}.',
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -228,7 +271,6 @@ class _HymnListScreenState extends State<HymnListScreen> {
               itemBuilder: (context, index) {
                 final hymn = _filteredHymns![index];
 
-                // --- AGREGAMOS EL INKWELL/ONTAP AL LIST TILE ---
                 return InkWell(
                   onTap: () => _showDatesBottomSheet(hymn.key, hymn.value),
                   child: ListTile(

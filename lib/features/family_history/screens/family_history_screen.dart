@@ -170,6 +170,37 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // =========================================================================
+    // 🛡️ DEFENSA ESTRICTA: Filtros Cruzados (Barrio y Estaca)
+    // =========================================================================
+
+    // Convertimos el rol a texto puro para evitar el choque con los Enums
+    final String miRol = widget.currentUser.role.toString();
+
+    // 1. Escáner para Líderes de Barrio (Escanea TODA la matriz, no solo el 1ro)
+    final bool sirveEnOrgClaveBarrio = widget.currentUser.callingOrganizations?.contains('Cuórum de Élderes') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sociedad de Socorro') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar') == true;
+
+    final bool esLiderBarrioAutorizado = (miRol == 'lider_barrio' || miRol == 'UserRole.lider_barrio') && sirveEnOrgClaveBarrio;
+
+    // 2. Escáner para Líderes de Estaca (El Nuevo Candado)
+    final bool sirveEnOrgClaveEstaca = widget.currentUser.callingOrganizations?.contains('Sumo consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sumo Consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e historia familiar de estaca') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar de estaca') == true;
+
+    final bool esLiderEstacaAutorizado = (miRol == 'lider_estaca' || miRol == 'UserRole.lider_estaca') && sirveEnOrgClaveEstaca;
+
+    // 3. Pases VIP Absolutos (Capitanes Generales)
+    final bool tienePaseVip = miRol == 'admin' || miRol == 'UserRole.admin' ||
+        miRol == 'presidencia_estaca' || miRol == 'UserRole.presidencia_estaca' ||
+        miRol == 'obispado' || miRol == 'UserRole.obispado';
+
+    // 4. Permiso Total Final
+    final bool tienePermisoGestion = tienePaseVip || esLiderEstacaAutorizado || esLiderBarrioAutorizado;
+    // =========================================================================
+
     Query query = FirebaseFirestore.instance.collection('users');
     if (_barrioSeleccionado != 'Todos') {
       query = query.where('ward', isEqualTo: _barrioSeleccionado);
@@ -316,11 +347,12 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                             child: Column(
                               children: [
-                                _buildCheckRow(doc.id, 'login_fs', '1. Inició Sesión en FamilySearch', reg, keyRegistroAnio),
-                                _buildCheckRow(doc.id, 'arbol_crecido', '2. Agregó un Antepasado al Árbol', reg, keyRegistroAnio),
-                                _buildCheckRow(doc.id, 'recuerdos', '3. Agregó un Recuerdo (Foto/Audio)', reg, keyRegistroAnio),
-                                _buildCheckRow(doc.id, 'nombres_templo', '4. Envió nombres para el Templo', reg, keyRegistroAnio),
-                                _buildCheckRow(doc.id, 'cuatro_generaciones', '5. Árbol de 4 Generaciones completo', reg, keyRegistroAnio),
+                                // 🚀 3. TRANSMITIMOS EL PERMISO A CADA FILA
+                                _buildCheckRow(doc.id, 'login_fs', '1. Inició Sesión en FamilySearch', reg, keyRegistroAnio, tienePermisoGestion),
+                                _buildCheckRow(doc.id, 'arbol_crecido', '2. Agregó un Antepasado al Árbol', reg, keyRegistroAnio, tienePermisoGestion),
+                                _buildCheckRow(doc.id, 'recuerdos', '3. Agregó un Recuerdo (Foto/Audio)', reg, keyRegistroAnio, tienePermisoGestion),
+                                _buildCheckRow(doc.id, 'nombres_templo', '4. Envió nombres para el Templo', reg, keyRegistroAnio, tienePermisoGestion),
+                                _buildCheckRow(doc.id, 'cuatro_generaciones', '5. Árbol de 4 Generaciones completo', reg, keyRegistroAnio, tienePermisoGestion),
                               ],
                             ),
                           )
@@ -353,7 +385,8 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
     );
   }
 
-  Widget _buildCheckRow(String userId, String fieldKey, String title, Map<String, dynamic> regAnio, String keyAnio) {
+  // 🚀 4. EL CHECK RECIBE EL PERMISO Y SE BLOQUEA SI ES NECESARIO
+  Widget _buildCheckRow(String userId, String fieldKey, String title, Map<String, dynamic> regAnio, String keyAnio, bool tienePermisoGestion) {
     bool completedThisMonth = regAnio[_mesSeleccionado]?[fieldKey] == true;
     bool completedBefore = false;
     String monthCompleted = '';
@@ -379,7 +412,8 @@ class _FamilyHistoryScreenState extends State<FamilyHistoryScreen> {
         value: isChecked,
         activeColor: Colors.green,
         dense: true,
-        onChanged: completedBefore ? null : (bool? newValue) {
+        // 🚀 5. EL CANDADO: Si ya lo logró antes, O si NO tiene permiso, desactivamos el tap
+        onChanged: (completedBefore || !tienePermisoGestion) ? null : (bool? newValue) {
           if (newValue != null) {
             FirebaseFirestore.instance.collection('users').doc(userId).set({
               keyAnio: {

@@ -37,16 +37,36 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
   Widget build(BuildContext context) {
     final bool esAdminEstaca = widget.isStakeMode;
 
-    // Regla de Permisos Eclesiásticos vinculada al usuario inyectado
-    final String orgUsuario = widget.currentUser.organization ?? '';
-    final bool esLiderEstaca = widget.currentUser.role == 'lider_estaca' ||
-        widget.currentUser.role == 'presidencia_estaca' ||
-        widget.currentUser.role == 'admin';
+    // =========================================================================
+    // 🛡️ DEFENSA ESTRICTA: Filtros Cruzados (Barrio y Estaca)
+    // =========================================================================
 
-    final bool tienePermisoGestion = esLiderEstaca ||
-        widget.currentUser.role == 'obispado' ||
-        orgUsuario == 'Quórum de Élderes' ||
-        orgUsuario == 'Sociedad de Socorro';
+    // Convertimos el rol a texto puro para evitar el choque con los Enums
+    final String miRol = widget.currentUser.role.toString();
+
+    // 1. Escáner para Líderes de Barrio (Escanea TODA la matriz, no solo el 1ro)
+    final bool sirveEnOrgClaveBarrio = widget.currentUser.callingOrganizations?.contains('Cuórum de Élderes') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sociedad de Socorro') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar') == true;
+
+    final bool esLiderBarrioAutorizado = (miRol == 'lider_barrio' || miRol == 'UserRole.lider_barrio') && sirveEnOrgClaveBarrio;
+
+    // 2. Escáner para Líderes de Estaca (El Nuevo Candado)
+    final bool sirveEnOrgClaveEstaca = widget.currentUser.callingOrganizations?.contains('Sumo consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sumo Consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e historia familiar de estaca') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar de estaca') == true;
+
+    final bool esLiderEstacaAutorizado = (miRol == 'lider_estaca' || miRol == 'UserRole.lider_estaca') && sirveEnOrgClaveEstaca;
+
+    // 3. Pases VIP Absolutos (Capitanes Generales)
+    final bool tienePaseVip = miRol == 'admin' || miRol == 'UserRole.admin' ||
+        miRol == 'presidencia_estaca' || miRol == 'UserRole.presidencia_estaca' ||
+        miRol == 'obispado' || miRol == 'UserRole.obispado';
+
+    // 4. Permiso Total Final
+    final bool tienePermisoGestion = tienePaseVip || esLiderEstacaAutorizado || esLiderBarrioAutorizado;
+    // =========================================================================
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),

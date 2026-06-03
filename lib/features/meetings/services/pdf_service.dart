@@ -17,7 +17,7 @@ class PdfService {
     final pdf = pw.Document();
 
     // 1. CARGAR RECURSOS
-    final logoData = await rootBundle.load('assets/images/logont.png');
+    final logoData = await rootBundle.load('assets/images/logopdf.png');
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
     final fontRegular = await PdfGoogleFonts.openSansRegular();
@@ -57,7 +57,8 @@ class PdfService {
 
         if (agenda.welcome != null && agenda.welcome!.isNotEmpty)
           _buildPdfItem('Bienvenida', agenda.welcome),
-        _buildPdfItem('Anuncios del Barrio', agenda.announcements),
+        // 🚀 Ajuste Multiverso: "Anuncios" a secas
+        _buildPdfItem('Anuncios', agenda.announcements),
         _buildPdfItem('Primer Himno', agenda.openingHymn),
         _buildPdfItem('Director(a) de Música', agenda.chorister),
         _buildPdfItem('Pianista', agenda.pianist),
@@ -123,78 +124,70 @@ class PdfService {
         pw.SizedBox(height: 10),
 
         // -----------------------------------------------------------------
-        // 🌟 NUEVO: CUADRÍCULA PARA DOMINGO DE AYUNO Y TESTIMONIOS (2 COLUMNAS)
+        // 🌟 DOMINGO DE AYUNO Y TESTIMONIOS (2 COLUMNAS)
         // -----------------------------------------------------------------
-          if (agenda.isFastAndTestimony) ...[
-            // Usamos un Wrap o Column dentro de un bloque indivisible (si la librería lo soporta)
-            // Para pdf package, colocarlo todo dentro de un mismo Container ayuda a mantenerlo junto
-            pw.Container(
-                child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(8),
-                        decoration: pw.BoxDecoration(color: PdfColors.yellow50, border: pw.Border.all(color: PdfColors.orange200)),
-                        child: pw.Center(
-                          child: pw.Text('DOMINGO DE AYUNO Y TESTIMONIOS', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.orange800, fontSize: 12)),
-                        ),
+        if (agenda.isFastAndTestimony) ...[
+          pw.Container(
+              child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      decoration: pw.BoxDecoration(color: PdfColors.yellow50, border: pw.Border.all(color: PdfColors.orange200)),
+                      child: pw.Center(
+                        child: pw.Text('DOMINGO DE AYUNO Y TESTIMONIOS', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.orange800, fontSize: 12)),
                       ),
-                      pw.SizedBox(height: 10),
+                    ),
+                    pw.SizedBox(height: 10),
 
-                      // Generador de líneas a DOBLE COLUMNA (14 espacios)
-                      pw.Container(
-                        padding: const pw.EdgeInsets.all(10),
-                        decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text('Registro de Testimonios:', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700)),
-                            pw.SizedBox(height: 15),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Registro de Testimonios:', style: pw.TextStyle(fontSize: 9, fontStyle: pw.FontStyle.italic, color: PdfColors.grey700)),
+                          pw.SizedBox(height: 15),
 
-                            // Fila principal que contiene las dos columnas
-                            pw.Row(
-                              crossAxisAlignment: pw.CrossAxisAlignment.start,
-                              children: [
-                                // --- Columna Izquierda (1 al 7) ---
-                                pw.Expanded(
-                                  child: pw.Column(
-                                    children: List.generate(7, (index) => pw.Column(
-                                      children: [
-                                        pw.Row(children: [
-                                          pw.SizedBox(width: 15, child: pw.Text('${index + 1}.', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600))),
-                                          pw.Expanded(child: pw.Divider(color: PdfColors.grey400, thickness: 0.5)),
-                                        ]),
-                                        pw.SizedBox(height: 14), // Espaciado perfecto para lapicero
-                                      ],
-                                    )),
-                                  ),
+                          pw.Row(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Expanded(
+                                child: pw.Column(
+                                  children: List.generate(7, (index) => pw.Column(
+                                    children: [
+                                      pw.Row(children: [
+                                        pw.SizedBox(width: 15, child: pw.Text('${index + 1}.', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600))),
+                                        pw.Expanded(child: pw.Divider(color: PdfColors.grey400, thickness: 0.5)),
+                                      ]),
+                                      pw.SizedBox(height: 14),
+                                    ],
+                                  )),
                                 ),
-
-                                pw.SizedBox(width: 25), // Separador central entre columnas
-
-                                // --- Columna Derecha (8 al 14) ---
-                                pw.Expanded(
-                                  child: pw.Column(
-                                    children: List.generate(7, (index) => pw.Column(
-                                      children: [
-                                        pw.Row(children: [
-                                          pw.SizedBox(width: 15, child: pw.Text('${index + 8}.', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600))),
-                                          pw.Expanded(child: pw.Divider(color: PdfColors.grey400, thickness: 0.5)),
-                                        ]),
-                                        pw.SizedBox(height: 14), // Espaciado perfecto para lapicero
-                                      ],
-                                    )),
-                                  ),
+                              ),
+                              pw.SizedBox(width: 25),
+                              pw.Expanded(
+                                child: pw.Column(
+                                  children: List.generate(7, (index) => pw.Column(
+                                    children: [
+                                      pw.Row(children: [
+                                        pw.SizedBox(width: 15, child: pw.Text('${index + 8}.', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600))),
+                                        pw.Expanded(child: pw.Divider(color: PdfColors.grey400, thickness: 0.5)),
+                                      ]),
+                                      pw.SizedBox(height: 14),
+                                    ],
+                                  )),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ]
-                )
-            )
-          ] else ...[
+                    ),
+                  ]
+              )
+          )
+        ] else ...[
           // DISCURSANTES NORMALES
           pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -235,14 +228,13 @@ class PdfService {
 
     } else if (meeting.type != MeetingType.sacramental) {
       // ==========================================
-      // B. AGENDA DE LIDERAZGO (Actualizada v1.10)
+      // B. AGENDA DE LIDERAZGO (Actualizada)
       // ==========================================
       agendaBody.addAll([
         pw.Text('PUNTOS DE AGENDA', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: brandColor)),
         pw.Divider(color: brandColor, thickness: 1.5),
         pw.SizedBox(height: 10),
 
-        // --- NUEVO: Apertura Impresa ---
         if (meeting.openingHymn != null || meeting.openingPrayer != null) ...[
           if (meeting.openingHymn != null && meeting.openingHymn!.isNotEmpty)
             _buildPdfItem('Himno Inicial', meeting.openingHymn),
@@ -253,7 +245,6 @@ class PdfService {
           pw.SizedBox(height: 10),
         ],
 
-        // Lista de Puntos
         if (meeting.agendaItems != null && meeting.agendaItems!.isNotEmpty)
           ...meeting.agendaItems!.map((item) {
             final itemCommitments = meetingCommitments.where((c) => c.agendaItemId == item.id).toList();
@@ -301,7 +292,6 @@ class PdfService {
         else
           pw.Text('No hay agenda detallada para esta reunión.', style: pw.TextStyle(fontStyle: pw.FontStyle.italic, color: PdfColors.grey600)),
 
-        // --- NUEVO: Clausura Impresa ---
         if (meeting.closingHymn != null || meeting.closingPrayer != null) ...[
           pw.SizedBox(height: 10),
           pw.Divider(color: brandColor, thickness: 1.5),
@@ -335,7 +325,6 @@ class PdfService {
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text('AGENDA DE REUNIÓN', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: brandColor)),
-                        // --- AQUI PONEMOS EL TÍTULO PERSONALIZADO ---
                         pw.Text(
                             meeting.organization != null && meeting.organization!.isNotEmpty
                                 ? meeting.organization!
@@ -351,6 +340,8 @@ class PdfService {
               pw.SizedBox(height: 5),
               pw.Divider(color: brandColor, thickness: 2),
 
+              // 🚀 IMPRIMIENDO LA JURISDICCIÓN EN GRANDE Y EN AZUL
+              _buildPdfItem('Jurisdicción', meeting.ward, bold: true, color: brandColor),
               _buildPdfItem('Preside', meeting.presidedBy),
               _buildPdfItem('Dirige', meeting.directedBy),
               _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),
@@ -369,7 +360,7 @@ class PdfService {
           return pw.Container(
             alignment: pw.Alignment.centerRight,
             margin: const pw.EdgeInsets.only(top: 10),
-            child: pw.Text('Página ${context.pageNumber} de ${context.pagesCount}', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+            child: pw.Text('Página ${context.pageNumber} de ${context.pagesCount} - Generado con GestorLDS', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
           );
         },
       ),

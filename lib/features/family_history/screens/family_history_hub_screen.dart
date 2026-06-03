@@ -30,6 +30,37 @@ class _FamilyHistoryHubScreenState extends State<FamilyHistoryHubScreen> {
     final bool esAdminEstaca = widget.isStakeMode;
     final String barrioUsuario = widget.isStakeMode ? 'Todos los Barrios' : widget.currentUser.ward;
 
+    // =========================================================================
+    // 🛡️ DEFENSA ESTRICTA: Filtros Cruzados (Barrio y Estaca)
+    // =========================================================================
+
+    // Convertimos el rol a texto puro para evitar el choque con los Enums
+    final String miRol = widget.currentUser.role.toString();
+
+    // 1. Escáner para Líderes de Barrio (Escanea TODA la matriz, no solo el 1ro)
+    final bool sirveEnOrgClaveBarrio = widget.currentUser.callingOrganizations?.contains('Cuórum de Élderes') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sociedad de Socorro') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar') == true;
+
+    final bool esLiderBarrioAutorizado = (miRol == 'lider_barrio' || miRol == 'UserRole.lider_barrio') && sirveEnOrgClaveBarrio;
+
+    // 2. Escáner para Líderes de Estaca (El Nuevo Candado)
+    final bool sirveEnOrgClaveEstaca = widget.currentUser.callingOrganizations?.contains('Sumo consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Sumo Consejo') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e historia familiar de estaca') == true ||
+        widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar de estaca') == true;
+
+    final bool esLiderEstacaAutorizado = (miRol == 'lider_estaca' || miRol == 'UserRole.lider_estaca') && sirveEnOrgClaveEstaca;
+
+    // 3. Pases VIP Absolutos (Capitanes Generales)
+    final bool tienePaseVip = miRol == 'admin' || miRol == 'UserRole.admin' ||
+        miRol == 'presidencia_estaca' || miRol == 'UserRole.presidencia_estaca' ||
+        miRol == 'obispado' || miRol == 'UserRole.obispado';
+
+    // 4. Permiso Total Final
+    final bool tienePermisoGestion = tienePaseVip || esLiderEstacaAutorizado || esLiderBarrioAutorizado;
+    // =========================================================================
+
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
@@ -101,24 +132,25 @@ class _FamilyHistoryHubScreenState extends State<FamilyHistoryHubScreen> {
                 }
             ),
 
-            // 🚀 SECCIÓN 2: INFORME COMPARATIVO (MOVIDO AQUÍ)
-            _buildModuleCard(
-                title: 'Informe y Métricas Evolutivas',
-                subtitle: 'Análisis comparativo de crecimiento e indicadores mes a mes.',
-                icon: Icons.analytics_rounded,
-                color: Colors.indigo,
-                onTap: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => FamilyHistoryReportScreen(
-                            isStakeMode: widget.isStakeMode, // Pasa el estado del switch
-                            currentUser: widget.currentUser, // Pasa la ficha del usuario
-                          )
-                      )
-                  );
-                }
-            ),
+            // 🚀 SECCIÓN 2: INFORME COMPARATIVO (OCULTO PARA MIEMBROS SIN PERMISO)
+            if (tienePermisoGestion)
+              _buildModuleCard(
+                  title: 'Informe y Métricas Evolutivas',
+                  subtitle: 'Análisis comparativo de crecimiento e indicadores mes a mes.',
+                  icon: Icons.analytics_rounded,
+                  color: Colors.indigo,
+                  onTap: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => FamilyHistoryReportScreen(
+                              isStakeMode: widget.isStakeMode, // Pasa el estado del switch
+                              currentUser: widget.currentUser, // Pasa la ficha del usuario
+                            )
+                        )
+                    );
+                  }
+              ),
 
             // 🚀 SECCIÓN 3: VIAJES AL TEMPLO
             _buildModuleCard(

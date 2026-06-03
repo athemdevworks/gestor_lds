@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
-import 'package:gestor_lds/features/auth/models/user_model.dart'; // 🚀 Nuevo Modelo
-import 'package:gestor_lds/core/widgets/user_autocomplete_field.dart'; // 🚀 Nuevo Autocompletador
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+import 'package:gestor_lds/core/widgets/user_autocomplete_field.dart';
 
 class DocumentGeneratorScreen extends StatefulWidget {
-  const DocumentGeneratorScreen({super.key});
+  // 🚀 MANDOS DEL MULTIVERSO
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const DocumentGeneratorScreen({
+    super.key,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<DocumentGeneratorScreen> createState() => _DocumentGeneratorScreenState();
@@ -27,10 +35,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   String _selectedAssignmentType = 'TERCER DISCURSO';
 
   // Controladores Entrevista
-  String _selectedLeader = 'OBISPO';
+  late String _selectedLeader;
 
   // Estado
   bool _isMale = false;
+  late String _jurisdiction; // 🚀 El DNI Geográfico
 
   @override
   void initState() {
@@ -38,6 +47,10 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     _tabController = TabController(length: 2, vsync: this);
     _dateController.text = DateFormat('yyyy-MM-dd').format(_nextSunday());
     _timeController.text = "10:30 de la mañana";
+
+    // 🚀 LÓGICA MULTIVERSO INICIAL
+    _jurisdiction = widget.isStakeMode ? 'Estaca Jerusalén' : widget.currentUser.ward;
+    _selectedLeader = widget.isStakeMode ? 'PRESIDENTE DE ESTACA' : 'OBISPO';
   }
 
   DateTime _nextSunday() {
@@ -51,7 +64,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Comunicaciones'),
+        title: Text(widget.isStakeMode ? 'Comunicaciones de Estaca' : 'Comunicaciones'),
         backgroundColor: const Color(0xFF22539A),
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -159,8 +172,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           DropdownButtonFormField<String>(
             decoration: const InputDecoration(labelText: 'Entrevistador', border: OutlineInputBorder()),
             value: _selectedLeader,
-            items: ['OBISPO', 'PRIMER CONSEJERO', 'SEGUNDO CONSEJERO']
-                .map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+            // 🚀 LISTA INTELIGENTE SEGÚN EL MODO
+            items: (widget.isStakeMode
+                ? ['PRESIDENTE DE ESTACA', 'PRIMER CONSEJERO', 'SEGUNDO CONSEJERO', 'MIEMBRO DEL SUMO CONSEJO']
+                : ['OBISPO', 'PRIMER CONSEJERO', 'SEGUNDO CONSEJERO']
+            ).map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
             onChanged: (v) => setState(() => _selectedLeader = v!),
           ),
 
@@ -202,14 +218,13 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   Widget _buildCommonFields() {
     return Column(
       children: [
-        // 🚀 ACTUALIZADO AL NUEVO AUTOCOMPLETADOR
         UserAutocompleteField(
           label: 'Nombre del Miembro',
           controller: _nameController,
           icon: Icons.person_search,
           onUserSelected: (user) {
             setState(() {
-              _isMale = user.gender == 'M'; // 🚀 DETECTA GÉNERO AUTOMÁTICAMENTE
+              _isMale = user.gender == 'M';
             });
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -272,24 +287,27 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
     final articulo = (_selectedAssignmentType.toUpperCase().contains('ORACION') || _selectedAssignmentType.toUpperCase().contains('ORACIÓN')) ? 'la ' : 'el ';
 
-    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
-    message += "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+    final String leadershipTitle = widget.isStakeMode ? 'Presidencia de la Estaca Jerusalén' : 'Obispado del $_jurisdiction';
+    final String signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado de $_jurisdiction';
 
-    message += "En esta ocasión nos complace extenderle una cordial invitación para participar en nuestra reunión sacramental con $articulo *${_selectedAssignmentType.toUpperCase()}* el día *$date* a las *${_timeController.text}* en la capilla Nuevo Trujillo.\n\n";
+    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
+    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+
+    message += "En esta ocasión nos complace extenderle una cordial invitación para participar en nuestra reunión general con $articulo *${_selectedAssignmentType.toUpperCase()}* el día *$date* a las *${_timeController.text}* en nuestro centro de reuniones.\n\n";
 
     if (isTalk) {
       message += "📖 El tema asignado para esta ocasión es: *${_topicController.text.trim()}*.\n";
       message += "⏳ Tendrá un tiempo estimado no mayor a *${_durationController.text} min*.\n\n";
     }
 
-    message += "Le pedimos estar 10 minutos antes del inicio de la reunión en el Salón Sacramental para sentarse en el estrado.\n\n";
+    message += "Le pedimos estar 10 minutos antes del inicio de la reunión para sentarse en el estrado.\n\n";
 
     if (isTalk) {
-      message += "Rogamos que el espíritu del Señor le inspire en la preparación de su discurso y así todos podamos ser edificados en la casa de Dios, el prepararse diligentemente le traerá muchas bendiciones al esforzarse por vivir lo que aprenda.\n\n";
+      message += "Rogamos que el espíritu del Señor le inspire en la preparación de su mensaje y así todos podamos ser edificados en la casa de Dios. El prepararse diligentemente le traerá muchas bendiciones al esforzarse por vivir lo que aprenda.\n\n";
     }
 
-    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le agradecemos, le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
-    message += "Con Amor,\n*Obispado Nuevo Trujillo*";
+    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
+    message += "Con Amor,\n*$signatureTitle*";
 
     Clipboard.setData(ClipboardData(text: message));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
@@ -304,15 +322,18 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     final date = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(DateTime.parse(_dateController.text));
     final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
 
-    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
-    message += "Le extendemos un cordial saludo como Obispado del Barrio Nuevo Trujillo, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+    final String leadershipTitle = widget.isStakeMode ? 'Presidencia de la Estaca Jerusalén' : 'Obispado del $_jurisdiction';
+    final String signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado de $_jurisdiction';
 
-    message += "Por medio de la presente deseamos invitarle a una entrevista con el *$_selectedLeader*, la cual se llevará a cabo el día *$date* a las *${_timeController.text}* en la capilla Nuevo Trujillo.\n\n";
+    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
+    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
+
+    message += "Por medio de la presente deseamos invitarle a una entrevista con el *$_selectedLeader*, la cual se llevará a cabo el día *$date* a las *${_timeController.text}* en nuestro centro de reuniones (Oficina de liderazgo).\n\n";
 
     message += "Agradecemos de antemano su puntualidad y disposición. Si tiene algún inconveniente con el horario, por favor avísenos.\n\n";
 
-    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le agradecemos, le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
-    message += "Con Amor,\n*Obispado Nuevo Trujillo*";
+    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
+    message += "Con Amor,\n*$signatureTitle*";
 
     Clipboard.setData(ClipboardData(text: message));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
@@ -331,6 +352,8 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
       time: _timeController.text,
       topic: _selectedAssignmentType.contains('DISCURSO') ? _topicController.text : null,
       duration: _durationController.text,
+      jurisdiction: _jurisdiction, // 🚀 MANDO AÑADIDO
+      isStakeMode: widget.isStakeMode, // 🚀 MANDO AÑADIDO
     );
   }
 
@@ -345,6 +368,8 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
       leaderRole: _selectedLeader,
       date: DateTime.parse(_dateController.text),
       time: _timeController.text,
+      jurisdiction: _jurisdiction, // 🚀 MANDO AÑADIDO
+      isStakeMode: widget.isStakeMode, // 🚀 MANDO AÑADIDO
     );
   }
 }

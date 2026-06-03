@@ -46,11 +46,15 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
   }
 
   Future<void> _loadAllData() async {
+    // 🚀 DEFINIR BARRIO OBJETIVO (MULTIVERSO)
+    String targetWard = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
+
+    // 🚀 INYECTAR EL BARRIO A LAS CONSULTAS DE FIREBASE
     final results = await Future.wait([
-      _statsService.getCommitmentsStats(),
-      _statsService.getBudgetStats(),
-      _statsService.getInterviewStats(),
-      _statsService.getOverdueCommitments(),
+      _statsService.getCommitmentsStats(ward: targetWard),
+      _statsService.getBudgetStats(ward: targetWard),
+      _statsService.getInterviewStats(ward: targetWard),
+      _statsService.getOverdueCommitments(ward: targetWard),
     ]);
 
     if (mounted) {
@@ -72,8 +76,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
       appBar: AppBar(
-        // 🚀 CAMBIO DE NOMBRE DE MANAGER A REPORTES
-        title: const Text('Panel de Reportes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text(widget.isStakeMode ? 'Panel de Reportes (Estaca)' : 'Panel de Reportes'),
         backgroundColor: _brandBlue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -100,14 +103,22 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                     icon: Icons.record_voice_over,
                     color: Colors.blue,
                     isMobile: isMobile,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpeakerListScreen())),
+                    // 🚀 PASAR SOMBRERO MULTIVERSO
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SpeakerListScreen(
+                      isStakeMode: widget.isStakeMode,
+                      currentUser: widget.currentUser,
+                    ))),
                   ),
                   _buildCategoryCard(
                     title: 'Himnos',
                     icon: Icons.library_music,
                     color: Colors.indigo,
                     isMobile: isMobile,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HymnListScreen())),
+                    // 🚀 PASAR SOMBRERO MULTIVERSO
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => HymnListScreen(
+                      isStakeMode: widget.isStakeMode,
+                      currentUser: widget.currentUser,
+                    ))),
                   ),
                   _buildCategoryCard(
                     title: 'Entrevistas',

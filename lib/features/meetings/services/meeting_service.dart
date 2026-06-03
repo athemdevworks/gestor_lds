@@ -15,6 +15,8 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    // 🚀 NUEVO DNI GEOGRÁFICO REQUERIDO
+    required String ward,
     String? organization,
 
     // --- NUEVOS CAMPOS v1.10 ---
@@ -37,6 +39,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      ward: ward, // 🚀 GUARDANDO JURISDICCIÓN
       organization: organization,
 
       // --- PASAR AL MODELO ---
@@ -105,6 +108,8 @@ class MeetingService {
     required String time,
     required String presidedBy,
     required String directedBy,
+    // 🚀 NUEVO DNI GEOGRÁFICO REQUERIDO
+    required String ward,
     String? organization,
 
     // --- NUEVOS CAMPOS v1.10 ---
@@ -125,6 +130,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
+      ward: ward, // 🚀 ACTUALIZANDO JURISDICCIÓN
       organization: organization,
 
       // --- PASAR AL MODELO ---
@@ -156,45 +162,39 @@ class MeetingService {
   // 📊 ESTADÍSTICAS Y MINERÍA DE DATOS
   // ==========================================
 
-  /// Extrae y cuenta todos los himnos cantados en un AÑO específico
-  Future<List<MapEntry<String, List<DateTime>>>> getYearlyHymnRanking(int year) async {
-    // 1. Definir el rango de TODO el año
+  /// Extrae y cuenta todos los himnos cantados en un AÑO específico (Filtro por Barrio)
+  Future<List<MapEntry<String, List<DateTime>>>> getYearlyHymnRanking(int year, String targetWard) async {
     final startDate = DateTime(year, 1, 1);
-    final endDate = DateTime(year + 1, 1, 1); // Primer día del año siguiente
+    final endDate = DateTime(year + 1, 1, 1);
 
-    // 2. Traer todas las reuniones de ese año
-    final snapshot = await _db
+    // 🚀 AÑADIMOS EL FILTRO GEOGRÁFICO A LA CONSULTA
+    Query query = _db
         .collection(_collectionName)
         .where('date', isGreaterThanOrEqualTo: startDate)
-        .where('date', isLessThan: endDate)
-        .get();
+        .where('date', isLessThan: endDate);
+
+    if (targetWard != 'Todos') {
+      query = query.where('ward', isEqualTo: targetWard);
+    }
+
+    final snapshot = await query.get();
 
     final meetings = snapshot.docs
-        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .map((doc) => MeetingModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
 
-    // 3. Diccionario para guardar las FECHAS en las que se cantó cada himno
     final Map<String, List<DateTime>> hymnDates = {};
 
-    // Modificamos la función para que reciba también la fecha de la reunión
     void addHymn(String? hymn, DateTime meetingDate) {
-      if (hymn != null && hymn
-          .trim()
-          .isNotEmpty && hymn.toLowerCase() != 'por definir') {
-        String cleanHymn = hymn.trim().toUpperCase().replaceAll(
-            RegExp(r'\s+'), ' ');
-
-        // Si el himno no existe en el diccionario, creamos su lista vacía
+      if (hymn != null && hymn.trim().isNotEmpty && hymn.toLowerCase() != 'por definir') {
+        String cleanHymn = hymn.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
         hymnDates.putIfAbsent(cleanHymn, () => []);
-        // Añadimos la fecha a la lista de ese himno
         hymnDates[cleanHymn]!.add(meetingDate);
       }
     }
 
-    // 4. Escanear cada reunión y extraer los himnos con su FECHA
     for (var meeting in meetings) {
-      if (meeting.type == MeetingType.sacramental &&
-          meeting.sacramentAgenda != null) {
+      if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null) {
         addHymn(meeting.sacramentAgenda!.openingHymn, meeting.date);
         addHymn(meeting.sacramentAgenda!.sacramentHymn, meeting.date);
         addHymn(meeting.sacramentAgenda!.intermediateHymn, meeting.date);
@@ -205,31 +205,21 @@ class MeetingService {
       }
     }
 
-    // 5. Ordenar por NÚMERO DE HIMNO (de menor a mayor)
     var sortedRanking = hymnDates.entries.toList()
       ..sort((a, b) {
-        int numA = int.tryParse(a.key
-            .split('.')
-            .first
-            .trim()) ?? 9999;
-        int numB = int.tryParse(b.key
-            .split('.')
-            .first
-            .trim()) ?? 9999;
+        int numA = int.tryParse(a.key.split('.').first.trim()) ?? 9999;
+        int numB = int.tryParse(b.key.split('.').first.trim()) ?? 9999;
         if (numA == numB) return a.key.compareTo(b.key);
         return numA.compareTo(numB);
       });
 
-    // Formatear a Title Case y ordenar las fechas internamente
     return sortedRanking.map((entry) {
       String titleCase = entry.key.split(' ').map((word) {
         if (word.isEmpty) return word;
         return word[0].toUpperCase() + word.substring(1).toLowerCase();
       }).join(' ');
 
-      // Ordenar las fechas de la más antigua a la más reciente
       entry.value.sort((a, b) => a.compareTo(b));
-
       return MapEntry(titleCase, entry.value);
     }).toList();
   }
@@ -238,29 +228,32 @@ class MeetingService {
   // 🗣️ HISTORIAL DE DISCURSANTES
   // ==========================================
 
-  /// Extrae el historial de todos los discursantes en un AÑO específico
-  Future<List<MapEntry<String, List<Map<String, dynamic>>>>> getYearlySpeakerHistory(int year) async {
+  /// Extrae el historial de todos los discursantes en un AÑO específico (Filtro por Barrio)
+  Future<List<MapEntry<String, List<Map<String, dynamic>>>>> getYearlySpeakerHistory(int year, String targetWard) async {
     final startDate = DateTime(year, 1, 1);
     final endDate = DateTime(year + 1, 1, 1);
 
-    // Solo traemos las sacramentales, que es donde hay discursantes
-    final snapshot = await _db
+    // 🚀 AÑADIMOS EL FILTRO GEOGRÁFICO A LA CONSULTA
+    Query query = _db
         .collection(_collectionName)
         .where('date', isGreaterThanOrEqualTo: startDate)
         .where('date', isLessThan: endDate)
-        .where('type', isEqualTo: MeetingType.sacramental.name)
-        .get();
+        .where('type', isEqualTo: MeetingType.sacramental.name);
+
+    if (targetWard != 'Todos') {
+      query = query.where('ward', isEqualTo: targetWard);
+    }
+
+    final snapshot = await query.get();
 
     final meetings = snapshot.docs
-        .map((doc) => MeetingModel.fromMap(doc.data(), doc.id))
+        .map((doc) => MeetingModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
         .toList();
 
-    // Diccionario: Nombre del Hermano(a) -> Lista de {fecha, tema}
     final Map<String, List<Map<String, dynamic>>> speakerHistory = {};
 
     void addSpeaker(String? name, String? topic, DateTime date) {
       if (name != null && name.trim().isNotEmpty && name.toLowerCase() != 'por definir') {
-        // Limpiamos espacios y aplicamos Title Case (Ej: "JUAN perez" -> "Juan Perez")
         String cleanName = name.trim().split(' ').map((word) {
           if (word.isEmpty) return word;
           return word[0].toUpperCase() + word.substring(1).toLowerCase();
@@ -278,11 +271,9 @@ class MeetingService {
       }
     }
 
-    // Escanear cada reunión y extraer discursantes
     for (var meeting in meetings) {
       if (meeting.sacramentAgenda != null && !meeting.sacramentAgenda!.isFastAndTestimony) {
         final agenda = meeting.sacramentAgenda!;
-
         addSpeaker(agenda.firstSpeakerName, agenda.firstSpeakerTopic, meeting.date);
         addSpeaker(agenda.secondSpeakerName, agenda.secondSpeakerTopic, meeting.date);
 
@@ -292,16 +283,13 @@ class MeetingService {
       }
     }
 
-    // Ordenar alfabéticamente por el nombre del discursante
     var sortedRanking = speakerHistory.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
 
-    // Ordenar las fechas de cada persona internamente (de la más reciente a la más antigua)
     for (var entry in sortedRanking) {
       entry.value.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     }
 
     return sortedRanking;
   }
-
 }

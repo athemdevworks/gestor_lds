@@ -2,8 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:intl/intl.dart';
 
+// 🚀 IMPORTACIONES DEL MULTIVERSO
+import 'package:gestor_lds/core/constants/wards_list.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
+
 class SpeakerListScreen extends StatefulWidget {
-  const SpeakerListScreen({super.key});
+  // 🚀 RECIBIMOS LOS MANDOS DESDE EL PADRE
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const SpeakerListScreen({
+    super.key,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<SpeakerListScreen> createState() => _SpeakerListScreenState();
@@ -15,6 +27,9 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
 
   int _currentYear = DateTime.now().year;
 
+  // 🚀 FILTRO GEOGRÁFICO
+  late String _targetWard;
+
   List<MapEntry<String, List<Map<String, dynamic>>>>? _allSpeakers;
   List<MapEntry<String, List<Map<String, dynamic>>>>? _filteredSpeakers;
 
@@ -24,6 +39,8 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
   @override
   void initState() {
     super.initState();
+    // 🚀 INICIALIZAMOS EL FILTRO GEOGRÁFICO
+    _targetWard = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
     _loadHistory();
   }
 
@@ -35,7 +52,9 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
 
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
-    final history = await _meetingService.getYearlySpeakerHistory(_currentYear);
+
+    // 🚀 AHORA LE ENVIAMOS EL BARRIO (o "Todos") A FIREBASE
+    final history = await _meetingService.getYearlySpeakerHistory(_currentYear, _targetWard);
 
     if (mounted) {
       setState(() {
@@ -158,8 +177,31 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
             ),
           ),
 
+          // 🚀 SELECTOR DE BARRIO (SOLO MODO ESTACA)
+          if (widget.isStakeMode)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              color: Colors.white,
+              child: DropdownButtonFormField<String>(
+                value: _targetWard,
+                decoration: InputDecoration(
+                  labelText: 'Filtrar por Barrio',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                ),
+                items: ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 14)))).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _targetWard = val);
+                    _loadHistory(); // Recargamos Firebase
+                  }
+                },
+              ),
+            ),
+
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [BoxShadow(color: Colors.grey.shade200, blurRadius: 4, offset: const Offset(0, 2))],
@@ -219,8 +261,9 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
                   Text(
                     _searchController.text.isNotEmpty
                         ? 'No se encontraron registros para "${_searchController.text}"'
-                        : 'No hay discursantes registrados en $_currentYear.',
+                        : 'No hay discursantes registrados en $_currentYear${widget.isStakeMode && _targetWard != 'Todos' ? ' para $_targetWard' : ''}.',
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

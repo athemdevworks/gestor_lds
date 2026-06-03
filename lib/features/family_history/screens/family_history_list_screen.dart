@@ -59,11 +59,19 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
         final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
         if (doc.exists) {
           final user = UserModel.fromMap(doc.data()!, doc.id);
+
+          // =========================================================================
+          // 🛡️ NUEVA DEFENSA ESTRICTA: Identificamos si es Estaca real
+          // =========================================================================
+          final bool esLiderEstacaRole = user.role == 'lider_estaca' ||
+              user.role == 'presidencia_estaca' ||
+              user.role == 'admin';
+
           if (mounted) {
             setState(() {
               _currentUser = user;
-              // Fuerza Bruta para asegurar que arranque en tu propio barrio
-              if (_barrio == 'Todos' && !user.canSeeAllWards) {
+              // Fuerza Bruta para asegurar que arranque en tu propio barrio si no eres estaca
+              if (_barrio == 'Todos' && !esLiderEstacaRole) {
                 _barrio = user.ward;
               }
               _isLoadingUser = false;
@@ -81,7 +89,10 @@ class _FamilyHistoryListScreenState extends State<FamilyHistoryListScreen> {
   }
 
   void _mostrarPanelFiltros() {
-    final bool esAdminEstaca = _currentUser?.canSeeAllWards ?? false;
+    // 🛡️ MANTENEMOS EL CANDADO EN EL FILTRO
+    final bool esAdminEstaca = _currentUser?.role == 'lider_estaca' ||
+        _currentUser?.role == 'presidencia_estaca' ||
+        _currentUser?.role == 'admin';
 
     showModalBottomSheet(
       context: context,

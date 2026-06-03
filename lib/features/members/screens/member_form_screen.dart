@@ -12,7 +12,16 @@ import 'package:gestor_lds/core/constants/callings_stake_list.dart';
 class MemberFormScreen extends StatefulWidget {
   final UserModel? memberToEdit;
 
-  const MemberFormScreen({super.key, this.memberToEdit});
+  // 🚀 MANDOS DEL MULTIVERSO
+  final bool isStakeMode;
+  final UserModel currentUser;
+
+  const MemberFormScreen({
+    super.key,
+    this.memberToEdit,
+    required this.isStakeMode,
+    required this.currentUser,
+  });
 
   @override
   State<MemberFormScreen> createState() => _MemberFormScreenState();
@@ -52,6 +61,11 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
     super.initState();
     if (widget.memberToEdit != null) {
       _loadExistingData();
+    } else {
+      // 🚀 POR DEFECTO: Si es un miembro nuevo, se le asigna el barrio del creador
+      if (kWardsList.contains(widget.currentUser.ward)) {
+        _selectedWard = widget.currentUser.ward;
+      }
     }
   }
 
@@ -288,18 +302,27 @@ class _MemberFormScreenState extends State<MemberFormScreen> {
                       title: 'Membresía',
                       icon: Icons.account_balance,
                       children: [
+                        // 🚀 SELECTOR DE BARRIO BLOQUEADO SI NO ESTÁ EN MODO ESTACA
                         DropdownButtonFormField<String>(
                           value: _selectedWard,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Barrio Actual',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_city),
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.location_city),
                             isDense: true,
+                            filled: !widget.isStakeMode,
+                            fillColor: widget.isStakeMode ? Colors.white : Colors.grey.shade100,
                           ),
                           items: kWardsList.map((w) => DropdownMenuItem(value: w, child: Text(w))).toList(),
-                          onChanged: (v) => setState(() => _selectedWard = v),
+                          // Solo la Estaca puede cambiar el barrio del miembro al crearlo/editarlo
+                          onChanged: widget.isStakeMode ? (v) => setState(() => _selectedWard = v) : null,
                           validator: (v) => v == null ? 'Requerido' : null,
                         ),
+                        if (!widget.isStakeMode)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 8.0, left: 4.0),
+                            child: Text('Solo la Estaca puede trasladar miembros entre barrios.', style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic)),
+                          ),
                         const SizedBox(height: 15),
 
                         DropdownButtonFormField<String>(

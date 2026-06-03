@@ -159,116 +159,135 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildWelcomeBanner(context, isStakeModeActive),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcomeBanner(context, isStakeModeActive),
 
-                // Radar de Aprobaciones de Cuentas Nuevas
-                if (canManageUsers)
-                  StreamBuilder<QuerySnapshot>(
-                    stream: radarQuery.snapshots(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox(height: 30);
-                      int pendingCount = snapshot.data!.docs.length;
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 20, bottom: 10),
-                        child: Material(
-                          color: Colors.red.shade700,
-                          borderRadius: BorderRadius.circular(12),
-                          elevation: 4,
-                          child: InkWell(
-                            onTap: () => _mostrarPanelAprobaciones(context, snapshot.data!.docs),
+                  // Radar de Aprobaciones de Cuentas Nuevas
+                  if (canManageUsers)
+                    StreamBuilder<QuerySnapshot>(
+                      stream: radarQuery.snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SizedBox(height: 30);
+                        int pendingCount = snapshot.data!.docs.length;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 20, bottom: 10),
+                          child: Material(
+                            color: Colors.red.shade700,
                             borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: Text('$pendingCount Solicitud(es) de acceso pendiente(s)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
-                                  const Icon(Icons.chevron_right, color: Colors.white),
-                                ],
+                            elevation: 4,
+                            child: InkWell(
+                              onTap: () => _mostrarPanelAprobaciones(context, snapshot.data!.docs),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 28),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: Text('$pendingCount Solicitud(es) de acceso pendiente(s)', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))),
+                                    const Icon(Icons.chevron_right, color: Colors.white),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                if (!canManageUsers) const SizedBox(height: 30),
+                        );
+                      },
+                    ),
+                  if (!canManageUsers) const SizedBox(height: 30),
 
-                const SizedBox(height: 250, width: double.infinity, child: BirthdaysCard()),
-                const SizedBox(height: 25),
+                  const SizedBox(height: 250, width: double.infinity, child: BirthdaysCard()),
+                  const SizedBox(height: 25),
 
-                const Text('MÓDULOS ACTIVOS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
-                const SizedBox(height: 12),
+                  // =========================================================
+                  // 🟢 MÓDULOS PÚBLICOS (Visibles para todos los usuarios)
+                  // =========================================================
+                  const Text('MÓDULOS ACTIVOS', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
+                  const SizedBox(height: 12),
 
-                _buildGridOrList(
-                  isWideScreen,
-                  children: [
-                    // 🛡️ SECCIÓN MAESTRA: Solo visible para ti (El Administrador Global)
-                    if (isGlobalAdmin) ...[
-                      _DashboardCard(title: 'CALENDARIO', subtitle: 'Cronograma de actividades', icon: Icons.calendar_month, iconColor: Colors.deepPurple.shade600, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CalendarScreen(currentUser: widget.user)))),
-                      _DashboardCard(title: 'ENTREVISTAS', subtitle: 'Gestión de citas y entrevistas', icon: Icons.upcoming, iconColor: Colors.teal.shade600, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => InterviewsScreen(currentUser: widget.user)))),
+                  _buildGridOrList(
+                    isWideScreen,
+                    children: [
+                      // 🌟 HISTORIA FAMILIAR
+                      _DashboardCard(
+                          title: 'HISTORIA FAMILIAR',
+                          subtitle: 'Seguimiento de metas y reportes',
+                          icon: Icons.account_tree_rounded,
+                          iconColor: Colors.cyan.shade700,
+                          textColor: Colors.black,
+                          onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => FamilyHistoryHubScreen(
+                                    isStakeMode: isStakeModeActive,
+                                    currentUser: widget.user,
+                                  )
+                              )
+                          )
+                      ),
+
+                      // 🚀 AGENDAS (Liberado para todos, el filtro interno hace la magia)
+                      _DashboardCard(
+                          title: 'AGENDAS',
+                          subtitle: 'Minutas y pautas de reunión',
+                          icon: Icons.edit_calendar,
+                          iconColor: Colors.blue.shade700,
+                          textColor: Colors.black,
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeetingsListScreen(isStakeMode: isStakeModeActive, currentUser: widget.user)))
+                      ),
+
+                      // 🚀 MIS COMPROMISOS (Liberado para todos)
+                      _DashboardCard(
+                          title: 'MIS COMPROMISOS',
+                          subtitle: 'Seguimiento de asignaciones',
+                          icon: Icons.task_alt,
+                          iconColor: Colors.green.shade700,
+                          textColor: Colors.black,
+                          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MyCommitmentsScreen(currentUser: widget.user)))
+                      ),
                     ],
+                  ),
 
-                    // 🌟 EL MÓDULO ESTRELLA: Visible para todo el universo de usuarios siempre
-                    _DashboardCard(
-                        title: 'HISTORIA FAMILIAR',
-                        subtitle: 'Seguimiento de metas y reportes',
-                        icon: Icons.account_tree_rounded,
-                        iconColor: Colors.cyan.shade700,
-                        textColor: Colors.black,
-                        onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => FamilyHistoryHubScreen(
-                                  isStakeMode: isStakeModeActive,
-                                  currentUser: widget.user,
-                                )
-                            )
-                        )
+                  // =========================================================
+                  // 🔴 MÓDULOS EXCLUSIVOS (Solo Admin Global)
+                  // =========================================================
+                  if (isGlobalAdmin) ...[
+                    const SizedBox(height: 30),
+                    const Text('GESTION SECUNDARIA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
+                    const SizedBox(height: 10),
+                    _buildGridOrList(
+                      isWideScreen,
+                      children: [
+                        _DashboardCard(title: 'CALENDARIO', subtitle: 'Cronograma de actividades', icon: Icons.calendar_month, iconColor: Colors.deepPurple.shade600, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CalendarScreen(currentUser: widget.user)))),
+                        _DashboardCard(title: 'ENTREVISTAS', subtitle: 'Gestión de citas y entrevistas', icon: Icons.upcoming, iconColor: Colors.teal.shade600, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => InterviewsScreen(currentUser: widget.user)))),
+                        _DashboardCard(title: 'ACTIVIDADES', subtitle: 'Organización y control de actividades', icon: Icons.local_activity, iconColor: Colors.orange.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ActivitiesScreen(currentUser: widget.user)))),
+                        _DashboardCard(title: 'PRESUPUESTO', subtitle: 'Control financiero y solicitudes', icon: Icons.monetization_on_outlined, iconColor: Colors.green.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BudgetListScreen()))),
+                      ],
                     ),
                   ],
-                ),
 
-                // 🛡️ CONTROL DE REUNIONES SECUNDARIO: Exclusivo del Admin Global
-                if (isGlobalAdmin) ...[
-                  const SizedBox(height: 30),
-                  const Text('GESTION DE REUNIONES', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
-                  const SizedBox(height: 10),
-                  _buildGridOrList(
-                    isWideScreen,
-                    children: [
-                      _DashboardCard(title: 'ACTIVIDADES', subtitle: 'Organización y control de actividades', icon: Icons.local_activity, iconColor: Colors.orange.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ActivitiesScreen(currentUser: widget.user)))),
-                      _DashboardCard(title: 'AGENDAS', subtitle: 'Minutas y pautas de reunión', icon: Icons.edit_calendar, iconColor: Colors.blue.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeetingsListScreen(currentUser: widget.user)))),
-                      _DashboardCard(title: 'MIS COMPROMISOS', subtitle: 'Seguimiento de asignaciones', icon: Icons.task_alt, iconColor: Colors.green.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MyCommitmentsScreen(currentUser: widget.user)))),
-                      _DashboardCard(title: 'PRESUPUESTO', subtitle: 'Control financiero y solicitudes', icon: Icons.monetization_on_outlined, iconColor: Colors.green.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BudgetListScreen()))),
-                    ],
-                  ),
+                  // 🛡️ ADMINISTRACIÓN GENERAL DE LA ESTACA: Exclusivo del Admin Global
+                  if (isGlobalAdmin) ...[
+                    const SizedBox(height: 30),
+                    const Text('ADMINISTRACION DE ESTACA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
+                    const SizedBox(height: 10),
+                    _buildGridOrList(
+                      isWideScreen,
+                      children: [
+                        _DashboardCard(title: 'REPORTES', subtitle: 'Panel de métricas y rendimiento', icon: Icons.pie_chart_rounded, iconColor: Colors.amber.shade700, textColor: Colors.black, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ManagerDashboardScreen(isStakeMode: isStakeModeActive, currentUser: widget.user)))),
+                        _DashboardCard(title: 'USUARIOS', subtitle: 'Gestión de cuentas y permisos', icon: Icons.verified_user, iconColor: Colors.indigo.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UserManagementScreen()))),
+                        _DashboardCard(title: 'COMUNICACIONES', subtitle: 'Citaciones y documentos oficiales', icon: Icons.campaign_rounded, iconColor: const Color(0xFF25D366), textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DocumentGeneratorScreen(isStakeMode: isStakeModeActive, currentUser: widget.user,)))),
+                        _DashboardCard(title: 'DIRECTORIO GENERAL', subtitle: 'Base de datos de miembros', icon: Icons.people_alt_rounded, iconColor: Colors.deepOrange, textColor: Colors.black, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => MembersScreen(isStakeMode: isStakeModeActive, currentUser: widget.user,)))),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 50),
                 ],
-
-                // 🛡️ ADMINISTRACIÓN GENERAL DE LA ESTACA: Exclusivo del Admin Global
-                if (isGlobalAdmin) ...[
-                  const SizedBox(height: 30),
-                  const Text('ADMINISTRACION DE ESTACA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _brandBlue, letterSpacing: 1.1)),
-                  const SizedBox(height: 10),
-                  _buildGridOrList(
-                    isWideScreen,
-                    children: [
-                      _DashboardCard(title: 'REPORTES', subtitle: 'Panel de métricas y rendimiento', icon: Icons.pie_chart_rounded, iconColor: Colors.amber.shade700, textColor: Colors.black, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ManagerDashboardScreen(isStakeMode: isStakeModeActive, currentUser: widget.user)))),
-                      _DashboardCard(title: 'USUARIOS', subtitle: 'Gestión de cuentas y permisos', icon: Icons.verified_user, iconColor: Colors.indigo.shade700, textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const UserManagementScreen()))),
-                      _DashboardCard(title: 'COMUNICACIONES', subtitle: 'Citaciones y documentos oficiales', icon: Icons.campaign_rounded, iconColor: const Color(0xFF25D366), textColor: Colors.black, onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DocumentGeneratorScreen()))),
-                      _DashboardCard(title: 'DIRECTORIO GENERAL', subtitle: 'Base de datos de miembros', icon: Icons.people_alt_rounded, iconColor: Colors.deepOrange, textColor: Colors.black, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MembersScreen()))),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 50),
-              ],
-            ),
-          ),
+              ),
+            )
         ));
   }
 
