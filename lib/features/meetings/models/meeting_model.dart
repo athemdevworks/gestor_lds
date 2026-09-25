@@ -11,20 +11,12 @@ class MeetingModel {
   final String time;
   final String presidedBy;
   final String directedBy;
-
-  // 🚀 NUEVO: DNI Geográfico (Diferencia reuniones de Barrio vs Estaca)
   final String ward;
-
-  // Título u Organización (Ideal para "Otra Reunión")
   final String? organization;
-
-  // --- NUEVOS CAMPOS v1.10 (Para "Otra Reunión" y Consejos) ---
   final String? openingHymn;
   final String? openingPrayer;
   final String? closingHymn;
   final String? closingPrayer;
-  // -----------------------------------------------------------
-
   final List<AgendaItemModel>? agendaItems;
   final List<String>? commitments;
   final SacramentAgendaModel? sacramentAgenda;
@@ -36,19 +28,53 @@ class MeetingModel {
     required this.time,
     required this.presidedBy,
     required this.directedBy,
-    required this.ward, // 🚀 Añadido al constructor principal
+    required this.ward,
     this.organization,
-
-    // Añadidos al constructor
     this.openingHymn,
     this.openingPrayer,
     this.closingHymn,
     this.closingPrayer,
-
     this.agendaItems,
     this.commitments,
     this.sacramentAgenda,
   });
+
+  // 🚀 EL CLONADOR TÁCTICO: Permite actualizar campos en memoria durante la edición
+  MeetingModel copyWith({
+    String? id,
+    MeetingType? type,
+    DateTime? date,
+    String? time,
+    String? presidedBy,
+    String? directedBy,
+    String? ward,
+    String? organization,
+    String? openingHymn,
+    String? openingPrayer,
+    String? closingHymn,
+    String? closingPrayer,
+    List<AgendaItemModel>? agendaItems,
+    List<String>? commitments,
+    SacramentAgendaModel? sacramentAgenda,
+  }) {
+    return MeetingModel(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      date: date ?? this.date,
+      time: time ?? this.time,
+      presidedBy: presidedBy ?? this.presidedBy,
+      directedBy: directedBy ?? this.directedBy,
+      ward: ward ?? this.ward,
+      organization: organization ?? this.organization,
+      openingHymn: openingHymn ?? this.openingHymn,
+      openingPrayer: openingPrayer ?? this.openingPrayer,
+      closingHymn: closingHymn ?? this.closingHymn,
+      closingPrayer: closingPrayer ?? this.closingPrayer,
+      agendaItems: agendaItems ?? this.agendaItems,
+      commitments: commitments ?? this.commitments,
+      sacramentAgenda: sacramentAgenda ?? this.sacramentAgenda,
+    );
+  }
 
   factory MeetingModel.fromMap(Map<String, dynamic> data, String id) {
     try {
@@ -85,16 +111,12 @@ class MeetingModel {
         time: parsedTime,
         presidedBy: data['presidedBy'] as String? ?? '',
         directedBy: data['directedBy'] as String? ?? '',
-        ward: data['ward'] as String? ?? 'Desconocido', // 🚀 Salvavidas para no crashear con reuniones viejas
+        ward: data['ward'] as String? ?? 'Desconocido',
         organization: data['organization'] as String?,
-
-        // --- MAPEO DE NUEVOS CAMPOS ---
         openingHymn: data['openingHymn'] as String?,
         openingPrayer: data['openingPrayer'] as String?,
         closingHymn: data['closingHymn'] as String?,
         closingPrayer: data['closingPrayer'] as String?,
-        // ------------------------------
-
         agendaItems: mappedAgendaItems,
         commitments: data['commitments'] != null ? List<String>.from(data['commitments']) : null,
         sacramentAgenda: sacramentAgendaMap != null ? SacramentAgendaModel.fromMap(sacramentAgendaMap) : null,
@@ -108,7 +130,7 @@ class MeetingModel {
         time: "Error",
         presidedBy: "Error de datos",
         directedBy: "",
-        ward: "Error", // 🚀 Manejo de error para la UI
+        ward: "Error",
         organization: "",
       );
     }
@@ -122,20 +144,16 @@ class MeetingModel {
       'time': time,
       'presidedBy': presidedBy,
       'directedBy': directedBy,
-      'ward': ward, // 🚀 Guardamos a qué nivel pertenece la reunión en Firebase
+      'ward': ward,
       'organization': organization,
-
-      // --- GUARDADO DE NUEVOS CAMPOS ---
       'openingHymn': openingHymn,
       'openingPrayer': openingPrayer,
       'closingHymn': closingHymn,
       'closingPrayer': closingPrayer,
-      // ---------------------------------
-
       'agendaItems': agendaItems?.map((item) => item.toMap()).toList(),
       'commitments': commitments,
       'sacramentAgenda': sacramentAgenda?.toMap(),
-      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(), // 🚀 Protegemos la fecha original
     };
   }
 }

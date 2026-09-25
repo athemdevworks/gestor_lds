@@ -13,6 +13,9 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  screenshot: ^3.0.0      # Para capturar el widget en formato imagen
+  share_plus: ^10.0.0     # Para abrir el menú nativo de compartir (WhatsApp, etc.)
+  path_provider: ^2.1.0   # Para guardar temporalmente la imagen antes de compartirla
 
   # DEPENDENCIAS DE FIREBASE
   firebase_core: ^4.5.0

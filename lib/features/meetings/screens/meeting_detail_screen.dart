@@ -1,12 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
-// LIBRERÍA NUEVA
 import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:share_plus/share_plus.dart';
 
-import 'package:gestor_lds/core/utils/alert_utils.dart';
 import 'package:gestor_lds/features/meetings/models/meeting_model.dart';
 import 'package:gestor_lds/features/meetings/models/sacrament_agenda_model.dart';
 import 'package:gestor_lds/features/meetings/models/agenda_item_model.dart';
@@ -14,12 +15,11 @@ import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:gestor_lds/features/meetings/services/pdf_service.dart';
 import 'package:gestor_lds/features/meetings/utils/meeting_types.dart';
 import 'package:gestor_lds/features/meetings/screens/meeting_form_screen.dart';
+import 'package:gestor_lds/features/meetings/widgets/meeting_banner_widget.dart';
 import 'package:gestor_lds/features/commitments/widgets/new_commitment_modal.dart';
 import 'package:gestor_lds/features/commitments/models/commitment_model.dart';
 import 'package:gestor_lds/features/commitments/services/commitment_service.dart';
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
-
-// 🚀 IMPORTAMOS NUESTRO MODELO DE USUARIO
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 
 class MeetingDetailScreen extends StatelessWidget {
@@ -27,12 +27,15 @@ class MeetingDetailScreen extends StatelessWidget {
   final bool? isStakeMode;
   final UserModel? currentUser;
 
-  const MeetingDetailScreen({
+  MeetingDetailScreen({
     super.key,
     required this.meeting,
     this.isStakeMode,
     this.currentUser,
   });
+
+  // 🚀 CONTROLADOR DE CAPTURA DE PANTALLA
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +44,7 @@ class MeetingDetailScreen extends StatelessWidget {
     final CitationService citationService = CitationService();
 
     // =========================================================================
-    // 🛡️ DEFENSA ESTRICTA: ¿Quién puede Editar o Eliminar esta agenda?
+    // 🛡️ DEFENSA ESTRICTA: Permisos de Edición y Eliminación
     // =========================================================================
     bool tienePermisoEditar = false;
 
@@ -50,47 +53,38 @@ class MeetingDetailScreen extends StatelessWidget {
       final String miOrg = currentUser!.organization ?? '';
       final List<String> misOrgs = currentUser!.callingOrganizations ?? [];
 
-      // 1. VIPs: Tienen control total en su jurisdicción
       if (miRol == UserRole.admin || miRol == UserRole.presidencia_estaca) {
-        tienePermisoEditar = true; // Admin y Presidencia de Estaca editan todo
+        tienePermisoEditar = true;
       } else if (miRol == UserRole.obispado && meeting.ward == currentUser!.ward) {
-        tienePermisoEditar = true; // El Obispado edita TODO lo de su propio barrio
-      }
-      // 2. LÍDERES: Modo "Solo Lectura" para Consejos. Solo editan sus propias reuniones.
-      else if (miRol == UserRole.lider_barrio || miRol == UserRole.lider_estaca) {
-
+        tienePermisoEditar = true;
+      } else if (miRol == UserRole.lider_barrio || miRol == UserRole.lider_estaca) {
         if (meeting.type == MeetingType.presidency || meeting.type == MeetingType.other) {
-          // ¿Es reunión de SU organización? Sí -> Puede editar. No -> Solo lectura.
           if (meeting.organization != null && (miOrg == meeting.organization || misOrgs.contains(meeting.organization))) {
             tienePermisoEditar = true;
           }
-        }
-        else if (meeting.type == MeetingType.youthCouncil || meeting.type == MeetingType.stakeYouthLeadership) {
-          // Solo presidencias de jóvenes editan la de jóvenes
+        } else if (meeting.type == MeetingType.youthCouncil || meeting.type == MeetingType.stakeYouthLeadership) {
           if (miOrg == 'Mujeres Jóvenes' || miOrg == 'Hombres Jóvenes' ||
               misOrgs.contains('Mujeres Jóvenes') || misOrgs.contains('Hombres Jóvenes')) {
             tienePermisoEditar = true;
           }
-        }
-        else if (meeting.type == MeetingType.stakeAdultLeadership) {
-          // Solo Soc. Socorro y Élderes editan comité de adultos
+        } else if (meeting.type == MeetingType.stakeAdultLeadership) {
           if (miOrg == 'Sociedad de Socorro' || miOrg == 'Cuórum de Élderes' ||
               misOrgs.contains('Sociedad de Socorro') || misOrgs.contains('Cuórum de Élderes')) {
             tienePermisoEditar = true;
           }
         }
-
-        // 🛑 NOTA CLAVE: Para 'wardCouncil' (Consejo de Barrio) y 'stakeCouncil' (Consejo de Estaca),
-        // el código NO entra a estos "if", por lo que 'tienePermisoEditar' se queda en FALSE.
-        // Resultado: Los líderes ven la agenda, pero NO pueden editarla.
       }
     }
-    // =========================================================================
 
     return Scaffold(
       appBar: AppBar(
         title: Text(meeting.type.displayName),
         actions: [
+          IconButton(
+            icon: Icon(kIsWeb ? Icons.download_rounded : Icons.share_rounded),
+            tooltip: kIsWeb ? 'Descargar Banner (PNG)' : 'Compartir Banner (WhatsApp)',
+            onPressed: () => _shareAgendaAsBanner(context),
+          ),
           IconButton(
             icon: const Icon(Icons.event_available),
             tooltip: 'Agendar en mi celular',
@@ -144,35 +138,103 @@ class MeetingDetailScreen extends StatelessWidget {
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(meeting.type.displayName, formattedDate, meeting.time, meeting.organization),
-            const Divider(height: 30),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(meeting.type.displayName, formattedDate, meeting.time, meeting.organization),
+                const Divider(height: 30),
 
-            _buildDetailRow(Icons.person, 'Preside', meeting.presidedBy),
-            _buildDetailRow(Icons.group, 'Dirige', meeting.directedBy),
+                _buildDetailRow(Icons.person, 'Preside', meeting.presidedBy),
+                _buildDetailRow(Icons.group, 'Dirige', meeting.directedBy),
 
-            const SizedBox(height: 30),
-            const Text('Agenda de Reunión', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF22539A))),
-            const Divider(),
+                const SizedBox(height: 30),
+                const Text('Agenda de Reunión', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF22539A))),
+                const Divider(),
 
-            if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null)
-              _buildSacramentAgendaView(context, meeting.sacramentAgenda!, citationService, meeting.date)
-            else if (hasAgendaItems)
-              _buildLeadershipAgendaView(context),
+                if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null)
+                  _buildSacramentAgendaView(context, meeting.sacramentAgenda!, citationService, meeting.date)
+                else if (hasAgendaItems)
+                  _buildLeadershipAgendaView(context),
 
-            if (!hasAgendaItems && meeting.sacramentAgenda == null)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Esta reunión no tiene agenda detallada.', style: TextStyle(fontStyle: FontStyle.italic)),
-              ),
-          ],
-        ),
+                if (!hasAgendaItems && meeting.sacramentAgenda == null)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text('Esta reunión no tiene agenda detallada.', style: TextStyle(fontStyle: FontStyle.italic)),
+                  ),
+              ],
+            ),
+          ),
+
+          // 🚀 WIDGET MODULAR OCULTO PARA CAPTURA NÍTIDA
+          Offstage(
+            offstage: true,
+            child: Screenshot(
+              controller: _screenshotController,
+              child: MeetingBannerWidget(meeting: meeting),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  // 🚀 GENERACIÓN DE BANNER: Descarga en Web o Compartir Nativo en Móvil
+  Future<void> _shareAgendaAsBanner(BuildContext context) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(kIsWeb ? 'Descargando banner PNG... 🎨' : 'Generando banner para WhatsApp... 🎨')),
+    );
+
+    try {
+      final imageBytes = await _screenshotController.captureFromWidget(
+        Material(
+          child: MediaQuery(
+            data: const MediaQueryData(),
+            child: Directionality(
+              textDirection: ui.TextDirection.ltr,
+              child: MeetingBannerWidget(meeting: meeting),
+            ),
+          ),
+        ),
+        delay: const Duration(milliseconds: 100),
+      );
+
+      final safeTypeName = meeting.type.displayName.replaceAll(' ', '_');
+      final dateStr = DateFormat('yyyyMMdd').format(meeting.date);
+      final fileName = 'Banner_${safeTypeName}_$dateStr.png';
+
+      // 💻 ENTORNO WEB: Descarga directa al navegador
+      if (kIsWeb) {
+        await Printing.sharePdf(bytes: imageBytes, filename: fileName);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Banner descargado correctamente.'), backgroundColor: Colors.green),
+          );
+        }
+        return;
+      }
+
+      // 📱 ENTORNO MÓVIL: Compartir nativo
+      final xFile = XFile.fromData(
+        imageBytes,
+        name: fileName,
+        mimeType: 'image/png',
+      );
+
+      await Share.shareXFiles(
+        [xFile],
+        text: '📅 *${meeting.type.displayName.toUpperCase()}*\n📍 Unidad: ${meeting.ward}\n🗓 ${DateFormat('EEEE d MMMM', 'es').format(meeting.date)} - ${meeting.time}\n\n_Compartido con GestorLDS_',
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al procesar banner: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   void _addToDeviceCalendar(BuildContext context) {
@@ -189,7 +251,7 @@ class MeetingDetailScreen extends StatelessWidget {
     final Event event = Event(
       title: meeting.type.displayName,
       description: 'Preside: ${meeting.presidedBy}\nDirige: ${meeting.directedBy}\nOrganización: ${meeting.organization ?? "General"}',
-      location: 'Sede de Jurisdicción: ${meeting.ward}',
+      location: 'Unidad: ${meeting.ward}',
       startDate: startDate,
       endDate: endDate,
       allDay: false,
@@ -254,6 +316,11 @@ class MeetingDetailScreen extends StatelessWidget {
   }
 
   Widget _buildSacramentAgendaView(BuildContext context, SacramentAgendaModel agenda, CitationService service, DateTime date) {
+    final effectiveOpeningHymn = agenda.openingHymn.isNotEmpty ? agenda.openingHymn : (meeting.openingHymn ?? '');
+    final effectiveOpeningPrayer = agenda.openingPrayer.isNotEmpty ? agenda.openingPrayer : (meeting.openingPrayer ?? '');
+    final effectiveClosingHymn = agenda.closingHymn.isNotEmpty ? agenda.closingHymn : (meeting.closingHymn ?? '');
+    final effectiveClosingPrayer = agenda.closingPrayer.isNotEmpty ? agenda.closingPrayer : (meeting.closingPrayer ?? '');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,9 +340,8 @@ class MeetingDetailScreen extends StatelessWidget {
             ),
           ),
 
-        _buildSimpleItem('Primer Himno', agenda.openingHymn, icon: Icons.music_note),
-
-        _buildPrintableItem(context, service, 'Primera Oración', agenda.openingPrayer, 'PRIMERA ORACIÓN', date, icon: Icons.person_outline),
+        _buildSimpleItem('Primer Himno', effectiveOpeningHymn, icon: Icons.music_note),
+        _buildPrintableItem(context, service, 'Primera Oración', effectiveOpeningPrayer, 'PRIMERA ORACIÓN', date, icon: Icons.person_outline),
 
         if (agenda.wardBusiness.isNotEmpty) ...[
           const SizedBox(height: 15),
@@ -314,14 +380,14 @@ class MeetingDetailScreen extends StatelessWidget {
               ),
               const Divider(),
               _buildPrintableItem(context, service, '1er Discurso', agenda.firstSpeakerName ?? '', 'PRIMER DISCURSO', date, topic: agenda.firstSpeakerTopic, icon: Icons.mic, duration: "5"),
-              _buildSimpleItem('Himno Especial', agenda.intermediateHymn ?? '', icon: Icons.music_video),
+              _buildSimpleItem('Himno Especial / Número Musical', agenda.intermediateHymn ?? '', icon: Icons.music_video),
               _buildPrintableItem(context, service, '2do Discurso', agenda.secondSpeakerName ?? '', 'ULTIMO DISCURSO', date, topic: agenda.secondSpeakerTopic, icon: Icons.mic, duration: "10"),
             ],
           ),
 
         const Divider(),
-        _buildSimpleItem('Último Himno', agenda.closingHymn, icon: Icons.music_note),
-        _buildPrintableItem(context, service, 'Última Oración', agenda.closingPrayer, 'ULTIMA ORACIÓN', date, icon: Icons.person_outline),
+        _buildSimpleItem('Último Himno', effectiveClosingHymn, icon: Icons.music_note),
+        _buildPrintableItem(context, service, 'Última Oración', effectiveClosingPrayer, 'ULTIMA ORACIÓN', date, icon: Icons.person_outline),
       ],
     );
   }
@@ -369,10 +435,9 @@ class MeetingDetailScreen extends StatelessWidget {
         isMale: isMale,
         assignmentType: type,
         assignmentDate: date,
-        time: meeting.time, // 🚀 ¡Magia! Ahora usa la hora real de la reunión
+        time: meeting.time,
         topic: topic,
         duration: duration ?? "8",
-        // 🚀 INYECCIÓN DEL MULTIVERSO
         jurisdiction: meeting.ward,
         isStakeMode: isStakeMode ?? false,
       );
@@ -386,9 +451,9 @@ class MeetingDetailScreen extends StatelessWidget {
         Text(title, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
         Padding(
           padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-          child: Text("📍 Jurisdicción: ${meeting.ward}", style: const TextStyle(fontSize: 14, color: Colors.deepOrange, fontWeight: FontWeight.bold)),
+          child: Text("📍 Unidad: ${meeting.ward}", style: const TextStyle(fontSize: 14, color: Colors.deepOrange, fontWeight: FontWeight.bold)),
         ),
-        if(organization != null) Chip(label: Text(organization)),
+        if (organization != null) Chip(label: Text(organization)),
         Text("$date - $time", style: const TextStyle(fontSize: 16, color: Color(0xFF22539A))),
       ],
     );
@@ -408,7 +473,7 @@ class MeetingDetailScreen extends StatelessWidget {
 
   void _confirmAndDelete(BuildContext context) {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-        title: const Text("Eliminar"), content: const Text("¿Seguro?"),
+        title: const Text("Eliminar"), content: const Text("¿Seguro que deseas eliminar esta reunión?"),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
           ElevatedButton(onPressed: () async {
@@ -423,7 +488,7 @@ class MeetingDetailScreen extends StatelessWidget {
     final buffer = StringBuffer();
 
     buffer.writeln('📅 *${meeting.type.displayName.toUpperCase()}*');
-    buffer.writeln('📍 *Jurisdicción:* ${meeting.ward}');
+    buffer.writeln('📍 *Unidad:* ${meeting.ward}');
     buffer.writeln('🗓 ${DateFormat('EEEE d MMMM', 'es').format(meeting.date)}');
     buffer.writeln('⏰ ${meeting.time}');
     if (meeting.organization != null) buffer.writeln('🏛 ${meeting.organization}');
@@ -433,6 +498,10 @@ class MeetingDetailScreen extends StatelessWidget {
 
     if (meeting.type == MeetingType.sacramental && meeting.sacramentAgenda != null) {
       final agenda = meeting.sacramentAgenda!;
+      final effectiveOpeningHymn = agenda.openingHymn.isNotEmpty ? agenda.openingHymn : (meeting.openingHymn ?? '');
+      final effectiveOpeningPrayer = agenda.openingPrayer.isNotEmpty ? agenda.openingPrayer : (meeting.openingPrayer ?? '');
+      final effectiveClosingHymn = agenda.closingHymn.isNotEmpty ? agenda.closingHymn : (meeting.closingHymn ?? '');
+      final effectiveClosingPrayer = agenda.closingPrayer.isNotEmpty ? agenda.closingPrayer : (meeting.closingPrayer ?? '');
 
       if (agenda.chorister.isNotEmpty) buffer.writeln('🎶 *Director(a):* ${agenda.chorister}');
       if (agenda.pianist.isNotEmpty) buffer.writeln('🎹 *Pianista:* ${agenda.pianist}');
@@ -443,8 +512,8 @@ class MeetingDetailScreen extends StatelessWidget {
         buffer.writeln('');
       }
 
-      buffer.writeln('🎵 *Primer Himno:* ${agenda.openingHymn}');
-      buffer.writeln('🙏 *Primera Oración:* ${agenda.openingPrayer}');
+      if (effectiveOpeningHymn.isNotEmpty) buffer.writeln('🎵 *Primer Himno:* $effectiveOpeningHymn');
+      if (effectiveOpeningPrayer.isNotEmpty) buffer.writeln('🙏 *Primera Oración:* $effectiveOpeningPrayer');
       buffer.writeln('');
 
       if (agenda.wardBusiness.isNotEmpty) {
@@ -471,7 +540,7 @@ class MeetingDetailScreen extends StatelessWidget {
 
         if (agenda.intermediateHymn != null && agenda.intermediateHymn!.isNotEmpty) {
           buffer.writeln('');
-          buffer.writeln('🎵 *Himno Especial:* ${agenda.intermediateHymn}');
+          buffer.writeln('🎵 *Himno Especial / Número Musical:* ${agenda.intermediateHymn}');
           buffer.writeln('');
         }
 
@@ -484,8 +553,8 @@ class MeetingDetailScreen extends StatelessWidget {
       }
 
       buffer.writeln('');
-      buffer.writeln('🎵 *Último Himno:* ${agenda.closingHymn}');
-      buffer.writeln('🙏 *Última Oración:* ${agenda.closingPrayer}');
+      if (effectiveClosingHymn.isNotEmpty) buffer.writeln('🎵 *Último Himno:* $effectiveClosingHymn');
+      if (effectiveClosingPrayer.isNotEmpty) buffer.writeln('🙏 *Última Oración:* $effectiveClosingPrayer');
     }
     else if (meeting.agendaItems != null && meeting.agendaItems!.isNotEmpty) {
       buffer.writeln('📋 *AGENDA A TRATAR:*');

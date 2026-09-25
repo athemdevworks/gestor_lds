@@ -7,20 +7,28 @@ import 'package:gestor_lds/features/budget/models/budget_model.dart';
 import 'package:printing/printing.dart';
 
 class BudgetPdfService {
-
-  // Color Corporativo
   final PdfColor brandColor = PdfColor.fromInt(0xFF22539A);
 
-  Future<Uint8List> generateActivityBudgetPdf(ActivityBudgetModel budget) async {
+  Future<Uint8List> generateActivityBudgetPdf(
+      ActivityBudgetModel budget, {
+        String stakeName = 'ESTACA',
+      }) async {
     final pdf = pw.Document();
 
-    // Cargar fuentes (Importante para tildes y ñ)
     final fontRegular = await PdfGoogleFonts.openSansRegular();
     final fontBold = await PdfGoogleFonts.openSansBold();
 
-    // Cargar Logo (Opcional, si quieres que salga arriba)
-    final logoData = await rootBundle.load('assets/images/logont.png');
-    final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+    pw.MemoryImage? logoImage;
+    try {
+      final logoData = await rootBundle.load('assets/images/logont.png');
+      logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+    } catch (_) {
+      logoImage = null;
+    }
+
+    final String unitLabel = budget.ward.toLowerCase() == 'estaca'
+        ? 'NIVEL DE ESTACA'
+        : (budget.ward.isNotEmpty ? 'BARRIO ${budget.ward.toUpperCase()}' : 'UNIDAD LOCAL');
 
     pdf.addPage(
       pw.Page(
@@ -31,20 +39,20 @@ class BudgetPdfService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // 1. CABECERA
+              // 1. CABECERA DINÁMICA
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Container(
                     height: 60,
                     width: 60,
-                    child: pw.Image(logoImage),
+                    child: logoImage != null ? pw.Image(logoImage) : pw.Container(),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('ESTACA TRUJILLO PERU JERUSALEN', style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
-                      pw.Text('BARRIO NUEVO TRUJILLO', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brandColor)),
+                      pw.Text(stakeName.toUpperCase(), style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700)),
+                      pw.Text(unitLabel, style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brandColor)),
                       pw.SizedBox(height: 5),
                       pw.Text('PRESUPUESTO DE ACTIVIDADES', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, decoration: pw.TextDecoration.underline)),
                     ],
@@ -53,7 +61,7 @@ class BudgetPdfService {
               ),
               pw.SizedBox(height: 20),
 
-              // 2. DATOS GENERALES (Cuadrícula)
+              // 2. DATOS GENERALES
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
@@ -87,15 +95,14 @@ class BudgetPdfService {
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey400),
                 columnWidths: {
-                  0: const pw.FlexColumnWidth(4), // Descripción
-                  1: const pw.FlexColumnWidth(1), // Cantidad
-                  2: const pw.FlexColumnWidth(1.5), // Precio Unit
-                  3: const pw.FlexColumnWidth(1.5), // Total
+                  0: const pw.FlexColumnWidth(4),
+                  1: const pw.FlexColumnWidth(1),
+                  2: const pw.FlexColumnWidth(1.5),
+                  3: const pw.FlexColumnWidth(1.5),
                 },
                 children: [
-                  // Encabezados
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       _buildCell('Descripción', isHeader: true),
                       _buildCell('Cant.', isHeader: true, align: pw.TextAlign.center),
@@ -103,7 +110,6 @@ class BudgetPdfService {
                       _buildCell('Subtotal', isHeader: true, align: pw.TextAlign.right),
                     ],
                   ),
-                  // Filas de items
                   ...budget.expenses.map((item) {
                     return pw.TableRow(
                       children: [
@@ -114,7 +120,6 @@ class BudgetPdfService {
                       ],
                     );
                   }).toList(),
-                  // Fila de TOTAL
                   pw.TableRow(
                     children: [
                       pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text('TOTAL SOLICITADO', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
@@ -123,9 +128,10 @@ class BudgetPdfService {
                       pw.Container(
                         color: PdfColors.blue50,
                         padding: const pw.EdgeInsets.all(5),
-                        child: pw.Text('S/. ${budget.totalBudget.toStringAsFixed(2)}',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: brandColor),
-                            textAlign: pw.TextAlign.right
+                        child: pw.Text(
+                          'S/. ${budget.totalBudget.toStringAsFixed(2)}',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: brandColor),
+                          textAlign: pw.TextAlign.right,
                         ),
                       ),
                     ],
@@ -156,27 +162,25 @@ class BudgetPdfService {
                 pw.Expanded(child: _buildProgramItem('1ra Oración', budget.openingPrayer)),
               ]),
 
-              // --- AQUÍ EL DESARROLLO DE LA ACTIVIDAD ---
               pw.SizedBox(height: 10),
               pw.Container(
-                  width: double.infinity,
-                  padding: const pw.EdgeInsets.all(8),
-                  decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.grey400),
-                      borderRadius: pw.BorderRadius.circular(4),
-                      color: PdfColors.grey50
-                  ),
-                  child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('Desarrollo de la Actividad:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: brandColor)),
-                        pw.SizedBox(height: 4),
-                        pw.Text(budget.activityDevelopment.isEmpty ? '(Sin descripción)' : budget.activityDevelopment, style: const pw.TextStyle(fontSize: 10)),
-                      ]
-                  )
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(8),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey400),
+                  borderRadius: pw.BorderRadius.circular(4),
+                  color: PdfColors.grey50,
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Desarrollo de la Actividad:', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: brandColor)),
+                    pw.SizedBox(height: 4),
+                    pw.Text(budget.activityDevelopment.isEmpty ? '(Sin descripción)' : budget.activityDevelopment, style: const pw.TextStyle(fontSize: 10)),
+                  ],
+                ),
               ),
               pw.SizedBox(height: 10),
-              // ------------------------------------------
 
               pw.Row(children: [
                 pw.Expanded(child: _buildProgramItem('Himno Final', budget.closingHymn)),
@@ -190,7 +194,6 @@ class BudgetPdfService {
 
               pw.Spacer(),
 
-              // 5. PIE DE PÁGINA Y FIRMAS
               pw.Text(
                 'Nota: Se advierte que no se aprobará ningún presupuesto sin haber presentado los comprobantes de la actividad anterior.',
                 style: pw.TextStyle(fontSize: 8, fontStyle: pw.FontStyle.italic, color: PdfColors.red900),
@@ -213,8 +216,6 @@ class BudgetPdfService {
 
     return pdf.save();
   }
-
-  // --- Helpers ---
 
   pw.Widget _buildDataRow(String label1, String value1, String label2, String value2) {
     return pw.Row(
@@ -252,7 +253,7 @@ class BudgetPdfService {
 
   pw.Widget _buildProgramItem(String label, String value) {
     return pw.Container(
-      decoration: pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5))),
+      decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400, width: 0.5))),
       child: pw.Row(
         children: [
           pw.Text('$label: ', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
@@ -272,11 +273,16 @@ class BudgetPdfService {
     );
   }
 
-  // --- MÉTODO PARA GENERAR PDF DE SOLICITUD DE GASTOS ---
-  Future<Uint8List> generateExpenseRequestPdf(ExpenseRequestModel request) async {
+  // --- SOLICITUD DE GASTOS ---
+  Future<Uint8List> generateExpenseRequestPdf(
+      ExpenseRequestModel request, {
+        String stakeName = 'ESTACA',
+      }) async {
     final pdf = pw.Document();
     final fontRegular = await PdfGoogleFonts.openSansRegular();
     final fontBold = await PdfGoogleFonts.openSansBold();
+
+    final String unitLabel = request.ward.isNotEmpty ? 'UNIDAD: ${request.ward.toUpperCase()}' : '';
 
     pdf.addPage(
       pw.Page(
@@ -287,8 +293,11 @@ class BudgetPdfService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // 1. TÍTULO Y CHECKS
               pw.Center(child: pw.Text('SOLICITUD DE GASTOS', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold))),
+              if (unitLabel.isNotEmpty) ...[
+                pw.SizedBox(height: 4),
+                pw.Center(child: pw.Text(unitLabel, style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700, fontWeight: pw.FontWeight.bold))),
+              ],
               pw.SizedBox(height: 10),
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.center,
@@ -301,7 +310,6 @@ class BudgetPdfService {
               ),
               pw.SizedBox(height: 20),
 
-              // 2. DATOS DE PERSONAS
               _buildFormRow('Solicitante:', request.applicantName),
               pw.SizedBox(height: 5),
               _buildFormRow('PAGAR A:', request.beneficiaryName),
@@ -312,13 +320,12 @@ class BudgetPdfService {
 
               pw.SizedBox(height: 20),
 
-              // 3. TABLA DE CATEGORÍAS Y MONTOS
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey),
                 columnWidths: {0: const pw.FlexColumnWidth(3), 1: const pw.FlexColumnWidth(1), 2: const pw.FlexColumnWidth(1)},
                 children: [
                   pw.TableRow(
-                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    decoration: const pw.BoxDecoration(color: PdfColors.grey200),
                     children: [
                       _buildCell('Categoría / Descripción', isHeader: true),
                       _buildCell('Fecha', isHeader: true),
@@ -332,7 +339,6 @@ class BudgetPdfService {
                       _buildCell('S/. ${item.amount.toStringAsFixed(2)}', align: pw.TextAlign.right),
                     ],
                   )).toList(),
-                  // Fila Total
                   pw.TableRow(children: [
                     pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text('TOTAL', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
                     pw.Container(),
@@ -352,15 +358,12 @@ class BudgetPdfService {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   _buildSignatureLine('Líder de Organización'),
-                  _buildSignatureLine('Obispo (Opcional)'),
+                  _buildSignatureLine('Obispo / Presidencia'),
                 ],
               ),
 
               pw.Spacer(),
 
-              // 4. LÍNEA DE CORTE Y DATOS BANCARIOS (CORREGIDO)
-
-              // Línea punteada simulada
               pw.Row(
                 children: List.generate(60, (index) => pw.Expanded(
                   child: pw.Container(
@@ -371,13 +374,10 @@ class BudgetPdfService {
               ),
 
               pw.SizedBox(height: 5),
-
               pw.Row(children: [
-                // Usamos una "X" simple y elegante en negrita en lugar del icono problemático
                 pw.Text('X', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12)),
                 pw.SizedBox(width: 5),
-                // Quitamos el 'italic' para evitar que busque Helvetica y falle con la tilde de "Información"
-                pw.Text('Cortar aquí para seguridad (Información EFT)', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+                pw.Text('Cortar aquí para seguridad (Información EFT)', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
               ]),
 
               pw.SizedBox(height: 10),
@@ -417,7 +417,6 @@ class BudgetPdfService {
     return pdf.save();
   }
 
-  // Helper checkbox simulado
   pw.Widget _buildCheckbox(bool checked) {
     return pw.Container(
       width: 12, height: 12,
@@ -446,5 +445,4 @@ class BudgetPdfService {
       pw.Expanded(child: pw.Text(value, style: const pw.TextStyle(fontSize: 9))),
     ]);
   }
-
 }

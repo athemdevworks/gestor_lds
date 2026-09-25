@@ -340,8 +340,8 @@ class PdfService {
               pw.SizedBox(height: 5),
               pw.Divider(color: brandColor, thickness: 2),
 
-              // 🚀 IMPRIMIENDO LA JURISDICCIÓN EN GRANDE Y EN AZUL
-              _buildPdfItem('Jurisdicción', meeting.ward, bold: true, color: brandColor),
+              // 🚀 IMPRIMIENDO LA UNIDAD EN GRANDE Y EN AZUL
+              _buildPdfItem('Unidad', meeting.ward, bold: true, color: brandColor),
               _buildPdfItem('Preside', meeting.presidedBy),
               _buildPdfItem('Dirige', meeting.directedBy),
               _buildPdfItem('Fecha', DateFormat('EEEE, d MMMM yyyy', 'es').format(meeting.date), bold: true),

@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/constants/wards_list.dart';
-import 'package:gestor_lds/core/constants/organizations_list.dart';
 
 class FamilyHistorySosScreen extends StatefulWidget {
   // 🚀 RECIBIMOS LOS MANDOS DIRECTOS DESDE EL HUB
@@ -31,30 +30,25 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
   @override
   void initState() {
     super.initState();
-    // 🚀 INICIALIZACIÓN LOGÍSTICA EN VIVO SEGÚN EL SOMBRERO SELECCIONADO
+    // 🚀 INICIALIZACIÓN LOGÍSTICA EN VIVO SEGÚN EL MODO SELECCIONADO
     _barrioFiltro = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Vinculamos el comportamiento de administración al interruptor superior de la app
     final bool esAdminEstaca = widget.isStakeMode;
 
     // =========================================================================
     // 🛡️ DEFENSA ESTRICTA: Filtros Cruzados (Barrio y Estaca)
     // =========================================================================
-
-    // Convertimos el rol a texto puro para evitar el choque con los Enums
     final String miRol = widget.currentUser.role.toString();
 
-    // 1. Escáner para Líderes de Barrio (Escanea TODA la matriz, no solo el 1ro)
     final bool sirveEnOrgClaveBarrio = widget.currentUser.callingOrganizations?.contains('Cuórum de Élderes') == true ||
         widget.currentUser.callingOrganizations?.contains('Sociedad de Socorro') == true ||
         widget.currentUser.callingOrganizations?.contains('Templo e Historia Familiar') == true;
 
     final bool esLiderBarrioAutorizado = (miRol == 'lider_barrio' || miRol == 'UserRole.lider_barrio') && sirveEnOrgClaveBarrio;
 
-    // 2. Escáner para Líderes de Estaca (El Nuevo Candado)
     final bool sirveEnOrgClaveEstaca = widget.currentUser.callingOrganizations?.contains('Sumo consejo') == true ||
         widget.currentUser.callingOrganizations?.contains('Sumo Consejo') == true ||
         widget.currentUser.callingOrganizations?.contains('Templo e historia familiar de estaca') == true ||
@@ -62,12 +56,10 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
 
     final bool esLiderEstacaAutorizado = (miRol == 'lider_estaca' || miRol == 'UserRole.lider_estaca') && sirveEnOrgClaveEstaca;
 
-    // 3. Pases VIP Absolutos (Capitanes Generales)
     final bool tienePaseVip = miRol == 'admin' || miRol == 'UserRole.admin' ||
         miRol == 'presidencia_estaca' || miRol == 'UserRole.presidencia_estaca' ||
         miRol == 'obispado' || miRol == 'UserRole.obispado';
 
-    // 4. Permiso Total Final
     final bool tienePermisoGestion = tienePaseVip || esLiderEstacaAutorizado || esLiderBarrioAutorizado;
     // =========================================================================
 
@@ -111,7 +103,7 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
   }
 
   // =========================================================================
-  // 📋 TAB 1: CASOS ASIGNADOS A MÍ PARA QUE YO RESUELVA (Para Todos)
+  // 📋 TAB 1: CASOS ASIGNADOS A MÍ PARA QUE YO RESUELVA
   // =========================================================================
   Widget _buildMisTareasTab() {
     final String currentUid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -194,7 +186,7 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
   }
 
   // =========================================================================
-  // 📊 TAB 2: PANEL GLOBAL DE CONTROL DE CASOS (SÓLO LÍDERES AUTORIZADOS)
+  // 📊 TAB 2: PANEL GLOBAL DE CONTROL DE CASOS (CON EDICIÓN Y ELIMINACIÓN)
   // =========================================================================
   Widget _buildControlCasosTab(bool esAdminEstaca) {
     Query querySOS = FirebaseFirestore.instance.collection('family_history_sos').where('status', isEqualTo: _estadoFiltro);
@@ -212,9 +204,14 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  // 🚀 CONTROL ANTi-CRASH: Evita desajustes al cambiar el interruptor principal
                   value: esAdminEstaca ? _barrioFiltro : widget.currentUser.ward,
-                  decoration: InputDecoration(labelText: 'Barrio', border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)), isDense: true, fillColor: esAdminEstaca ? Colors.white : Colors.grey.shade100, filled: !esAdminEstaca),
+                  decoration: InputDecoration(
+                    labelText: 'Unidad (Barrio)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    isDense: true,
+                    fillColor: esAdminEstaca ? Colors.white : Colors.grey.shade100,
+                    filled: !esAdminEstaca,
+                  ),
                   items: esAdminEstaca
                       ? ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 13)))).toList()
                       : [widget.currentUser.ward].map((b) => DropdownMenuItem(value: b, child: Text(b, style: const TextStyle(fontSize: 13)))).toList(),
@@ -264,17 +261,61 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
                         child: Icon(isPending ? Icons.gpp_maybe : Icons.check_circle, color: isPending ? Colors.red : Colors.green),
                       ),
                       title: Text(data['memberName'] ?? 'Miembro', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text('Consultor: ${data['consultantName']}\nNota: ${data['note']}', style: const TextStyle(fontSize: 12)),
-                      trailing: isPending
-                          ? IconButton(
-                        icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                        tooltip: 'Resolver Caso',
-                        onPressed: () => _resolverCaso(doc.id),
-                      )
-                          : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: const Text('OK', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                      subtitle: Text(
+                        'Consultor: ${data['consultantName'] ?? "Sin asignar"}\nUnidad: ${data['memberWard'] ?? ""}\nNota: ${data['note'] ?? ""}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isPending)
+                            IconButton(
+                              icon: const Icon(Icons.check_circle_outline, color: Colors.green),
+                              tooltip: 'Resolver Caso',
+                              onPressed: () => _resolverCaso(doc.id),
+                            )
+                          else
+                            Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                              child: const Text('OK', style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+
+                          // 🚀 MENÚ DE ACCIONES: EDITAR Y ELIMINAR
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: Colors.grey),
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                _showEditAssignmentDialog(context, doc);
+                              } else if (value == 'delete') {
+                                _confirmarEliminarCaso(context, doc.id, data['memberName'] ?? 'este miembro');
+                              }
+                            },
+                            itemBuilder: (ctx) => [
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Editar Asignación'),
+                                  ],
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Eliminar Caso'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                       isThreeLine: true,
                     ),
@@ -299,10 +340,211 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
   }
 
   // =========================================================================
-  // 🚀 DIÁLOGO DE ASIGNACIÓN (CON AUTOSUGERENCIA DEL UNIVERSO DEL BARRIO)
+  // 🗑️ DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR CASO SOS
+  // =========================================================================
+  void _confirmarEliminarCaso(BuildContext context, String docId, String memberName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Eliminar Caso SOS'),
+          ],
+        ),
+        content: Text('¿Seguro que deseas eliminar el ticket de ayuda de "$memberName"? Esta acción no se puede deshacer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await FirebaseFirestore.instance.collection('family_history_sos').doc(docId).delete();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('🗑️ Caso SOS eliminado correctamente.'), backgroundColor: Colors.redAccent),
+                );
+              }
+            },
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // ✏️ DIÁLOGO PARA EDITAR ASIGNACIÓN SOS
+  // =========================================================================
+  void _showEditAssignmentDialog(BuildContext context, DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final String memberWard = data['memberWard'] ?? widget.currentUser.ward;
+
+    String selectedStatus = data['status'] ?? 'Pendiente';
+    String? selectedConsultantId = data['consultantId'];
+    String? selectedConsultantName = data['consultantName'];
+
+    final noteController = TextEditingController(text: data['note'] ?? '');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.edit_note, color: _brandBlue),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Editar: ${data['memberName'] ?? "Caso"}',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            var fetchUsersFuture = FirebaseFirestore.instance
+                .collection('users')
+                .where('ward', isEqualTo: memberWard)
+                .get();
+
+            return SingleChildScrollView(
+              child: SizedBox(
+                width: 450,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: selectedStatus,
+                      decoration: const InputDecoration(labelText: 'Estado del Caso', border: OutlineInputBorder(), isDense: true),
+                      items: ['Pendiente', 'Resuelto'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      onChanged: (val) {
+                        setModalState(() {
+                          selectedStatus = val!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    FutureBuilder<QuerySnapshot>(
+                      future: fetchUsersFuture,
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const Center(child: LinearProgressIndicator());
+
+                        var users = snapshot.data!.docs;
+
+                        return Autocomplete<QueryDocumentSnapshot>(
+                          initialValue: TextEditingValue(text: selectedConsultantName ?? ''),
+                          displayStringForOption: (option) {
+                            var d = option.data() as Map<String, dynamic>;
+                            return '${d['lastName']}, ${d['firstName']}';
+                          },
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return const Iterable<QueryDocumentSnapshot>.empty();
+                            }
+                            final String query = textEditingValue.text.toLowerCase();
+                            return users.where((u) {
+                              var d = u.data() as Map<String, dynamic>;
+                              String fullName = '${d['firstName']} ${d['lastName']}'.toLowerCase();
+                              String reverseName = '${d['lastName']}, ${d['firstName']}'.toLowerCase();
+                              return fullName.contains(query) || reverseName.contains(query);
+                            });
+                          },
+                          onSelected: (QueryDocumentSnapshot selection) {
+                            var d = selection.data() as Map<String, dynamic>;
+                            selectedConsultantId = selection.id;
+                            selectedConsultantName = '${d['firstName']} ${d['lastName']}';
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            return TextField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'Reasignar Consultor Responsable',
+                                hintText: 'Buscar consultor...',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.person_search),
+                                isDense: true,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    TextField(
+                      controller: noteController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Detalle de la Necesidad',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white),
+            onPressed: () async {
+              if (noteController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('⚠️ Por favor, describe la necesidad.'),
+                  backgroundColor: Colors.orange,
+                ));
+                return;
+              }
+
+              final Map<String, dynamic> updateData = {
+                'consultantId': selectedConsultantId,
+                'consultantName': selectedConsultantName,
+                'note': noteController.text.trim(),
+                'status': selectedStatus,
+                'updatedAt': FieldValue.serverTimestamp(),
+              };
+
+              if (selectedStatus == 'Resuelto' && data['status'] != 'Resuelto') {
+                updateData['resolvedAt'] = FieldValue.serverTimestamp();
+              }
+
+              await FirebaseFirestore.instance.collection('family_history_sos').doc(doc.id).update(updateData);
+
+              if (context.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('✅ ¡Caso SOS actualizado con éxito!'), backgroundColor: Colors.green),
+                );
+              }
+            },
+            child: const Text('Guardar Cambios'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================================
+  // 🚀 DIÁLOGO DE CREACIÓN
   // =========================================================================
   void _showCreateAssignmentDialog(BuildContext context, bool esAdminEstaca) {
-    // 🚀 ESCUDO ANTICRASH: Si el filtro superior dice 'Todos', seleccionamos el primer barrio disponible por defecto
     String selectedWard = esAdminEstaca
         ? (_barrioFiltro == 'Todos' ? kWardsList.first : _barrioFiltro)
         : widget.currentUser.ward;
@@ -319,16 +561,15 @@ class _FamilyHistorySosScreenState extends State<FamilyHistorySosScreen> {
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.add_moderator, color: _brandBlue),
-            const SizedBox(width: 8),
-            const Text('Asignar Caso SOS', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(width: 8),
+            Text('Asignar Caso SOS', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         content: StatefulBuilder(
           builder: (BuildContext context, StateSetter setModalState) {
-
             var fetchUsersFuture = FirebaseFirestore.instance
                 .collection('users')
                 .where('ward', isEqualTo: selectedWard)

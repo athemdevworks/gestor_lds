@@ -5,12 +5,10 @@ class ActivityService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final String _collection = 'activities';
 
-  // 1. CREAR (Generando ID correctamente)
+  // 1. CREAR (Generando ID único, guardando unidad y visibilidad)
   Future<void> saveActivity(ActivityModel activity) async {
-    // Generamos la referencia primero para obtener el ID único
     final docRef = _db.collection(_collection).doc();
 
-    // Creamos una nueva instancia del modelo con el ID real de Firestore
     final newActivity = ActivityModel(
       id: docRef.id,
       title: activity.title,
@@ -19,9 +17,10 @@ class ActivityService {
       time: activity.time,
       location: activity.location,
       organization: activity.organization,
+      ward: activity.ward,
+      visibility: activity.visibility, // 🚀 'ward', 'stake' o 'leadership'
     );
 
-    // Guardamos usando .set()
     await docRef.set(newActivity.toMap());
   }
 
@@ -35,36 +34,72 @@ class ActivityService {
     await _db.collection(_collection).doc(id).delete();
   }
 
-  // --- NUEVAS CONSULTAS PARA LAS PESTAÑAS ---
+  // --- CONSULTAS CON AISLAMIENTO Y VISIBILIDAD POR ROL ---
 
-  // A. PRÓXIMAS ACTIVIDADES (Desde hoy en adelante)
-  Stream<List<ActivityModel>> getUpcomingActivities() {
+  // A. PRÓXIMAS ACTIVIDADES
+  Stream<List<ActivityModel>> getUpcomingActivities({
+    String? userWard,
+    bool isLeader = false,
+  }) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
     return _db
         .collection(_collection)
         .where('date', isGreaterThanOrEqualTo: todayStart)
-        .orderBy('date', descending: false) // Ascendente: La más cercana primero
+        .orderBy('date', descending: false)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-        .map((doc) => ActivityModel.fromMap(doc.data(), doc.id))
-        .toList());
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => ActivityModel.fromMap(doc.data(), doc.id))
+          .toList();
+
+      return list.where((a) => _canViewActivity(a, userWard, isLeader)).toList();
+    });
   }
 
-  // B. HISTORIAL (Pasadas, con filtro de fecha límite)
-  Stream<List<ActivityModel>> getHistoryActivities(DateTime limitDate) {
+  // B. HISTORIAL
+  Stream<List<ActivityModel>> getHistoryActivities(
+      DateTime limitDate, {
+        String? userWard,
+        bool isLeader = false,
+      }) {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
     return _db
         .collection(_collection)
-        .where('date', isLessThan: todayStart) // Solo pasadas
-        .where('date', isGreaterThanOrEqualTo: limitDate) // Filtro usuario
-        .orderBy('date', descending: true) // Descendente: La más reciente primero
+        .where('date', isLessThan: todayStart)
+        .where('date', isGreaterThanOrEqualTo: limitDate)
+        .orderBy('date', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-        .map((doc) => ActivityModel.fromMap(doc.data(), doc.id))
-        .toList());
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => ActivityModel.fromMap(doc.data(), doc.id))
+          .toList();
+
+      return list.where((a) => _canViewActivity(a, userWard, isLeader)).toList();
+    });
+  }
+
+  // 🛡️ REGLA DE VISIBILIDAD INSTITUCIONAL
+  bool _canViewActivity(ActivityModel a, String? userWard, bool isLeader) {
+    // 1. Actividades exclusivas de liderazgo (Sumo Consejo, Obispados, etc.)
+    if (a.visibility == 'leadership' && !isLeader) {
+      return false;
+    }
+
+    // 2. Administrador o Presidencia de Estaca sin barrio fijo ven todo lo permitido para líderes
+    if (userWard == null || userWard.trim().isEmpty) {
+      return true;
+    }
+
+    // 3. Actividades abiertas a la Estaca (Conferencias de Barrio, Conferencia de Estaca, JAS)
+    if (a.visibility == 'stake' || a.ward.toLowerCase() == 'estaca') {
+      return true;
+    }
+
+    // 4. Actividad local estándar: visible solo para los miembros del barrio organizador
+    return a.ward.isEmpty || a.ward == userWard;
   }
 }

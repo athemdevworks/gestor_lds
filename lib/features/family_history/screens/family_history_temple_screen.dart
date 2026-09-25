@@ -158,7 +158,41 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
                         padding: const EdgeInsets.only(top: 6.0),
                         child: Text('📅 Fecha: ${data['date']}\n🏢 Organiza: ${data['ward']}', style: TextStyle(color: Colors.grey.shade700, fontSize: 13, height: 1.3)),
                       ),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                      trailing: tienePermisoGestion
+                          ? PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            // Aquí llamas a tu diálogo de edición (similar al de crear, pero con update)
+                          } else if (value == 'delete') {
+                            bool confirm = await showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('¿Eliminar caravana?'),
+                                content: const Text('Se borrarán también todos los pasajeros asignados.'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                    child: const Text('Eliminar'),
+                                  ),
+                                ],
+                              ),
+                            ) ?? false;
+
+                            if (confirm) {
+                              // Borramos el documento principal
+                              await FirebaseFirestore.instance.collection('temple_trips').doc(trip.id).delete();
+                              // Nota: En producción, idealmente se ejecuta una Cloud Function para borrar la subcolección 'passengers' asociada.
+                            }
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => [
+                          const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 20, color: Colors.blue), SizedBox(width: 8), Text('Editar')])),
+                          const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 20, color: Colors.red), SizedBox(width: 8), Text('Eliminar')])),
+                        ],
+                      )
+                          : const Icon(Icons.chevron_right, color: Colors.grey),
                       onTap: () => setState(() => _selectedTrip = trip),
                     ),
                   );
@@ -171,12 +205,15 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
     );
   }
 
-  // =========================================================================
+// =========================================================================
   // 🚌 VISTA 2: DETALLE INTERACTIVO DEL VIAJE (LOGÍSTICA DE PASAJEROS)
   // =========================================================================
   Widget _buildTripDetailView(bool tienePermisoGestion) {
     var tripData = _selectedTrip!.data() as Map<String, dynamic>;
     String tripId = _selectedTrip!.id;
+
+    // 🚀 1. LEEMOS LA LISTA DINÁMICA DESDE FIREBASE (Si no hay, ponemos Lista de Espera por defecto)
+    List<String> transportes = List<String>.from(tripData['vehicles'] ?? ['Lista de Espera ⏳']);
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -188,7 +225,6 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
 
         final pasajerosDocs = snapshot.hasData ? snapshot.data!.docs : [];
-        List<String> transportes = ['Bus Principal 🚌', 'Bus Adicional 🚌', 'Movilidad Particular A 🚗', 'Movilidad Particular B 🚗', 'Lista de Espera ⏳'];
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,11 +241,24 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
                   Text('Corte de control logístico. Total inscritos: ${pasajerosDocs.length} hermanos.', style: const TextStyle(color: Colors.grey, fontSize: 13)),
                   if (tienePermisoGestion) ...[
                     const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.person_add_alt_1, size: 18),
-                      label: const Text('Agregar Pasajero a la Caravana', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                      onPressed: () => _showAddPassengerDialog(context, tripId, tripData['ward'], transportes),
+                    // 🚀 2. BOTONES LADO A LADO CON WRAP
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.person_add_alt_1, size: 18),
+                          label: const Text('Añadir Pasajero', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          onPressed: () => _showAddPassengerDialog(context, tripId, tripData['ward'], transportes),
+                        ),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.directions_car, size: 18),
+                          label: const Text('Añadir Movilidad', style: TextStyle(fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          onPressed: () => _showAddVehicleDialog(context, tripId),
+                        ),
+                      ],
                     )
                   ]
                 ],
@@ -298,7 +347,40 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
           children: [
             TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Nombre de la Caravana (Ej: Caravana de Estaca)', border: OutlineInputBorder())),
             const SizedBox(height: 12),
-            TextField(controller: dateCtrl, decoration: const InputDecoration(labelText: 'Fecha (Ej: Sábado 25 de Julio)', border: OutlineInputBorder(), hintText: 'DD/MM/AAAA')),
+            TextFormField(
+              controller: dateCtrl,
+              readOnly: true, // Evita que se abra el teclado de letras
+              decoration: const InputDecoration(
+                labelText: 'Fecha de la Caravana',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.calendar_today),
+              ),
+              onTap: () async {
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(), // No permite elegir fechas pasadas
+                  lastDate: DateTime(2030),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.light(
+                          primary: _brandBlue,
+                          onPrimary: Colors.white,
+                          onSurface: Colors.black,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (pickedDate != null) {
+                  // Formateamos la fecha (Ej: 25/07/2026)
+                  String formattedDate = "${pickedDate.day.toString().padLeft(2, '0')}/${pickedDate.month.toString().padLeft(2, '0')}/${pickedDate.year}";
+                  dateCtrl.text = formattedDate;
+                }
+              },
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: targetWard,
@@ -320,6 +402,8 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
                 'title': titleCtrl.text.trim(),
                 'date': dateCtrl.text.trim(),
                 'ward': targetWard,
+                // 🚀 ESTO ES NUEVO: Le damos un par de opciones por defecto para arrancar
+                'vehicles': ['Bus Principal 🚌', 'Lista de Espera ⏳'],
                 'createdAt': FieldValue.serverTimestamp(),
               });
               if (context.mounted) Navigator.pop(ctx);
@@ -458,6 +542,41 @@ class _FamilyHistoryTempleScreenState extends State<FamilyHistoryTempleScreen> {
               if (context.mounted) Navigator.pop(ctx);
             },
             child: const Text('Mover Pasajero'),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _showAddVehicleDialog(BuildContext context, String tripId) {
+    final vehicleCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Agregar Nueva Unidad', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: vehicleCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Nombre (Ej. Minivan Familia Pérez 🚐)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700, foregroundColor: Colors.white),
+            onPressed: () async {
+              if (vehicleCtrl.text.trim().isEmpty) return;
+
+              // 🚀 AÑADE LA NUEVA MOVILIDAD A LA LISTA DEL VIAJE
+              await FirebaseFirestore.instance.collection('temple_trips').doc(tripId).update({
+                'vehicles': FieldValue.arrayUnion([vehicleCtrl.text.trim()])
+              });
+
+              if (context.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Agregar Unidad'),
           )
         ],
       ),

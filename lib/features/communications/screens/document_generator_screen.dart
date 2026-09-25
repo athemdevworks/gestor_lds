@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import 'package:gestor_lds/features/communications/services/citation_service.dart';
 import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:gestor_lds/core/widgets/user_autocomplete_field.dart';
 
 class DocumentGeneratorScreen extends StatefulWidget {
-  // 🚀 MANDOS DEL MULTIVERSO
   final bool isStakeMode;
   final UserModel currentUser;
 
@@ -24,22 +25,19 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
   late TabController _tabController;
   final CitationService _citationService = CitationService();
 
-  // Controladores Comunes
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
 
-  // Controladores Asignación
   final TextEditingController _topicController = TextEditingController();
   final TextEditingController _durationController = TextEditingController(text: "8");
   String _selectedAssignmentType = 'TERCER DISCURSO';
 
-  // Controladores Entrevista
   late String _selectedLeader;
 
-  // Estado
   bool _isMale = false;
-  late String _jurisdiction; // 🚀 El DNI Geográfico
+  String? _selectedMemberPhone;
+  late String _jurisdiction;
 
   @override
   void initState() {
@@ -48,9 +46,22 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     _dateController.text = DateFormat('yyyy-MM-dd').format(_nextSunday());
     _timeController.text = "10:30 de la mañana";
 
-    // 🚀 LÓGICA MULTIVERSO INICIAL
-    _jurisdiction = widget.isStakeMode ? 'Estaca Jerusalén' : widget.currentUser.ward;
+    _jurisdiction = widget.isStakeMode
+        ? (widget.currentUser.ward.toLowerCase() == 'estaca' ? 'Estaca Jerusalén' : widget.currentUser.ward)
+        : widget.currentUser.ward;
+
     _selectedLeader = widget.isStakeMode ? 'PRESIDENTE DE ESTACA' : 'OBISPO';
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _nameController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
+    _topicController.dispose();
+    _durationController.dispose();
+    super.dispose();
   }
 
   DateTime _nextSunday() {
@@ -60,11 +71,18 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     return now.add(Duration(days: daysUntilSunday));
   }
 
+  String _getFormattedUnit() {
+    if (widget.isStakeMode) {
+      return _jurisdiction.toLowerCase().contains('estaca') ? _jurisdiction : 'Estaca $_jurisdiction';
+    }
+    return _jurisdiction.toLowerCase().contains('barrio') ? _jurisdiction : 'Barrio $_jurisdiction';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isStakeMode ? 'Comunicaciones de Estaca' : 'Comunicaciones'),
+        title: Text(widget.isStakeMode ? 'Comunicaciones de Estaca' : 'Comunicaciones Oficiales'),
         backgroundColor: const Color(0xFF22539A),
         foregroundColor: Colors.white,
         bottom: TabBar(
@@ -97,10 +115,10 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           _buildCommonFields(),
           const SizedBox(height: 20),
 
-          const Text('Detalles de Asignación', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Detalles de la Asignación', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Tipo de Asignación', border: OutlineInputBorder(), isDense: true),
             value: _selectedAssignmentType,
             items: [
               'PRIMERA ORACION', 'ULTIMA ORACION',
@@ -113,12 +131,12 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           if (_selectedAssignmentType.contains('DISCURSO')) ...[
             TextField(
               controller: _topicController,
-              decoration: const InputDecoration(labelText: 'Tema Asignado', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Tema Asignado', border: OutlineInputBorder(), isDense: true),
             ),
             const SizedBox(height: 15),
             TextField(
               controller: _durationController,
-              decoration: const InputDecoration(labelText: 'Tiempo (minutos)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'Tiempo Estimado (minutos)', border: OutlineInputBorder(), isDense: true),
               keyboardType: TextInputType.number,
             ),
           ],
@@ -129,9 +147,9 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _copyAssignmentToWhatsApp,
-                  icon: const Icon(Icons.copy, color: Color(0xFF25D366)),
-                  label: const Text('Copiar WA', style: TextStyle(color: Color(0xFF25D366))),
+                  onPressed: () => _handleWhatsAppAction(isInterview: false),
+                  icon: const Icon(Icons.message, color: Color(0xFF25D366)),
+                  label: Text(_selectedMemberPhone != null ? 'Enviar WA' : 'Copiar WA', style: const TextStyle(color: Color(0xFF25D366))),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: Color(0xFF25D366)),
@@ -143,11 +161,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
                 child: ElevatedButton.icon(
                   onPressed: _generateAssignmentPdf,
                   icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('PDF Formal'),
+                  label: const Text('PDF Oficial'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22539A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16)
+                    backgroundColor: const Color(0xFF22539A),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
               ),
@@ -167,12 +185,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           _buildCommonFields(),
           const SizedBox(height: 20),
 
-          const Text('Detalles de Entrevista', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Detalles de la Entrevista', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
-            decoration: const InputDecoration(labelText: 'Entrevistador', border: OutlineInputBorder()),
+            decoration: const InputDecoration(labelText: 'Líder Entrevistador', border: OutlineInputBorder(), isDense: true),
             value: _selectedLeader,
-            // 🚀 LISTA INTELIGENTE SEGÚN EL MODO
             items: (widget.isStakeMode
                 ? ['PRESIDENTE DE ESTACA', 'PRIMER CONSEJERO', 'SEGUNDO CONSEJERO', 'MIEMBRO DEL SUMO CONSEJO']
                 : ['OBISPO', 'PRIMER CONSEJERO', 'SEGUNDO CONSEJERO']
@@ -186,9 +203,9 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: _copyInterviewToWhatsApp,
-                  icon: const Icon(Icons.copy, color: Color(0xFF25D366)),
-                  label: const Text('Copiar WA', style: TextStyle(color: Color(0xFF25D366))),
+                  onPressed: () => _handleWhatsAppAction(isInterview: true),
+                  icon: const Icon(Icons.message, color: Color(0xFF25D366)),
+                  label: Text(_selectedMemberPhone != null ? 'Enviar WA' : 'Copiar WA', style: const TextStyle(color: Color(0xFF25D366))),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: Color(0xFF25D366)),
@@ -200,11 +217,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
                 child: ElevatedButton.icon(
                   onPressed: _generateInterviewPdf,
                   icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('PDF Formal'),
+                  label: const Text('PDF Oficial'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange.shade800,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16)
+                    backgroundColor: Colors.orange.shade800,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
               ),
@@ -222,9 +239,11 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
           label: 'Nombre del Miembro',
           controller: _nameController,
           icon: Icons.person_search,
+          wardFilter: widget.isStakeMode ? null : widget.currentUser.ward,
           onUserSelected: (user) {
             setState(() {
               _isMale = user.gender == 'M';
+              _selectedMemberPhone = user.phone;
             });
             ScaffoldMessenger.of(context).hideCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -236,7 +255,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
         const SizedBox(height: 15),
         Row(
           children: [
-            const Text('Género: ', style: TextStyle(fontSize: 16)),
+            const Text('Tratamiento: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             const SizedBox(width: 10),
             ToggleButtons(
               isSelected: [!_isMale, _isMale],
@@ -256,9 +275,14 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
               child: TextField(
                 controller: _dateController,
                 readOnly: true,
-                decoration: const InputDecoration(labelText: 'Fecha', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_month)),
+                decoration: const InputDecoration(labelText: 'Fecha', border: OutlineInputBorder(), prefixIcon: Icon(Icons.calendar_month), isDense: true),
                 onTap: () async {
-                  DateTime? picked = await showDatePicker(context: context, initialDate: DateTime.parse(_dateController.text), firstDate: DateTime.now(), lastDate: DateTime(2030));
+                  DateTime? picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.parse(_dateController.text),
+                    firstDate: DateTime.now().subtract(const Duration(days: 30)),
+                    lastDate: DateTime(2030),
+                  );
                   if (picked != null) setState(() => _dateController.text = DateFormat('yyyy-MM-dd').format(picked));
                 },
               ),
@@ -267,7 +291,7 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
             Expanded(
               child: TextField(
                 controller: _timeController,
-                decoration: const InputDecoration(labelText: 'Hora (Texto)', border: OutlineInputBorder(), prefixIcon: Icon(Icons.access_time), hintText: "10:30 AM"),
+                decoration: const InputDecoration(labelText: 'Hora', border: OutlineInputBorder(), prefixIcon: Icon(Icons.access_time), hintText: '10:30 AM', isDense: true),
               ),
             ),
           ],
@@ -276,100 +300,119 @@ class _DocumentGeneratorScreenState extends State<DocumentGeneratorScreen> with 
     );
   }
 
-  void _copyAssignmentToWhatsApp() {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
-      return;
-    }
+  String _buildAssignmentMessage() {
+    final parsedDate = DateTime.parse(_dateController.text);
+    final rawDate = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(parsedDate);
+    final date = rawDate.isNotEmpty ? "${rawDate[0].toUpperCase()}${rawDate.substring(1)}" : rawDate;
 
-    final date = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(DateTime.parse(_dateController.text));
     final isTalk = _selectedAssignmentType.contains('DISCURSO');
     final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
     final articulo = (_selectedAssignmentType.toUpperCase().contains('ORACION') || _selectedAssignmentType.toUpperCase().contains('ORACIÓN')) ? 'la ' : 'el ';
 
-    final String leadershipTitle = widget.isStakeMode ? 'Presidencia de la Estaca Jerusalén' : 'Obispado del $_jurisdiction';
-    final String signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado de $_jurisdiction';
+    final unitLabel = _getFormattedUnit();
+    final leadershipTitle = widget.isStakeMode ? 'Presidencia de la $unitLabel' : 'Obispado del $unitLabel';
+    final signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado del $unitLabel';
 
     String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
-    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
-
+    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que se encuentre gozando de las bendiciones de nuestro Padre Celestial. 👋\n\n";
     message += "En esta ocasión nos complace extenderle una cordial invitación para participar en nuestra reunión general con $articulo *${_selectedAssignmentType.toUpperCase()}* el día *$date* a las *${_timeController.text}* en nuestro centro de reuniones.\n\n";
 
     if (isTalk) {
-      message += "📖 El tema asignado para esta ocasión es: *${_topicController.text.trim()}*.\n";
-      message += "⏳ Tendrá un tiempo estimado no mayor a *${_durationController.text} min*.\n\n";
+      message += "📖 Tema asignado: *${_topicController.text.trim()}*\n";
+      message += "⏳ Tiempo sugerido: *${_durationController.text} minutos*\n\n";
     }
 
-    message += "Le pedimos estar 10 minutos antes del inicio de la reunión para sentarse en el estrado.\n\n";
+    message += "Le solicitamos estar 10 minutos antes del inicio de la reunión para sentarse en el estrado.\n\n";
 
     if (isTalk) {
-      message += "Rogamos que el espíritu del Señor le inspire en la preparación de su mensaje y así todos podamos ser edificados en la casa de Dios. El prepararse diligentemente le traerá muchas bendiciones al esforzarse por vivir lo que aprenda.\n\n";
+      message += "Rogamos que el Espíritu del Señor le inspire en la preparación de su mensaje para edificación mutua en la casa de Dios.\n\n";
     }
 
-    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
-    message += "Con Amor,\n*$signatureTitle*";
-
-    Clipboard.setData(ClipboardData(text: message));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
+    message += "Agradecemos profundamente su servicio y devoción al Salvador. 🙏\n\n";
+    message += "Con aprecio fraternal,\n*$signatureTitle*";
+    return message;
   }
 
-  void _copyInterviewToWhatsApp() {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+  String _buildInterviewMessage() {
+    final parsedDate = DateTime.parse(_dateController.text);
+    final rawDate = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(parsedDate);
+    final date = rawDate.isNotEmpty ? "${rawDate[0].toUpperCase()}${rawDate.substring(1)}" : rawDate;
+
+    final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
+    final unitLabel = _getFormattedUnit();
+    final leadershipTitle = widget.isStakeMode ? 'Presidencia de la $unitLabel' : 'Obispado del $unitLabel';
+    final signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado del $unitLabel';
+
+    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
+    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que las bendiciones del Señor acompañen a usted y su hogar. 👋\n\n";
+    message += "Por medio de la presente deseamos invitarle a una entrevista con el *$_selectedLeader*, la cual se llevará a cabo el día *$date* a las *${_timeController.text}* en nuestro centro de reuniones (Oficina de liderazgo).\n\n";
+    message += "Agradecemos de antemano su puntualidad y disposición. Si tuviera algún inconveniente con el horario, por favor comuníquese con nosotros.\n\n";
+    message += "Con aprecio fraternal,\n*$signatureTitle*";
+    return message;
+  }
+
+  Future<void> _handleWhatsAppAction({required bool isInterview}) async {
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona o ingresa el nombre del miembro')));
       return;
     }
 
-    final date = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(DateTime.parse(_dateController.text));
-    final prefix = _isMale ? 'Estimado Hermano' : 'Estimada Hermana';
-
-    final String leadershipTitle = widget.isStakeMode ? 'Presidencia de la Estaca Jerusalén' : 'Obispado del $_jurisdiction';
-    final String signatureTitle = widget.isStakeMode ? 'Presidencia de Estaca' : 'Obispado de $_jurisdiction';
-
-    String message = "*$prefix: ${_nameController.text.trim()}*\n\n";
-    message += "Le extendemos un cordial saludo como $leadershipTitle, esperando que se encuentre gozando de las bendiciones y oportunidades que nuestro Padre Celestial derrama sobre las familias de todos sus hijos e hijas fieles a Su Obra. 👋\n\n";
-
-    message += "Por medio de la presente deseamos invitarle a una entrevista con el *$_selectedLeader*, la cual se llevará a cabo el día *$date* a las *${_timeController.text}* en nuestro centro de reuniones (Oficina de liderazgo).\n\n";
-
-    message += "Agradecemos de antemano su puntualidad y disposición. Si tiene algún inconveniente con el horario, por favor avísenos.\n\n";
-
-    message += "Le agradecemos profundamente por su dedicado y genuino servicio al Salvador. Le recordamos y le admiramos por su fe y sus humildes oraciones. 🙏\n\n";
-    message += "Con Amor,\n*$signatureTitle*";
-
+    final message = isInterview ? _buildInterviewMessage() : _buildAssignmentMessage();
     Clipboard.setData(ClipboardData(text: message));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green));
+
+    if (_selectedMemberPhone != null && _selectedMemberPhone!.trim().isNotEmpty) {
+      String cleanPhone = _selectedMemberPhone!.replaceAll(RegExp(r'[^0-9]'), '');
+      if (!cleanPhone.startsWith('51') && cleanPhone.length == 9) {
+        cleanPhone = '51$cleanPhone';
+      }
+
+      final uri = Uri.parse('https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}');
+      try {
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+          return;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Mensaje copiado al portapapeles'), backgroundColor: Colors.green),
+      );
+    }
   }
 
   void _generateAssignmentPdf() async {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, ingresa el nombre del miembro')));
       return;
     }
     await _citationService.generateSacramentAssignment(
-      name: _nameController.text,
+      name: _nameController.text.trim(),
       isMale: _isMale,
       assignmentType: _selectedAssignmentType,
       assignmentDate: DateTime.parse(_dateController.text),
-      time: _timeController.text,
-      topic: _selectedAssignmentType.contains('DISCURSO') ? _topicController.text : null,
-      duration: _durationController.text,
-      jurisdiction: _jurisdiction, // 🚀 MANDO AÑADIDO
-      isStakeMode: widget.isStakeMode, // 🚀 MANDO AÑADIDO
+      time: _timeController.text.trim(),
+      topic: _selectedAssignmentType.contains('DISCURSO') ? _topicController.text.trim() : null,
+      duration: _durationController.text.trim(),
+      jurisdiction: _jurisdiction,
+      isStakeMode: widget.isStakeMode,
     );
   }
 
   void _generateInterviewPdf() async {
-    if (_nameController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Falta el nombre')));
+    if (_nameController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, ingresa el nombre del miembro')));
       return;
     }
     await _citationService.generateInterviewCitation(
-      name: _nameController.text,
+      name: _nameController.text.trim(),
       isMale: _isMale,
       leaderRole: _selectedLeader,
       date: DateTime.parse(_dateController.text),
-      time: _timeController.text,
-      jurisdiction: _jurisdiction, // 🚀 MANDO AÑADIDO
-      isStakeMode: widget.isStakeMode, // 🚀 MANDO AÑADIDO
+      time: _timeController.text.trim(),
+      jurisdiction: _jurisdiction,
+      isStakeMode: widget.isStakeMode,
     );
   }
 }

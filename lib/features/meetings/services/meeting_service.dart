@@ -39,7 +39,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
-      ward: ward, // 🚀 GUARDANDO JURISDICCIÓN
+      ward: ward, // 🚀 GUARDANDO UNIDAD
       organization: organization,
 
       // --- PASAR AL MODELO ---
@@ -130,7 +130,7 @@ class MeetingService {
       time: time,
       presidedBy: presidedBy,
       directedBy: directedBy,
-      ward: ward, // 🚀 ACTUALIZANDO JURISDICCIÓN
+      ward: ward, // 🚀 ACTUALIZANDO UNIDAD
       organization: organization,
 
       // --- PASAR AL MODELO ---

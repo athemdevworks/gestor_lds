@@ -74,10 +74,14 @@ class _NewCommitmentModalState extends State<NewCommitmentModal> {
   }
 
   Future<void> _selectDate() async {
+    final DateTime initial = (_selectedDueDate != null && _selectedDueDate!.isAfter(DateTime(2020)))
+        ? _selectedDueDate!
+        : DateTime.now();
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
+      initialDate: initial,
+      firstDate: DateTime(2020), // 🚀 Previene el crash al abrir compromisos vencidos
       lastDate: DateTime(2030),
     );
     if (picked != null) {

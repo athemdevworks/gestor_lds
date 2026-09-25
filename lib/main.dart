@@ -1,12 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart'; // 🚀 IMPORTANTE: Para detectar si es Web (kIsWeb)
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart'; // <--- RECOMENDADO: Manejo de estado
-import 'features/family_history/screens/family_history_hub_screen.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 // Importamos las pantallas y servicios
 import 'package:gestor_lds/features/auth/services/auth_service.dart';
 import 'package:gestor_lds/features/auth/screens/login_screen.dart';
@@ -21,9 +22,20 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('es_ES', null);
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // 1. Inicialización blindada contra llamadas múltiples
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  // 2. Settings SOLO para móviles (En Web se omite porque rompe la sesión)
+  if (!kIsWeb) {
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  }
 
   runApp(const GestorLDSApp());
 }

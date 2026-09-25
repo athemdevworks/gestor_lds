@@ -68,6 +68,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
   final TextEditingController _thirdSpeakerTopicController = TextEditingController();
   bool _hasThirdSpeaker = false;
   bool _isFastAndTestimony = false;
+  bool _isSpecialMusicalNumber = false;
 
   final List<String> _organizations = [
     'Cuórum de Élderes', 'Sociedad de Socorro', 'Mujeres Jóvenes',
@@ -126,6 +127,10 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
           _firstSpeakerNameController.text = ag.firstSpeakerName ?? '';
           _firstSpeakerTopicController.text = ag.firstSpeakerTopic ?? '';
           _intermediateHymnController.text = ag.intermediateHymn ?? '';
+          if (ag.intermediateHymn != null && ag.intermediateHymn!.isNotEmpty) {
+            final startsWithNumber = RegExp(r'^\d+').hasMatch(ag.intermediateHymn!.trim());
+            _isSpecialMusicalNumber = !startsWithNumber;
+          }
           _secondSpeakerNameController.text = ag.secondSpeakerName ?? '';
           _secondSpeakerTopicController.text = ag.secondSpeakerTopic ?? '';
           _hasThirdSpeaker = ag.hasThirdSpeaker;
@@ -228,31 +233,58 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isEditing ? 'Editar Asunto' : 'Agregar Asunto'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: type,
-              items: ['Sostenimiento', 'Relevo', 'Ordenación al Sacerdocio', 'Confirmación', 'Bendición de niño'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-              onChanged: (v) => type = v!,
-              decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 15),
-            TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Persona', border: OutlineInputBorder())),
-            const SizedBox(height: 15),
-            TextField(controller: callingCtrl, decoration: const InputDecoration(labelText: 'Llamamiento (Opcional)', border: OutlineInputBorder())),
-          ],
+        title: Text(isEditing ? 'Editar Asunto de Barrio' : 'Agregar Asunto de Barrio'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: type,
+                items: [
+                  'Sostenimiento',
+                  'Relevo',
+                  'Ordenación al Sacerdocio',
+                  'Confirmación',
+                  'Bendición de niño',
+                  'Otro'
+                ].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                onChanged: (v) => type = v!,
+                decoration: const InputDecoration(labelText: 'Tipo', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 15),
+              // 🚀 AUTOCOMPLETADO NOMINAL DEL PADRÓN LOCAL
+              UserAutocompleteField(
+                label: 'Persona (Buscar en padrón)',
+                controller: nameCtrl,
+                icon: Icons.person_search,
+              ),
+              const SizedBox(height: 15),
+              TextField(
+                controller: callingCtrl,
+                decoration: const InputDecoration(labelText: 'Llamamiento u Ordenanza (Opcional)', border: OutlineInputBorder()),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () {
-              if (nameCtrl.text.isNotEmpty) {
+              if (nameCtrl.text.trim().isNotEmpty) {
                 setState(() {
-                  final newItem = WardBusinessModel(type: type, personName: nameCtrl.text, calling: callingCtrl.text.isEmpty ? null : callingCtrl.text);
-                  if (isEditing && index != null) _wardBusinessList[index] = newItem;
-                  else _wardBusinessList.add(newItem);
+                  final newItem = WardBusinessModel(
+                    id: itemToEdit?.id,
+                    type: type,
+                    personName: nameCtrl.text.trim(),
+                    calling: callingCtrl.text.trim().isEmpty ? null : callingCtrl.text.trim(),
+                    order: isEditing ? itemToEdit!.order : _wardBusinessList.length,
+                  );
+                  if (isEditing && index != null) {
+                    _wardBusinessList[index] = newItem;
+                  } else {
+                    _wardBusinessList.add(newItem);
+                  }
                 });
                 Navigator.pop(ctx);
               }
@@ -354,7 +386,7 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
 
-                  // 🚀 ¡ADIÓS AL DROPDOWN DE JURISDICCIÓN! 🚀
+                  // 🚀 ¡ADIÓS AL DROPDOWN DE UNIDAD! 🚀
                   // El sistema es inteligente y asigna _targetWard por debajo de la mesa.
 
                   const Text('Tipo de Reunión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -478,29 +510,70 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
 
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade300)),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                const Text('Asuntos del Barrio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                TextButton.icon(onPressed: () => _showBusinessDialog(), icon: const Icon(Icons.add), label: const Text('Agregar')),
-              ]),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Asuntos del Barrio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  TextButton.icon(
+                    onPressed: () => _showBusinessDialog(),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar'),
+                  ),
+                ],
+              ),
               const Divider(),
-              if (_wardBusinessList.isEmpty) const Text('No hay asuntos.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey))
-              else ..._wardBusinessList.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-                return ListTile(
-                  dense: true, contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.circle, size: 10, color: Theme.of(context).primaryColor),
-                  title: Text('${item.type}: ${item.personName}'),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(icon: const Icon(Icons.edit, size: 18, color: Colors.blue), onPressed: () => _showBusinessDialog(itemToEdit: item, index: index)),
-                    IconButton(icon: const Icon(Icons.delete, size: 18, color: Colors.red), onPressed: () => setState(() => _wardBusinessList.removeAt(index))),
-                  ]),
-                );
-              }),
+              if (_wardBusinessList.isEmpty)
+                const Text('No hay asuntos registrados.', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey))
+              else
+                ReorderableListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _wardBusinessList.length,
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (newIndex > oldIndex) newIndex -= 1;
+                      final item = _wardBusinessList.removeAt(oldIndex);
+                      _wardBusinessList.insert(newIndex, item);
+                      for (int i = 0; i < _wardBusinessList.length; i++) {
+                        _wardBusinessList[i] = _wardBusinessList[i].copyWith(order: i);
+                      }
+                    });
+                  },
+                  itemBuilder: (context, index) {
+                    final item = _wardBusinessList[index];
+                    final callingText = (item.calling != null && item.calling!.isNotEmpty) ? ' (${item.calling})' : '';
+                    return Card(
+                      key: ValueKey(item.id),
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.drag_indicator, color: Colors.grey),
+                        title: Text('${item.type}: ${item.personName}$callingText', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, size: 18, color: Colors.blue),
+                              onPressed: () => _showBusinessDialog(itemToEdit: item, index: index),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                              onPressed: () => setState(() => _wardBusinessList.removeAt(index)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -514,26 +587,113 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         else
           Column(
             children: [
-              Row(children: [Expanded(child: UserAutocompleteField(label: '1er Discursante', controller: _firstSpeakerNameController, icon: Icons.person_outline)), const SizedBox(width: 8), IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _firstSpeakerNameController.text, type: 'PRIMER DISCURSO', topic: _firstSpeakerTopicController.text, duration: '8'))]),
+              // --- PRIMER DISCURSANTE ---
+              Row(
+                children: [
+                  Expanded(
+                    child: UserAutocompleteField(
+                      label: '1er Discursante',
+                      controller: _firstSpeakerNameController,
+                      icon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.print, color: Colors.blueGrey),
+                    tooltip: 'Generar Esquela',
+                    onPressed: () => _printAssignment(
+                      name: _firstSpeakerNameController.text,
+                      type: 'PRIMER DISCURSO',
+                      topic: _firstSpeakerTopicController.text,
+                      duration: '8',
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              TextFormField(controller: _firstSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 1')),
+              TextFormField(
+                controller: _firstSpeakerTopicController,
+                decoration: const InputDecoration(labelText: 'Tema 1'),
+              ),
 
+              // --- MÚSICA INTERMEDIA (CUANDO SOLO HAY 2 DISCURSANTES) ---
               if (!_hasThirdSpeaker) ...[
-                const SizedBox(height: 20), HymnAutocomplete(label: 'Himno Especial (Opcional)', controller: _intermediateHymnController, icon: Icons.music_note),
+                const SizedBox(height: 20),
+                _buildIntermediateMusicField(),
               ],
               const SizedBox(height: 20),
 
-              Row(children: [Expanded(child: UserAutocompleteField(label: '2do Discursante', controller: _secondSpeakerNameController, icon: Icons.person_outline)), const SizedBox(width: 8), IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _secondSpeakerNameController.text, type: _hasThirdSpeaker ? 'SEGUNDO DISCURSO' : 'ÚLTIMO DISCURSO', topic: _secondSpeakerTopicController.text, duration: _hasThirdSpeaker ? '8' : '15'))]),
+              // --- SEGUNDO DISCURSANTE ---
+              Row(
+                children: [
+                  Expanded(
+                    child: UserAutocompleteField(
+                      label: '2do Discursante',
+                      controller: _secondSpeakerNameController,
+                      icon: Icons.person_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.print, color: Colors.blueGrey),
+                    tooltip: 'Generar Esquela',
+                    onPressed: () => _printAssignment(
+                      name: _secondSpeakerNameController.text,
+                      type: _hasThirdSpeaker ? 'SEGUNDO DISCURSO' : 'ÚLTIMO DISCURSO',
+                      topic: _secondSpeakerTopicController.text,
+                      duration: _hasThirdSpeaker ? '8' : '15',
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 8),
-              TextFormField(controller: _secondSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 2')),
+              TextFormField(
+                controller: _secondSpeakerTopicController,
+                decoration: const InputDecoration(labelText: 'Tema 2'),
+              ),
               const SizedBox(height: 15),
 
-              SwitchListTile(title: const Text('Añadir Tercer Discursante', style: TextStyle(fontWeight: FontWeight.bold)), value: _hasThirdSpeaker, activeColor: Theme.of(context).primaryColor, contentPadding: EdgeInsets.zero, onChanged: (v) => setState(() => _hasThirdSpeaker = v)),
+              // --- SWITCH TERCER DISCURSANTE ---
+              SwitchListTile(
+                title: const Text('Añadir Tercer Discursante', style: TextStyle(fontWeight: FontWeight.bold)),
+                value: _hasThirdSpeaker,
+                activeColor: Theme.of(context).primaryColor,
+                contentPadding: EdgeInsets.zero,
+                onChanged: (v) => setState(() => _hasThirdSpeaker = v),
+              ),
 
+              // --- MÚSICA INTERMEDIA Y TERCER DISCURSANTE (CUANDO HAY 3 DISCURSANTES) ---
               if (_hasThirdSpeaker) ...[
-                const SizedBox(height: 20), HymnAutocomplete(label: 'Himno Especial (Opcional)', controller: _intermediateHymnController, icon: Icons.music_note), const SizedBox(height: 20),
-                Row(children: [Expanded(child: UserAutocompleteField(label: '3er Discursante', controller: _thirdSpeakerNameController, icon: Icons.person_outline)), const SizedBox(width: 8), IconButton(icon: const Icon(Icons.print, color: Colors.blueGrey), onPressed: () => _printAssignment(name: _thirdSpeakerNameController.text, type: 'ÚLTIMO DISCURSO', topic: _thirdSpeakerTopicController.text, duration: '15'))]),
-                const SizedBox(height: 8), TextFormField(controller: _thirdSpeakerTopicController, decoration: const InputDecoration(labelText: 'Tema 3')),
+                const SizedBox(height: 20),
+                _buildIntermediateMusicField(),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: UserAutocompleteField(
+                        label: '3er Discursante',
+                        controller: _thirdSpeakerNameController,
+                        icon: Icons.person_outline,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.print, color: Colors.blueGrey),
+                      tooltip: 'Generar Esquela',
+                      onPressed: () => _printAssignment(
+                        name: _thirdSpeakerNameController.text,
+                        type: 'ÚLTIMO DISCURSO',
+                        topic: _thirdSpeakerTopicController.text,
+                        duration: '15',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _thirdSpeakerTopicController,
+                  decoration: const InputDecoration(labelText: 'Tema 3'),
+                ),
               ],
             ],
           ),
@@ -548,23 +708,107 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
     );
   }
 
-  Future<void> _printAssignment({required String name, required String type, String? topic, String duration = "8"}) async {
-    if (_dateController.text.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, selecciona primero la fecha de la reunión.'))); return; }
-    if (name.trim().isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingrese el nombre primero.'))); return; }
+  Future<void> _printAssignment({
+    required String name,
+    required String type,
+    String? topic,
+    String duration = "8", // 🚀 Conserva el nombre de parámetro original
+  }) async {
+    if (_dateController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, selecciona primero la fecha de la reunión.')),
+      );
+      return;
+    }
+    if (name.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingrese el nombre primero.')),
+      );
+      return;
+    }
 
-    bool? isMale = await showDialog<bool>(
+    // Identificamos si es discurso u oración
+    final bool isSpeech = !type.toUpperCase().contains('ORACIÓN');
+    bool isMale = true;
+    final durationController = TextEditingController(text: duration);
+
+    final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Generar Esquela para $name'),
-        content: const Text('¿Es Hermano o Hermana?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('HERMANA')),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('HERMANO')),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            'Esquela para $name',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Tratamiento:', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('HERMANO')),
+                        selected: isMale,
+                        onSelected: (v) => setDialogState(() => isMale = true),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('HERMANA')),
+                        selected: !isMale,
+                        onSelected: (v) => setDialogState(() => isMale = false),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 🚀 Solo muestra la duración si es un discurso
+                if (isSpeech) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: durationController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Tiempo Asignado',
+                      border: OutlineInputBorder(),
+                      suffixText: 'minutos',
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF22539A),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Generar Esquela'),
+            ),
+          ],
+        ),
       ),
     );
 
-    if (isMale != null && mounted) {
+    if (result == true && mounted) {
+      final String finalDuration = isSpeech
+          ? (durationController.text.trim().isNotEmpty ? durationController.text.trim() : duration)
+          : duration;
+
       await _citationService.generateSacramentAssignment(
         name: name,
         isMale: isMale,
@@ -572,11 +816,67 @@ class _MeetingFormScreenState extends State<MeetingFormScreen> {
         assignmentDate: DateTime.parse(_dateController.text),
         time: _timeController.text.isNotEmpty ? _timeController.text : "10:00 AM",
         topic: topic,
-        duration: duration,
-        // 🚀 AQUI VAN LOS MANDOS MULTIVERSO
+        duration: finalDuration,
         jurisdiction: _targetWard,
         isStakeMode: widget.isStakeMode,
       );
     }
   }
+
+  Widget _buildIntermediateMusicField() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _isSpecialMusicalNumber ? 'Participación Musical Especial' : 'Himno Congregacional Intermedio',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                icon: Icon(_isSpecialMusicalNumber ? Icons.menu_book : Icons.queue_music, size: 16),
+                label: Text(
+                  _isSpecialMusicalNumber ? 'Cambiar a Himnario' : '¿Es Número Especial?',
+                  style: const TextStyle(fontSize: 12),
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isSpecialMusicalNumber = !_isSpecialMusicalNumber;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_isSpecialMusicalNumber)
+            TextFormField(
+              controller: _intermediateHymnController,
+              decoration: const InputDecoration(
+                labelText: 'Título del número e intérpretes',
+                hintText: 'Ej: Coro de Barrio - Paz, cálmense',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.music_video),
+                isDense: true,
+              ),
+            )
+          else
+            HymnAutocomplete(
+              label: 'Himno Intermedio (Opcional)',
+              controller: _intermediateHymnController,
+              icon: Icons.music_note,
+            ),
+        ],
+      ),
+    );
+  }
+
 }

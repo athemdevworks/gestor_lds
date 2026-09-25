@@ -17,9 +17,29 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
   final InterviewService _service = InterviewService();
   final Color _brandBlue = const Color(0xFF22539A);
 
-  bool get _isAdmin => widget.currentUser.role == UserRole.obispado || widget.currentUser.role == UserRole.admin;
+  // 🛡️ Permisos para Obispado, Presidencia de Estaca, Admin y Secretarios
+  bool get _isAdmin {
+    final role = widget.currentUser.role;
+    if (role == UserRole.obispado ||
+        role == UserRole.admin ||
+        role == UserRole.presidencia_estaca) {
+      return true;
+    }
 
-  // Filtro seleccionado por el miembro (Por defecto "Todos")
+    return widget.currentUser.callings?.any((c) {
+      final cLower = c.toLowerCase();
+      return cLower.contains('secretario ejecutivo') ||
+          cLower.contains('secretario de barrio') ||
+          cLower.contains('secretario de estaca');
+    }) ??
+        false;
+  }
+
+  // 🏛️ Identificador de nivel de Estaca
+  bool get _isStakeLeader =>
+      widget.currentUser.role == UserRole.presidencia_estaca ||
+          (widget.currentUser.callings?.any((c) => c.toLowerCase().contains('secretario de estaca')) ?? false);
+
   String _selectedFilterRole = 'Todos';
 
   @override
@@ -29,7 +49,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFEEF2F6),
         appBar: AppBar(
-          title: const Text('Entrevistas y Citas'),
+          title: Text(_isStakeLeader ? 'Entrevistas de Estaca' : 'Entrevistas y Citas'),
           backgroundColor: _isAdmin ? _brandBlue : Colors.white,
           foregroundColor: _isAdmin ? Colors.white : Colors.black,
           elevation: 0,
@@ -43,22 +63,23 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
             ],
           ),
         ),
-
         floatingActionButton: _isAdmin
             ? FloatingActionButton.extended(
           backgroundColor: _brandBlue,
           icon: const Icon(Icons.add_alarm, color: Colors.white),
-          label: const Text('Crear Horarios', style: TextStyle(color: Colors.white)),
+          label: Text(
+            _isStakeLeader ? 'Horarios de Estaca' : 'Crear Horarios',
+            style: const TextStyle(color: Colors.white),
+          ),
           onPressed: () => _showCreateSlotsDialog(context),
         )
             : null,
-
         body: TabBarView(
           children: [
-            // PESTAÑA 1: DISPONIBLES (Con Filtro)
+            // PESTAÑA 1: DISPONIBLES
             Column(
               children: [
-                // --- BARRA DE FILTROS ---
+                // Barra de filtros ampliada (Barrio + Estaca)
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                   color: Colors.white,
@@ -74,26 +95,37 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
                         _buildFilterChip('1er Consejero'),
                         const SizedBox(width: 8),
                         _buildFilterChip('2do Consejero'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Presidente de Estaca'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('1er Consejero (Estaca)'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('2do Consejero (Estaca)'),
                       ],
                     ),
                   ),
                 ),
 
-                // --- LISTA FILTRADA ---
+                // Lista de cupos
                 Expanded(
                   child: _buildSlotsList(
-                    stream: _isAdmin ? _service.getAllSlots() : _service.getAvailableSlots(),
+                    stream: _isAdmin
+                        ? _service.getAllSlots(
+                      ward: widget.currentUser.ward,
+                      isStakeScope: _isStakeLeader,
+                    )
+                        : _service.getAvailableSlots(ward: widget.currentUser.ward),
                     emptyMessage: _isAdmin
-                        ? 'No hay horarios creados.'
-                        : 'No hay citas disponibles para este líder.',
+                        ? 'No hay horarios creados para tu administración.'
+                        : 'No hay citas disponibles para este filtro.',
                     isMyAppointmentTab: false,
-                    filterRole: _selectedFilterRole, // Pasamos el filtro
+                    filterRole: _selectedFilterRole,
                   ),
                 ),
               ],
             ),
 
-            // PESTAÑA 2: MIS CITAS (Sin filtro de rol, muestra todas las mías)
+            // PESTAÑA 2: MIS CITAS
             _buildSlotsList(
               stream: _service.getMyAppointments(widget.currentUser.uid),
               emptyMessage: 'No tienes ninguna cita agendada.',
@@ -106,7 +138,6 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     );
   }
 
-  // Widget para el Chip de Filtro
   Widget _buildFilterChip(String label) {
     final isSelected = _selectedFilterRole == label;
     return ChoiceChip(
@@ -141,8 +172,6 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
           return _buildEmptyState(emptyMessage);
         }
 
-        // --- APLICAMOS EL FILTRO EN MEMORIA ---
-        // Si el filtro es "Todos", pasamos todo. Si no, filtramos por rol exacto.
         var slots = snapshot.data!;
         if (filterRole != 'Todos') {
           slots = slots.where((s) => s.interviewerRole == filterRole).toList();
@@ -151,14 +180,12 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
         if (slots.isEmpty) {
           return _buildEmptyState(emptyMessage);
         }
-        // --------------------------------------
 
         return ListView.builder(
           padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: _isAdmin ? 80 : 16),
           itemCount: slots.length,
           itemBuilder: (context, index) {
-            final slot = slots[index];
-            return _buildSlotCard(slot, isMyAppointmentTab);
+            return _buildSlotCard(slots[index], isMyAppointmentTab);
           },
         );
       },
@@ -182,12 +209,11 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     final dateStr = DateFormat("EEEE d 'de' MMMM", 'es_ES').format(slot.startTime);
     final timeStr = "${DateFormat('h:mm a').format(slot.startTime)} - ${DateFormat('h:mm a').format(slot.endTime)}";
     final isReserved = slot.isReserved;
+    final isStakeSlot = slot.ward.toLowerCase() == 'estaca' || slot.interviewerRole.contains('Estaca');
 
-    // Colores e Iconos según disponibilidad
     Color statusColor = isReserved ? Colors.orange.shade100 : Colors.green.shade100;
     Color statusText = isReserved ? Colors.orange.shade800 : Colors.green.shade800;
 
-    // Si es MI cita
     if (isReserved && slot.memberId == widget.currentUser.uid) {
       statusColor = Colors.purple.shade100;
       statusText = Colors.purple.shade800;
@@ -200,7 +226,6 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: ListTile(
-          // Icono lateral
           leading: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -211,33 +236,36 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
               ),
             ],
           ),
-
           title: Row(
             children: [
-              // Etiqueta del ROL (Ej: Obispo)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade300)
+                  color: isStakeSlot ? Colors.indigo.shade50 : Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: isStakeSlot ? Colors.indigo.shade200 : Colors.grey.shade300),
                 ),
                 child: Text(
                   slot.interviewerRole,
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: isStakeSlot ? Colors.indigo.shade900 : Colors.grey.shade700,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              // Estado
-              Text(
-                isReserved && _isAdmin
-                    ? (slot.memberName ?? 'Reservado')
-                    : (isMyAppointmentTab ? 'Confirmada' : 'Disponible'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              Expanded(
+                child: Text(
+                  isReserved && _isAdmin
+                      ? (slot.memberName ?? 'Reservado')
+                      : (isMyAppointmentTab ? 'Confirmada' : 'Disponible'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
-
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Column(
@@ -246,11 +274,10 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
                 Text(dateStr.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 Text(timeStr, style: const TextStyle(fontSize: 13, color: Colors.black87)),
                 if (isReserved && slot.note != null && (_isAdmin || isMyAppointmentTab))
-                  Text("Nota: ${slot.note}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
+                  Text("Motivo: ${slot.note}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic)),
               ],
             ),
           ),
-
           trailing: _buildActionButtons(slot, isMyAppointmentTab),
         ),
       ),
@@ -260,17 +287,14 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
   Widget? _buildActionButtons(InterviewModel slot, bool isMyTab) {
     if (_isAdmin) {
       return Row(
-        mainAxisSize: MainAxisSize.min, // Súper importante para que no dé error visual
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Botón de Liberar (Solo aparece si el turno está ocupado)
           if (slot.isReserved)
             IconButton(
               icon: const Icon(Icons.person_remove, color: Colors.orange),
-              tooltip: 'Liberar Turno (Cancelar Cita)',
-              onPressed: () => _cancelAppointment(slot), // ¡Reutilizamos tu función!
+              tooltip: 'Liberar Turno',
+              onPressed: () => _cancelAppointment(slot),
             ),
-
-          // 2. Botón de Eliminar el bloque de tiempo completo
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
             tooltip: 'Borrar Horario',
@@ -282,7 +306,11 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
 
     if (isMyTab) {
       return ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
         onPressed: () => _cancelAppointment(slot),
         child: const Text('Cancelar', style: TextStyle(fontSize: 12)),
       );
@@ -290,7 +318,11 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
 
     if (!slot.isReserved) {
       return ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: _brandBlue, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _brandBlue,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+        ),
         onPressed: () => _showReservationDialog(context, slot),
         child: const Text('Reservar', style: TextStyle(fontSize: 12)),
       );
@@ -298,31 +330,28 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     return null;
   }
 
-  // --- NUEVA FUNCIÓN: CONFIRMAR BORRADO ---
-  // Para evitar que el Obispado borre un horario por accidente
   Future<void> _confirmDeleteSlot(InterviewModel slot) async {
     bool confirm = await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Eliminar Horario'),
-          content: const Text('¿Seguro que deseas borrar este bloque de tiempo por completo?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Sí, Borrar', style: TextStyle(color: Colors.red)),
-            ),
-          ],
-        )
-    ) ?? false;
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar Horario'),
+        content: const Text('¿Seguro que deseas borrar este bloque de tiempo por completo?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sí, Borrar', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ??
+        false;
 
     if (confirm) {
       await _service.deleteSlot(slot.id);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Horario eliminado.')));
     }
   }
-
-  // --- DIÁLOGOS DE ACCIÓN ---
 
   void _showReservationDialog(BuildContext context, InterviewModel slot) {
     final noteController = TextEditingController();
@@ -337,7 +366,11 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
             const SizedBox(height: 15),
             TextField(
               controller: noteController,
-              decoration: const InputDecoration(labelText: 'Motivo (Opcional)', hintText: 'Ej: Renovación', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'Motivo (Opcional)',
+                hintText: 'Ej: Recomendación para el Templo, Misión, etc.',
+                border: OutlineInputBorder(),
+              ),
             ),
           ],
         ),
@@ -352,7 +385,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
                 userName: "${widget.currentUser.firstName} ${widget.currentUser.lastName}",
                 reason: noteController.text.trim().isEmpty ? 'Entrevista Personal' : noteController.text.trim(),
               );
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Cita reservada!')));
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Cita reservada con éxito!')));
             },
             child: const Text('Confirmar'),
           ),
@@ -363,16 +396,17 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
 
   Future<void> _cancelAppointment(InterviewModel slot) async {
     bool confirm = await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Cancelar Cita'),
-          content: const Text('¿Seguro que deseas cancelar? El horario quedará libre.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sí, Cancelar')),
-          ],
-        )
-    ) ?? false;
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar Cita'),
+        content: const Text('¿Seguro que deseas cancelar? El horario quedará libre para otro miembro.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Sí, Cancelar')),
+        ],
+      ),
+    ) ??
+        false;
 
     if (confirm) {
       await _service.cancelReservation(slot.id);
@@ -380,16 +414,18 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     }
   }
 
-  // --- NUEVO: DIÁLOGO DE CREACIÓN CON SELECCIÓN DE LÍDER ---
   void _showCreateSlotsDialog(BuildContext context) {
     DateTime selectedDate = DateTime.now();
     TimeOfDay startTime = const TimeOfDay(hour: 9, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 11, minute: 0);
     int duration = 15;
 
-    // ROL SELECCIONADO PARA CREAR
-    String targetRole = 'Obispo';
-    final List<String> roles = ['Obispo', '1er Consejero', '2do Consejero'];
+    // Roles según nivel eclesiástico
+    final List<String> roles = _isStakeLeader
+        ? ['Presidente de Estaca', '1er Consejero (Estaca)', '2do Consejero (Estaca)']
+        : ['Obispo', '1er Consejero', '2do Consejero'];
+
+    String targetRole = roles.first;
 
     showDialog(
       context: context,
@@ -397,21 +433,18 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Generar Bloque'),
+              title: Text(_isStakeLeader ? 'Horarios de Presidencia de Estaca' : 'Generar Bloque de Citas'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // --- SELECTOR DE LÍDER ---
                     DropdownButtonFormField<String>(
                       value: targetRole,
-                      decoration: const InputDecoration(labelText: '¿Para quién son las citas?', border: OutlineInputBorder()),
+                      decoration: const InputDecoration(labelText: 'Líder que entrevistará', border: OutlineInputBorder()),
                       items: roles.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
                       onChanged: (v) => setState(() => targetRole = v!),
                     ),
                     const SizedBox(height: 15),
-                    // -------------------------
-
                     ListTile(
                       title: const Text('Fecha'),
                       subtitle: Text(DateFormat('EEEE d MMMM', 'es_ES').format(selectedDate)),
@@ -478,27 +511,28 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
     );
   }
 
-
-
-
-  // Generador actualizado usando BATCH (Escritura Masiva)
   Future<void> _generateSlots(DateTime date, TimeOfDay start, TimeOfDay end, int durationMinutes, String role) async {
     DateTime startDT = DateTime(date.year, date.month, date.day, start.hour, start.minute);
     DateTime endDT = DateTime(date.year, date.month, date.day, end.hour, end.minute);
 
     if (endDT.isBefore(startDT)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: Hora de fin inválida')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: La hora de fin debe ser posterior al inicio')));
       return;
     }
 
+    // Si es líder de estaca o el rol es de estaca, se persiste con 'Estaca'
+    final String targetWard = (_isStakeLeader || role.contains('Estaca'))
+        ? 'Estaca'
+        : widget.currentUser.ward;
+
     try {
-      // 🚀 Llamamos a la nueva súper-función del servicio
       await _service.createSlotBlock(
         startTime: startDT,
         endTime: endDT,
         durationMinutes: durationMinutes,
         adminId: widget.currentUser.uid,
         role: role,
+        ward: targetWard,
       );
 
       if (mounted) {
@@ -508,9 +542,7 @@ class _InterviewsScreenState extends State<InterviewsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al generar horarios: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al generar horarios: $e')));
       }
     }
   }

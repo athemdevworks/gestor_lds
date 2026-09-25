@@ -15,7 +15,6 @@ class BudgetItem {
     required this.unitPrice,
   });
 
-  // Cálculo automático del total
   double get total => quantity * unitPrice;
 
   Map<String, dynamic> toMap() {
@@ -44,21 +43,21 @@ class ActivityBudgetModel {
   final String activityPurpose;
   final DateTime presentationDate; // Fecha presentación al Obispo
   final String applicantName;      // Nombre del solicitante
+  final String ward;               // 🚀 Unidad / Barrio responsable
 
   final List<BudgetItem> expenses; // Lista de gastos
 
   // Programa Sugerido (Logística)
-  final String conductedBy;       // Dirige
-  final String presidedBy;        // Preside
+  final String conductedBy;
+  final String presidedBy;
   final String openingHymn;
   final String openingPrayer;
-  final String activityDevelopment; // Desarrollo de la actividad
+  final String activityDevelopment;
   final String closingHymn;
   final String closingPrayer;
-  final String cleaningTeam;      // Encargados limpieza
-  final String securityTeam;      // Encargados seguridad
+  final String cleaningTeam;
+  final String securityTeam;
 
-  // Estado del presupuesto (Opcional, para tu control interno)
   final String status; // 'draft', 'approved', 'rejected'
 
   ActivityBudgetModel({
@@ -70,12 +69,13 @@ class ActivityBudgetModel {
     required this.activityPurpose,
     required this.presentationDate,
     required this.applicantName,
+    required this.ward,
     required this.expenses,
     this.conductedBy = '',
     this.presidedBy = '',
     this.openingHymn = '',
     this.openingPrayer = '',
-    this.activityDevelopment = '', // Inicializar en constructor
+    this.activityDevelopment = '',
     this.closingHymn = '',
     this.closingPrayer = '',
     this.cleaningTeam = '',
@@ -94,12 +94,13 @@ class ActivityBudgetModel {
       'activityPurpose': activityPurpose,
       'presentationDate': Timestamp.fromDate(presentationDate),
       'applicantName': applicantName,
+      'ward': ward,
       'expenses': expenses.map((x) => x.toMap()).toList(),
       'conductedBy': conductedBy,
       'presidedBy': presidedBy,
       'openingHymn': openingHymn,
       'openingPrayer': openingPrayer,
-      'activityDevelopment': activityDevelopment, // Guardar
+      'activityDevelopment': activityDevelopment,
       'closingHymn': closingHymn,
       'closingPrayer': closingPrayer,
       'cleaningTeam': cleaningTeam,
@@ -113,11 +114,16 @@ class ActivityBudgetModel {
       id: id,
       organization: map['organization'] ?? '',
       responsibleLeader: map['responsibleLeader'] ?? '',
-      activityDate: (map['activityDate'] as Timestamp).toDate(),
+      activityDate: map['activityDate'] is Timestamp
+          ? (map['activityDate'] as Timestamp).toDate()
+          : DateTime.now(),
       activityName: map['activityName'] ?? '',
       activityPurpose: map['activityPurpose'] ?? '',
-      presentationDate: (map['presentationDate'] as Timestamp).toDate(),
+      presentationDate: map['presentationDate'] is Timestamp
+          ? (map['presentationDate'] as Timestamp).toDate()
+          : DateTime.now(),
       applicantName: map['applicantName'] ?? '',
+      ward: map['ward'] ?? '', // Fallback seguro
       expenses: List<BudgetItem>.from(
         (map['expenses'] as List? ?? []).map((x) => BudgetItem.fromMap(x)),
       ),
@@ -125,7 +131,7 @@ class ActivityBudgetModel {
       presidedBy: map['presidedBy'] ?? '',
       openingHymn: map['openingHymn'] ?? '',
       openingPrayer: map['openingPrayer'] ?? '',
-      activityDevelopment: map['activityDevelopment'] ?? '', // Leer
+      activityDevelopment: map['activityDevelopment'] ?? '',
       closingHymn: map['closingHymn'] ?? '',
       closingPrayer: map['closingPrayer'] ?? '',
       cleaningTeam: map['cleaningTeam'] ?? '',
@@ -140,11 +146,15 @@ class ActivityBudgetModel {
 // =======================================================
 
 class ExpenseItem {
-  final String category; // Ej: Primaria, Administración
+  final String category;
   final DateTime date;
   final double amount;
 
-  ExpenseItem({required this.category, required this.date, required this.amount});
+  ExpenseItem({
+    required this.category,
+    required this.date,
+    required this.amount,
+  });
 
   Map<String, dynamic> toMap() {
     return {
@@ -157,7 +167,9 @@ class ExpenseItem {
   factory ExpenseItem.fromMap(Map<String, dynamic> map) {
     return ExpenseItem(
       category: map['category'] ?? '',
-      date: (map['date'] as Timestamp).toDate(),
+      date: map['date'] is Timestamp
+          ? (map['date'] as Timestamp).toDate()
+          : DateTime.now(),
       amount: map['amount']?.toDouble() ?? 0.0,
     );
   }
@@ -167,8 +179,8 @@ class BankDetails {
   final String bankName;
   final String accountType;
   final String accountNumber;
-  final String cci; // Código Interbancario (Importante en PDF)
-  final String identityDoc; // DNI
+  final String cci;
+  final String identityDoc;
 
   BankDetails({
     this.bankName = '',
@@ -202,13 +214,16 @@ class BankDetails {
 class ExpenseRequestModel {
   final String id;
   final bool isReimbursement; // true = Reembolso, false = Adelanto
-  final String applicantName; // Solicitante
-  final String beneficiaryName; // Pagar a (Nombre)
-  final String beneficiaryAddress; // Dirección
-  final String reason; // Propósito del gasto
+  final String applicantName;
+  final String beneficiaryName;
+  final String beneficiaryAddress;
+  final String reason;
+  final String ward;            // 🚀 Unidad / Barrio solicitante
+  final String status;          // 'pendiente', 'aprobado', 'rechazado'
+  final String requestedByUid;  // UID para control de acceso personal
 
-  final List<ExpenseItem> items; // Tabla de categorías y montos
-  final BankDetails bankDetails; // Datos bancarios (parte inferior PDF)
+  final List<ExpenseItem> items;
+  final BankDetails bankDetails;
   final DateTime requestDate;
 
   ExpenseRequestModel({
@@ -218,6 +233,9 @@ class ExpenseRequestModel {
     required this.beneficiaryName,
     required this.beneficiaryAddress,
     required this.reason,
+    required this.ward,
+    this.status = 'pendiente',
+    this.requestedByUid = '',
     required this.items,
     required this.bankDetails,
     required this.requestDate,
@@ -232,6 +250,9 @@ class ExpenseRequestModel {
       'beneficiaryName': beneficiaryName,
       'beneficiaryAddress': beneficiaryAddress,
       'reason': reason,
+      'ward': ward,
+      'status': status,
+      'requestedByUid': requestedByUid,
       'items': items.map((x) => x.toMap()).toList(),
       'bankDetails': bankDetails.toMap(),
       'requestDate': Timestamp.fromDate(requestDate),
@@ -246,13 +267,18 @@ class ExpenseRequestModel {
       beneficiaryName: map['beneficiaryName'] ?? '',
       beneficiaryAddress: map['beneficiaryAddress'] ?? '',
       reason: map['reason'] ?? '',
+      ward: map['ward'] ?? '',
+      status: map['status'] ?? 'pendiente',
+      requestedByUid: map['requestedByUid'] ?? '',
       items: List<ExpenseItem>.from(
         (map['items'] as List? ?? []).map((x) => ExpenseItem.fromMap(x)),
       ),
       bankDetails: map['bankDetails'] != null
           ? BankDetails.fromMap(map['bankDetails'])
           : BankDetails(),
-      requestDate: (map['requestDate'] as Timestamp).toDate(),
+      requestDate: map['requestDate'] is Timestamp
+          ? (map['requestDate'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 }

@@ -6,8 +6,8 @@ class UserAutocompleteField extends StatefulWidget {
   final String label;
   final TextEditingController controller;
   final IconData? icon;
-  final Function(UserModel)? onUserSelected; // Callback para devolver todo el objeto
-  final String? wardFilter; // 🚀 EXTRA: Por si quieres que solo busque en un barrio específico
+  final Function(UserModel)? onUserSelected;
+  final String? wardFilter; // Permite delimitar la búsqueda al barrio
 
   const UserAutocompleteField({
     super.key,
@@ -32,14 +32,12 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
     _loadUsers();
   }
 
-  // 🚀 Carga inicial optimizada desde nuestra nueva colección
   Future<void> _loadUsers() async {
     try {
-      Query query = FirebaseFirestore.instance
-          .collection('users')
-          .where('isApproved', isEqualTo: true); // Solo buscamos gente validada
+      Query query = FirebaseFirestore.instance.collection('users');
 
-      if (widget.wardFilter != null) {
+      // Si se especifica unidad, se aísla la búsqueda
+      if (widget.wardFilter != null && widget.wardFilter!.trim().isNotEmpty) {
         query = query.where('ward', isEqualTo: widget.wardFilter);
       }
 
@@ -47,136 +45,129 @@ class _UserAutocompleteFieldState extends State<UserAutocompleteField> {
 
       if (mounted) {
         setState(() {
-          _allUsers = snapshot.docs.map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+          // 🛡️ Filtro unificado: Solo miembros aprobados y con ficha activa
+          _allUsers = snapshot.docs
+              .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              .where((user) => user.isActive && user.isApproved)
+              .toList();
           _isLoading = false;
         });
       }
     } catch (error) {
       debugPrint('Error cargando usuarios: $error');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // 🚀 Lógica de filtrado local (Súper rápida) adaptada al UserModel
   List<UserModel> _getSuggestions(String query) {
-    final lowerQuery = query.toLowerCase();
+    final lowerQuery = query.toLowerCase().trim();
     return _allUsers.where((user) {
       final fullName = '${user.firstName} ${user.lastName}'.toLowerCase();
       final calling = user.primaryCalling.toLowerCase();
-      return fullName.contains(lowerQuery) || calling.contains(lowerQuery);
+      final org = user.organization.toLowerCase();
+      return fullName.contains(lowerQuery) || calling.contains(lowerQuery) || org.contains(lowerQuery);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const LinearProgressIndicator(minHeight: 2); // Feedback visual de carga
+      return const LinearProgressIndicator(minHeight: 2);
     }
 
     return LayoutBuilder(
-        builder: (context, constraints) {
-          return Autocomplete<UserModel>(
-            // 1. Qué mostramos en el Input tras seleccionar
-            displayStringForOption: (UserModel option) => '${option.firstName} ${option.lastName}',
+      builder: (context, constraints) {
+        return Autocomplete<UserModel>(
+          displayStringForOption: (UserModel option) => '${option.firstName} ${option.lastName}',
+          optionsBuilder: (TextEditingValue textEditingValue) {
+            if (textEditingValue.text.isEmpty) {
+              return const Iterable<UserModel>.empty();
+            }
+            return _getSuggestions(textEditingValue.text);
+          },
+          onSelected: (UserModel selection) {
+            widget.controller.text = '${selection.firstName} ${selection.lastName}';
+            if (widget.onUserSelected != null) {
+              widget.onUserSelected!(selection);
+            }
+          },
+          fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+            if (widget.controller.text.isNotEmpty && textController.text.isEmpty) {
+              textController.text = widget.controller.text;
+            }
 
-            // 2. Lógica de búsqueda
-            optionsBuilder: (TextEditingValue textEditingValue) {
-              if (textEditingValue.text.isEmpty) {
-                return const Iterable<UserModel>.empty();
+            textController.addListener(() {
+              if (widget.controller.text != textController.text) {
+                widget.controller.text = textController.text;
               }
-              return _getSuggestions(textEditingValue.text);
-            },
+            });
 
-            // 3. Acción al seleccionar
-            onSelected: (UserModel selection) {
-              widget.controller.text = '${selection.firstName} ${selection.lastName}';
-              if (widget.onUserSelected != null) {
-                widget.onUserSelected!(selection);
-              }
-            },
-
-            // 4. Input Field Personalizado
-            fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-              if (widget.controller.text.isNotEmpty && textController.text.isEmpty) {
-                textController.text = widget.controller.text;
-              }
-
-              textController.addListener(() {
-                if (widget.controller.text != textController.text) {
-                  widget.controller.text = textController.text;
-                }
-              });
-
-              return TextFormField(
-                controller: textController,
-                focusNode: focusNode,
-                decoration: InputDecoration(
-                  labelText: widget.label,
-                  prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
-                  border: const OutlineInputBorder(),
-                  suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                  isDense: true,
+            return TextFormField(
+              controller: textController,
+              focusNode: focusNode,
+              decoration: InputDecoration(
+                labelText: widget.label,
+                prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
+                border: const OutlineInputBorder(),
+                suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
+                isDense: true,
+              ),
+              validator: (val) => (val != null && val.trim().isEmpty) ? 'Requerido' : null,
+            );
+          },
+          optionsViewBuilder: (context, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4.0,
+                color: Colors.white,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
                 ),
-                validator: (val) => val != null && val.isEmpty ? 'Requerido' : null,
-              );
-            },
-
-            // 5. Lista Desplegable Personalizada
-            optionsViewBuilder: (context, onSelected, options) {
-              return Align(
-                alignment: Alignment.topLeft,
-                child: Material(
-                  elevation: 4.0,
-                  color: Colors.white,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(bottom: Radius.circular(8)),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: 250,
+                    maxWidth: constraints.maxWidth,
                   ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: 250,
-                      maxWidth: constraints.maxWidth,
-                    ),
-                    child: ListView.builder(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: options.length,
-                      itemBuilder: (BuildContext context, int index) {
-                        final UserModel option = options.elementAt(index);
-                        final isMale = option.gender == 'M';
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (BuildContext context, int index) {
+                      final UserModel option = options.elementAt(index);
+                      final isMale = option.gender == 'M';
 
-                        // 🚀 Construimos subtítulo con las listas del UserModel
-                        String subText = option.organization;
-                        if (option.primaryCalling.isNotEmpty && option.primaryCalling != 'Ninguno') {
-                          subText += " • ${option.primaryCalling}";
-                        }
+                      String subText = option.organization;
+                      if (option.primaryCalling.isNotEmpty && option.primaryCalling != 'Ninguno') {
+                        subText += " • ${option.primaryCalling}";
+                      }
 
-                        return ListTile(
-                          dense: true,
-                          leading: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: isMale ? Colors.blue.shade100 : Colors.pink.shade100,
-                            child: Icon(
-                              isMale ? Icons.person : Icons.person_2,
-                              size: 16,
-                              color: isMale ? Colors.blue.shade800 : Colors.pink.shade800,
-                            ),
+                      return ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: isMale ? Colors.blue.shade100 : Colors.pink.shade100,
+                          child: Icon(
+                            isMale ? Icons.person : Icons.person_2,
+                            size: 16,
+                            color: isMale ? Colors.blue.shade800 : Colors.pink.shade800,
                           ),
-                          title: Text('${option.firstName} ${option.lastName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text(subText, style: const TextStyle(fontSize: 11)),
-                          onTap: () => onSelected(option),
-                        );
-                      },
-                    ),
+                        ),
+                        title: Text('${option.firstName} ${option.lastName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(subText, style: const TextStyle(fontSize: 11)),
+                        onTap: () => onSelected(option),
+                      );
+                    },
                   ),
                 ),
-              );
-            },
-          );
-        }
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
+
+// 🚀 Alias para permitir invocarlo con cualquiera de los dos nombres sin romper referencias
+typedef MemberAutocompleteField = UserAutocompleteField;

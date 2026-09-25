@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:gestor_lds/features/meetings/services/meeting_service.dart';
 import 'package:intl/intl.dart';
@@ -121,7 +122,11 @@ class _SpeakerListScreenState extends State<SpeakerListScreen> {
                   itemCount: history.length,
                   itemBuilder: (context, index) {
                     final data = history[index];
-                    final dateStr = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(data['date']);
+                    final dynamic rawDate = data['date'];
+                    final DateTime parsedDate = rawDate is Timestamp
+                        ? rawDate.toDate()
+                        : (rawDate is DateTime ? rawDate : DateTime.now());
+                    final dateStr = DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(parsedDate);
                     final topic = data['topic'];
 
                     return ListTile(

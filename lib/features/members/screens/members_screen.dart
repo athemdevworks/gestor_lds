@@ -8,49 +8,70 @@ import 'package:gestor_lds/core/constants/organizations_list.dart';
 import 'package:gestor_lds/features/members/screens/member_form_screen.dart';
 
 class MembersScreen extends StatefulWidget {
-  // 🚀 MANDOS DIRECTOS DESDE EL PADRE (El Sombrero Multiverso)
   final bool isStakeMode;
   final UserModel currentUser;
+  final int initialTabIndex;
 
   const MembersScreen({
     super.key,
     required this.isStakeMode,
     required this.currentUser,
+    this.initialTabIndex = 0,
   });
 
   @override
   State<MembersScreen> createState() => _MembersScreenState();
 }
 
-class _MembersScreenState extends State<MembersScreen> {
+class _MembersScreenState extends State<MembersScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  TabController? _tabController;
 
-  // --- ESTADO DE FILTROS ---
   String _searchQuery = '';
-  late String _barrioFiltro; // 🚀 Ahora es dinámico
+  late String _barrioFiltro;
   String _orgFiltro = 'Todos';
-  String _generoFiltro = 'Todos'; // 'Todos', 'M', 'F'
+  String _generoFiltro = 'Todos';
   bool _soloJAS = false;
 
   final Color _brandBlue = const Color(0xFF22539A);
   final Color _brandGold = const Color(0xFFD4AF37);
 
+  bool get _isAdminOrStake =>
+      widget.currentUser.role == UserRole.admin ||
+          widget.currentUser.role == UserRole.presidencia_estaca;
+
+  bool get _isWardLeadership =>
+      widget.currentUser.role == UserRole.obispado ||
+          (widget.currentUser.callings.any((c) {
+            final cLow = c.toLowerCase();
+            return cLow.contains('secretario') || cLow.contains('secretaria');
+          }));
+
+  bool get _hasManagementAccess => _isAdminOrStake || _isWardLeadership;
+
+  bool _canEditMember(UserModel target) {
+    if (_isAdminOrStake) return true;
+    if (_isWardLeadership && target.ward == widget.currentUser.ward) return true;
+    return target.uid == widget.currentUser.uid;
+  }
+
   @override
   void initState() {
     super.initState();
-    // 🚀 INICIALIZACIÓN INTELIGENTE DEL RADAR
     _barrioFiltro = widget.isStakeMode ? 'Todos' : widget.currentUser.ward;
+    if (_hasManagementAccess) {
+      _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTabIndex,);
+
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _tabController?.dispose();
     super.dispose();
   }
 
-  // ==========================================
-  // 🚀 PANEL DE FILTROS EMERGENTE (BOTTOM SHEET)
-  // ==========================================
   void _mostrarPanelFiltros() {
     showModalBottomSheet(
       context: context,
@@ -58,199 +79,112 @@ class _MembersScreenState extends State<MembersScreen> {
       isScrollControlled: true,
       builder: (context) {
         return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setModalState) {
-              return Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                padding: EdgeInsets.only(
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                    top: 24, left: 24, right: 24
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Filtrar Directorio', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))
-                      ],
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                top: 24,
+                left: 24,
+                right: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Filtrar Directorio', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    value: _barrioFiltro,
+                    decoration: InputDecoration(
+                      labelText: 'Barrio / Estaca',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      isDense: true,
+                      fillColor: widget.isStakeMode ? Colors.white : Colors.grey.shade100,
+                      filled: !widget.isStakeMode,
                     ),
-                    const SizedBox(height: 10),
-
-                    // 1. BARRIO (Bloqueado si no es modo Estaca)
-                    DropdownButtonFormField<String>(
-                      value: _barrioFiltro,
-                      decoration: InputDecoration(
-                          labelText: 'Barrio / Estaca',
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          isDense: true,
-                          fillColor: widget.isStakeMode ? Colors.white : Colors.grey.shade100,
-                          filled: !widget.isStakeMode
-                      ),
-                      items: widget.isStakeMode
-                          ? ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList()
-                          : [widget.currentUser.ward].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-                      onChanged: widget.isStakeMode ? (val) {
-                        setModalState(() => _barrioFiltro = val!);
-                        setState(() {}); // Actualiza la lista principal
-                      } : null,
+                    items: widget.isStakeMode
+                        ? ['Todos', ...kWardsList].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList()
+                        : [widget.currentUser.ward].map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
+                    onChanged: widget.isStakeMode
+                        ? (val) {
+                      setModalState(() => _barrioFiltro = val!);
+                      setState(() {});
+                    }
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _orgFiltro,
+                    decoration: InputDecoration(
+                      labelText: 'Organización',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      isDense: true,
                     ),
-                    const SizedBox(height: 16),
-
-                    // 2. ORGANIZACIÓN
-                    DropdownButtonFormField<String>(
-                      value: _orgFiltro,
-                      decoration: InputDecoration(labelText: 'Organización', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), isDense: true),
-                      items: ['Todos', ...kOrganizationsList].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
-                      onChanged: (val) {
-                        setModalState(() => _orgFiltro = val!);
-                        setState(() {});
-                      },
+                    items: ['Todos', ...kOrganizationsList].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+                    onChanged: (val) {
+                      setModalState(() => _orgFiltro = val!);
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Género:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+                  const SizedBox(height: 8),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'Todos', label: Text('Todos')),
+                      ButtonSegment(value: 'M', label: Text('Hombres')),
+                      ButtonSegment(value: 'F', label: Text('Mujeres')),
+                    ],
+                    selected: {_generoFiltro},
+                    onSelectionChanged: (newSelection) {
+                      setModalState(() => _generoFiltro = newSelection.first);
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile(
+                    title: const Text('Solo Jóvenes Adultos Solteros', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Miembros de 18-35 años'),
+                    value: _soloJAS,
+                    activeColor: _brandBlue,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) {
+                      setModalState(() => _soloJAS = val);
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _brandBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    const SizedBox(height: 16),
-
-                    // 3. GÉNERO
-                    const Text('Género:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
-                    const SizedBox(height: 8),
-                    SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'Todos', label: Text('Todos')),
-                        ButtonSegment(value: 'M', label: Text('Hombres')),
-                        ButtonSegment(value: 'F', label: Text('Mujeres')),
-                      ],
-                      selected: {_generoFiltro},
-                      onSelectionChanged: (newSelection) {
-                        setModalState(() => _generoFiltro = newSelection.first);
-                        setState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // 4. SWITCH JAS
-                    SwitchListTile(
-                      title: const Text('Solo Jóvenes Adultos Solteros', style: TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: const Text('Miembros de 18-35 años'),
-                      value: _soloJAS,
-                      activeColor: _brandBlue,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (val) {
-                        setModalState(() => _soloJAS = val);
-                        setState(() {});
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _brandBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('APLICAR FILTROS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    ),
-                  ],
-                ),
-              );
-            }
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('APLICAR FILTROS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
   }
 
-  // 🚀 TÁCTICA DE LIMPIEZA MANUAL ESTILO FIREBASE (Solo VIP)
-  Future<void> _eliminarBarrioManual() async {
-    final TextEditingController deleteController = TextEditingController();
-
-    bool? confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('⚠️ ¡ALERTA DE PURGA!', style: TextStyle(color: Colors.red)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Estás a punto de eliminar a TODOS los miembros de un barrio. Esta acción NO se puede deshacer.',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 15),
-            const Text('Para confirmar, escribe exactamente el nombre del barrio que deseas eliminar (Ej: Arevalo):'),
-            const SizedBox(height: 10),
-            TextField(
-              controller: deleteController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Nombre del barrio...',
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCELAR')
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () {
-              if (deleteController.text.trim().isNotEmpty) {
-                Navigator.pop(ctx, true);
-              }
-            },
-            child: const Text('ELIMINAR BARRIO'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmar != true) return;
-
-    String barrioABorrar = deleteController.text.trim();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Buscando miembros de "$barrioABorrar"...')));
-
-    try {
-      var snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('ward', isEqualTo: barrioABorrar)
-          .get();
-
-      if (snapshot.docs.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('No se encontraron miembros en "$barrioABorrar". Revisa las mayúsculas o tildes.'), backgroundColor: Colors.orange)
-          );
-        }
-        return;
-      }
-
-      int contador = 0;
-      for (var doc in snapshot.docs) {
-        await doc.reference.delete();
-        contador++;
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('✅ Purga exitosa: Se eliminaron $contador miembros de "$barrioABorrar"'), backgroundColor: Colors.green)
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar: $e'), backgroundColor: Colors.red));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 🚀 ARMAMOS LA CONSULTA A FIREBASE CON SEGURIDAD TÁCTICA Y OPTIMIZADA
     Query usersQuery = FirebaseFirestore.instance.collection('users');
 
     if (_barrioFiltro != 'Todos') {
@@ -258,10 +192,6 @@ class _MembersScreenState extends State<MembersScreen> {
     } else if (!widget.isStakeMode) {
       usersQuery = usersQuery.where('ward', isEqualTo: widget.currentUser.ward);
     }
-
-    // 🛡️ Permisos para acciones especiales
-    final bool isAdminOrStake = widget.currentUser.role == UserRole.admin || widget.currentUser.role == UserRole.presidencia_estaca;
-    final bool canAddMembers = widget.currentUser.role != UserRole.miembro; // Líderes pueden agregar fichas temporales
 
     return Scaffold(
       backgroundColor: const Color(0xFFEEF2F6),
@@ -272,157 +202,185 @@ class _MembersScreenState extends State<MembersScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
-          // 🚀 ESCUDO TÁCTICO: Solo aparece si el usuario es VIP de la Estaca
-          if (isAdminOrStake)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep, color: Colors.redAccent),
-              tooltip: 'Purga Manual de Barrio',
-              onPressed: _eliminarBarrioManual,
-            ),
-
           IconButton(
             icon: const Icon(Icons.filter_list_alt),
             tooltip: 'Filtros Avanzados',
             onPressed: _mostrarPanelFiltros,
           ),
         ],
+        bottom: _hasManagementAccess
+            ? TabBar(
+          controller: _tabController,
+          indicatorColor: _brandGold,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(text: 'DIRECTORIO', icon: Icon(Icons.people_alt, size: 20)),
+            Tab(text: 'PENDIENTES', icon: Icon(Icons.pending_actions, size: 20)),
+            Tab(text: 'SIN REGISTRO', icon: Icon(Icons.app_registration, size: 20)),
+          ],
+        )
+            : null,
       ),
-      floatingActionButton: canAddMembers
-          ? FloatingActionButton(
+      floatingActionButton: _hasManagementAccess
+          ? FloatingActionButton.extended(
         backgroundColor: _brandGold,
         foregroundColor: Colors.black87,
         elevation: 4,
         onPressed: () {
-          // 🚀 HABILITADO NAVEGACIÓN PARA CREAR (PASAMOS MANDOS)
           Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MemberFormScreen(
-                  isStakeMode: widget.isStakeMode,
-                  currentUser: widget.currentUser,
-                ),
-                settings: const RouteSettings(name: '/member-create'),
-              )
+            context,
+            MaterialPageRoute(
+              builder: (_) => MemberFormScreen(
+                isStakeMode: widget.isStakeMode,
+                currentUser: widget.currentUser,
+              ),
+              settings: const RouteSettings(name: '/member-create'),
+            ),
           );
         },
-        child: const Icon(Icons.person_add_alt_1),
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text('NUEVO MIEMBRO', style: TextStyle(fontWeight: FontWeight.bold)),
       )
           : null,
-      body: Column(
-        children: [
-          // ==========================================
-          // 1. ZONA SUPERIOR LIMPIA (Búsqueda + Tags)
-          // ==========================================
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: usersQuery.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+
+          // Cargamos usuarios asegurando que estén activos en el sistema
+          final allMembers = snapshot.data!.docs
+              .map((doc) => UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              .where((m) => m.isActive)
+              .toList();
+
+          if (_hasManagementAccess && _tabController != null) {
+            return TabBarView(
+              controller: _tabController,
               children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar miembro, cargo...',
-                    prefixIcon: Icon(Icons.search, color: _brandBlue),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
-                    filled: true,
-                    fillColor: Colors.grey.shade100,
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                      icon: const Icon(Icons.clear, color: Colors.grey),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                        : null,
-                  ),
-                  onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                // 1. DIRECTORIO: Todo el padrón excepto cuentas de app sin aprobar
+                _buildListView(
+                  allMembers.where((m) => !(m.isRegistered && !m.isApproved)).toList(),
                 ),
-
-                if (_barrioFiltro != 'Todos' || _orgFiltro != 'Todos' || _generoFiltro != 'Todos' || _soloJAS) ...[
-                  const SizedBox(height: 10),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        if (_barrioFiltro != 'Todos') _buildFiltroTag(Icons.location_city, _barrioFiltro),
-                        if (_orgFiltro != 'Todos') _buildFiltroTag(Icons.group, _orgFiltro),
-                        if (_generoFiltro != 'Todos') _buildFiltroTag(Icons.person, _generoFiltro == 'M' ? 'Hombres' : 'Mujeres'),
-                        if (_soloJAS) _buildFiltroTag(Icons.star, 'JAS'),
-                      ],
-                    ),
-                  ),
-                ]
+                // 2. PENDIENTES: Solo cuentas creadas en la app esperando visto bueno
+                _buildListView(
+                  allMembers.where((m) => m.isRegistered && !m.isApproved).toList(),
+                  isPendingTab: true,
+                ),
+                // 3. SIN REGISTRO: Fichas del padrón que aún no tienen cuenta en la app
+                _buildListView(
+                  allMembers.where((m) => !m.isRegistered).toList(),
+                ),
               ],
-            ),
-          ),
+            );
+          }
 
-          // ==========================================
-          // 2. LISTA DE MIEMBROS EN TIEMPO REAL
-          // ==========================================
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: usersQuery.snapshots(), // 🚀 Escucha a Firebase en Vivo
-              builder: (context, snapshot) {
-                if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-
-                final allMembers = snapshot.data!.docs.map((doc) {
-                  return UserModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
-                }).toList();
-
-                // 🚀 LÓGICA DE FILTRADO COMBINADO EN LA UI
-                final filteredMembers = allMembers.where((m) {
-                  final query = _searchQuery.trim();
-                  if (query.isNotEmpty) {
-                    bool matchNombre = '${m.firstName} ${m.lastName}'.toLowerCase().contains(query);
-                    bool matchCargo = m.primaryCalling.toLowerCase().contains(query);
-                    if (!matchNombre && !matchCargo) return false;
-                  }
-
-                  if (_orgFiltro != 'Todos' && m.organization != _orgFiltro) return false;
-                  if (_generoFiltro != 'Todos' && m.gender != _generoFiltro) return false;
-                  if (_soloJAS && !m.isYSA) return false;
-
-                  return true;
-                }).toList();
-
-                // 🚀 ORDENAMOS ALFABÉTICAMENTE
-                filteredMembers.sort((a, b) => a.lastName.compareTo(b.lastName));
-
-                if (filteredMembers.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.person_search_rounded, size: 80, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text('No hay miembros con estos filtros.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  itemCount: filteredMembers.length,
-                  padding: const EdgeInsets.only(bottom: 90, top: 8),
-                  itemBuilder: (context, index) {
-                    return _buildMemberCard(filteredMembers[index]);
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+          // Vista única para miembros generales (solo miembros validados)
+          return _buildListView(
+            allMembers.where((m) => !(m.isRegistered && !m.isApproved)).toList(),
+          );
+        },
       ),
     );
   }
 
-  // ==========================================
-  // WIDGETS AUXILIARES
-  // ==========================================
+  Widget _buildListView(List<UserModel> sourceList, {bool isPendingTab = false}) {
+    final filteredMembers = sourceList.where((m) {
+      final query = _searchQuery.trim();
+      if (query.isNotEmpty) {
+        bool matchNombre = '${m.firstName} ${m.lastName}'.toLowerCase().contains(query);
+        bool matchCargo = m.primaryCalling.toLowerCase().contains(query);
+        if (!matchNombre && !matchCargo) return false;
+      }
+
+      if (_orgFiltro != 'Todos' && m.organization != _orgFiltro) return false;
+      if (_generoFiltro != 'Todos' && m.gender != _generoFiltro) return false;
+      if (_soloJAS && !m.isYSA) return false;
+
+      return true;
+    }).toList();
+
+    filteredMembers.sort((a, b) => a.lastName.compareTo(b.lastName));
+
+    return Column(
+      children: [
+        _buildSearchBar(),
+        Expanded(
+          child: filteredMembers.isEmpty
+              ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.person_search_rounded, size: 80, color: Colors.grey.shade300),
+                const SizedBox(height: 16),
+                Text(
+                  isPendingTab
+                      ? 'No hay solicitudes de acceso pendientes.'
+                      : 'No hay miembros con estos filtros.',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                ),
+              ],
+            ),
+          )
+              : ListView.builder(
+            itemCount: filteredMembers.length,
+            padding: const EdgeInsets.only(bottom: 90, top: 8),
+            itemBuilder: (context, index) {
+              return _buildMemberCard(filteredMembers[index], isPendingTab: isPendingTab);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar miembro, cargo o llamamiento...',
+              prefixIcon: Icon(Icons.search, color: _brandBlue),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 15),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                icon: const Icon(Icons.clear, color: Colors.grey),
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+              )
+                  : null,
+            ),
+            onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+          ),
+          if (_barrioFiltro != 'Todos' || _orgFiltro != 'Todos' || _generoFiltro != 'Todos' || _soloJAS) ...[
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (_barrioFiltro != 'Todos') _buildFiltroTag(Icons.location_city, _barrioFiltro),
+                  if (_orgFiltro != 'Todos') _buildFiltroTag(Icons.group, _orgFiltro),
+                  if (_generoFiltro != 'Todos') _buildFiltroTag(Icons.person, _generoFiltro == 'M' ? 'Hombres' : 'Mujeres'),
+                  if (_soloJAS) _buildFiltroTag(Icons.star, 'JAS'),
+                ],
+              ),
+            ),
+          ]
+        ],
+      ),
+    );
+  }
 
   Widget _buildFiltroTag(IconData icon, String text) {
     return Container(
@@ -444,18 +402,18 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
-  Widget _buildMemberCard(UserModel member) {
+  Widget _buildMemberCard(UserModel member, {bool isPendingTab = false}) {
     final isMale = member.gender == 'M';
     final hasPhone = member.phone != null && member.phone!.trim().isNotEmpty;
 
-    String servingOrg = member.callingOrganizations.isNotEmpty ? member.callingOrganizations.first : member.organization ?? 'General';
+    String servingOrg = member.callingOrganizations.isNotEmpty ? member.callingOrganizations.first : member.organization;
     String subtitle = servingOrg;
 
     if (member.primaryCalling.isNotEmpty && member.primaryCalling != 'Ninguno') {
       subtitle += " • ${member.primaryCalling}";
     }
 
-    bool isPendingClaim = !member.isRegistered;
+    final bool canEdit = _canEditMember(member);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -465,8 +423,8 @@ class _MembersScreenState extends State<MembersScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
-          // 🚀 HABILITADO NAVEGACIÓN PARA EDITAR (PASAMOS MANDOS)
-          Navigator.push(
+          if (canEdit) {
+            Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => MemberFormScreen(
@@ -475,8 +433,11 @@ class _MembersScreenState extends State<MembersScreen> {
                   currentUser: widget.currentUser,
                 ),
                 settings: const RouteSettings(name: '/member-edit'),
-              )
-          );
+              ),
+            );
+          } else {
+            _showMemberDetailsModal(member);
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -488,8 +449,8 @@ class _MembersScreenState extends State<MembersScreen> {
                     backgroundColor: isMale ? Colors.blue.shade50 : Colors.pink.shade50,
                     radius: 26,
                     child: Icon(
-                      _getIconForOrg(member.organization ?? ''),
-                      color: _getColorForOrg(member.organization ?? ''),
+                      _getIconForOrg(member.organization),
+                      color: _getColorForOrg(member.organization),
                       size: 24,
                     ),
                   ),
@@ -510,7 +471,6 @@ class _MembersScreenState extends State<MembersScreen> {
                 ],
               ),
               const SizedBox(width: 16),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,15 +480,25 @@ class _MembersScreenState extends State<MembersScreen> {
                         Expanded(
                           child: Text(
                             '${member.firstName} ${member.lastName}',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isPendingClaim ? Colors.grey.shade600 : Colors.black87
-                            ),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                        if (member.role != UserRole.miembro) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _brandBlue.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              _getShortRoleLabel(member.role),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _brandBlue),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -543,32 +513,29 @@ class _MembersScreenState extends State<MembersScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
+                          decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
                           child: Text(member.ward, style: TextStyle(fontSize: 10, color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
                         ),
                         const SizedBox(width: 6),
-                        if (isPendingClaim)
+                        if (!member.isRegistered)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                                color: Colors.orange.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.orange.shade200)
+                              color: Colors.orange.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.orange.shade200),
                             ),
-                            child: const Text('No Registrado', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
+                            child: const Text('Sin Registro App', style: TextStyle(fontSize: 10, color: Colors.orange, fontWeight: FontWeight.bold)),
                           )
                         else if (!member.isApproved)
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: Colors.red.shade200)
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: Colors.red.shade200),
                             ),
-                            child: const Text('Pendiente', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                            child: const Text('Pendiente Aprobación', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
                           )
                       ],
                     )
@@ -576,7 +543,13 @@ class _MembersScreenState extends State<MembersScreen> {
                 ),
               ),
 
-              if (hasPhone)
+              if (isPendingTab && _hasManagementAccess)
+                IconButton(
+                  icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  tooltip: 'Aprobar Miembro',
+                  onPressed: () => _approveMemberQuickly(member),
+                )
+              else if (hasPhone)
                 IconButton(
                   icon: const Icon(Icons.message, color: Color(0xFF25D366)),
                   tooltip: 'Enviar WhatsApp',
@@ -591,16 +564,118 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
+  Future<void> _approveMemberQuickly(UserModel member) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(member.uid).update({
+        'isApproved': true,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('✅ ${member.firstName} ${member.lastName} fue aprobado(a).'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  void _showMemberDetailsModal(UserModel member) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: _getColorForOrg(member.organization).withOpacity(0.15),
+                  radius: 28,
+                  child: Icon(_getIconForOrg(member.organization), color: _getColorForOrg(member.organization), size: 28),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${member.firstName} ${member.lastName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('${member.organization} • ${member.ward}', style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 25),
+            const Text('Llamamientos Activos:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 6),
+            if (member.callings.isEmpty || member.callings.first == 'Ninguno')
+              const Text('Sin llamamientos asignados.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))
+            else
+              Wrap(
+                spacing: 6,
+                children: List.generate(member.callings.length, (i) {
+                  final org = i < member.callingOrganizations.length ? member.callingOrganizations[i] : member.organization;
+                  return Chip(label: Text('${member.callings[i]} ($org)', style: const TextStyle(fontSize: 12)));
+                }),
+              ),
+            const SizedBox(height: 15),
+            if (member.phone != null && member.phone!.isNotEmpty)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.phone, color: Colors.green),
+                title: Text(member.phone!),
+                subtitle: const Text('Contactar por WhatsApp'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _launchWhatsApp(member.phone!);
+                },
+              ),
+            if (member.email != null && member.email!.isNotEmpty)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.email, color: Colors.blue),
+                title: Text(member.email!),
+                subtitle: const Text('Correo Electrónico'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _launchWhatsApp(String phone) async {
-    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    final url = Uri.parse("https://wa.me/51$cleanPhone");
+    String clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (!clean.startsWith('51') && clean.length == 9) {
+      clean = '51$clean';
+    }
+    final url = Uri.parse("https://wa.me/$clean");
 
     try {
       if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
         throw 'No se pudo abrir WhatsApp';
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir WhatsApp'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  String _getShortRoleLabel(UserRole role) {
+    switch (role) {
+      case UserRole.admin: return 'Admin';
+      case UserRole.presidencia_estaca: return 'Estaca';
+      case UserRole.obispado: return 'Obispado';
+      case UserRole.lider_estaca: return 'Líder Estaca';
+      case UserRole.lider_barrio: return 'Líder Barrio';
+      case UserRole.miembro: return 'Miembro';
     }
   }
 

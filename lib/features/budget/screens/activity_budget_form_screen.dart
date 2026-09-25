@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:gestor_lds/features/budget/models/budget_model.dart';
+import 'package:gestor_lds/features/auth/models/user_model.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../../../core/widgets/hymn_autocomplete.dart';
@@ -10,9 +11,15 @@ import '../services/budget_pdf_service.dart';
 
 class ActivityBudgetFormScreen extends StatefulWidget {
   final ActivityModel? fromActivity;
-  final ActivityBudgetModel? budgetToEdit; // 👇 AGREGADO: Parámetro para recibir el presupuesto a editar
+  final ActivityBudgetModel? budgetToEdit;
+  final UserModel? currentUser;
 
-  const ActivityBudgetFormScreen({super.key, this.fromActivity, this.budgetToEdit});
+  const ActivityBudgetFormScreen({
+    super.key,
+    this.fromActivity,
+    this.budgetToEdit,
+    this.currentUser,
+  });
 
   @override
   State<ActivityBudgetFormScreen> createState() => _ActivityBudgetFormScreenState();
@@ -20,28 +27,22 @@ class ActivityBudgetFormScreen extends StatefulWidget {
 
 class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _scrollController = ScrollController(); // Para navegar por el formulario largo
+  final _scrollController = ScrollController();
 
-  // --- CONTROLADORES DE TEXTO ---
-  // Sección 1: Cabecera
   final _organizationController = TextEditingController();
   final _leaderController = TextEditingController();
   final _activityNameController = TextEditingController();
   final _purposeController = TextEditingController();
   final _applicantController = TextEditingController();
 
-  // Fechas
   DateTime? _activityDate;
   DateTime? _presentationDate;
 
-  // Sección 2: Gastos (Lista Dinámica)
-  List<BudgetItem> _expenses = []; // Lista temporal para la UI
-  // Controladores temporales para agregar item
+  List<BudgetItem> _expenses = [];
   final _itemDescController = TextEditingController();
   final _itemQtyController = TextEditingController(text: '1');
   final _itemPriceController = TextEditingController();
 
-  // Sección 3: Programa / Logística
   final _conductedByController = TextEditingController();
   final _presidedByController = TextEditingController();
   final _openingHymnController = TextEditingController();
@@ -54,7 +55,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
 
   bool _isSaving = false;
 
-  // 👇 LA LISTA OFICIAL DE ORGANIZACIONES
   final List<String> _organizations = [
     'Adultos Solteros',
     'Adultos Solteros: JAS',
@@ -75,7 +75,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   void initState() {
     super.initState();
 
-    // 👇 AGREGADO: Cargar datos si estamos en modo edición
     if (widget.budgetToEdit != null) {
       final b = widget.budgetToEdit!;
       _organizationController.text = b.organization;
@@ -85,7 +84,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
       _activityNameController.text = b.activityName;
       _purposeController.text = b.activityPurpose;
       _applicantController.text = b.applicantName;
-      _expenses = List.from(b.expenses); // Clona la lista para evitar modificar la original directamente
+      _expenses = List.from(b.expenses);
       _conductedByController.text = b.conductedBy;
       _presidedByController.text = b.presidedBy;
       _openingHymnController.text = b.openingHymn;
@@ -95,24 +94,51 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
       _closingPrayerController.text = b.closingPrayer;
       _cleaningController.text = b.cleaningTeam;
       _securityController.text = b.securityTeam;
-    }
-    // Si recibimos una actividad, llenamos los campos automáticamente
-    else if (widget.fromActivity != null) {
+    } else if (widget.fromActivity != null) {
       final act = widget.fromActivity!;
       _activityNameController.text = act.title;
       _purposeController.text = act.description;
       _activityDate = act.date;
-      _organizationController.text = act.organization ?? '';
+      _organizationController.text = act.organization;
+      _presentationDate = DateTime.now();
+      if (widget.currentUser != null) {
+        _applicantController.text = "${widget.currentUser!.firstName} ${widget.currentUser!.lastName}".trim();
+      }
+    } else if (widget.currentUser != null) {
+      _applicantController.text = "${widget.currentUser!.firstName} ${widget.currentUser!.lastName}".trim();
       _presentationDate = DateTime.now();
     }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _organizationController.dispose();
+    _leaderController.dispose();
+    _activityNameController.dispose();
+    _purposeController.dispose();
+    _applicantController.dispose();
+    _itemDescController.dispose();
+    _itemQtyController.dispose();
+    _itemPriceController.dispose();
+    _conductedByController.dispose();
+    _presidedByController.dispose();
+    _openingHymnController.dispose();
+    _openingPrayerController.dispose();
+    _developmentController.dispose();
+    _closingHymnController.dispose();
+    _closingPrayerController.dispose();
+    _cleaningController.dispose();
+    _securityController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hoja de Presupuesto'),
-        backgroundColor: const Color(0xFF22539A), // Azul Corporativo
+        title: Text(widget.budgetToEdit == null ? 'Hoja de Presupuesto' : 'Editar Presupuesto'),
+        backgroundColor: const Color(0xFF22539A),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -134,12 +160,9 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
               _buildSectionTitle('1. DATOS GENERALES', Icons.info_outline),
               const SizedBox(height: 10),
 
-              // 👇 CAMPO DE BÚSQUEDA AUTOCOMPLETABLE PARA LA ORGANIZACIÓN
               Autocomplete<String>(
                 optionsBuilder: (TextEditingValue textEditingValue) {
-                  if (textEditingValue.text.isEmpty) {
-                    return const Iterable<String>.empty();
-                  }
+                  if (textEditingValue.text.isEmpty) return const Iterable<String>.empty();
                   return _organizations.where((String option) {
                     return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
                   });
@@ -148,7 +171,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                   _organizationController.text = selection;
                 },
                 fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
-                  // Sincronizamos el controlador interno del Autocomplete con el nuestro
                   if (_organizationController.text.isNotEmpty && controller.text.isEmpty) {
                     controller.text = _organizationController.text;
                   }
@@ -190,7 +212,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
               _buildSectionTitle('2. DESGLOSE DE GASTOS', Icons.monetization_on),
               const SizedBox(height: 10),
 
-              // Tarjeta para agregar nuevo item
               Card(
                 color: Colors.grey.shade50,
                 child: Padding(
@@ -224,7 +245,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                 ),
               ),
 
-              // Lista de items agregados
               if (_expenses.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(15.0),
@@ -264,7 +284,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text('TOTAL SOLICITADO:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text('S/. ${_calculateTotal().toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.indigo)),
+                    Text('S/. ${_calculateTotal().toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.indigo.shade800)),
                   ],
                 ),
               ),
@@ -297,10 +317,10 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
               const SizedBox(height: 10),
 
               _buildTextField(
-                  'Desarrollo de la Actividad (Mensaje, Clase, Dinámica...)',
-                  _developmentController,
-                  maxLines: 3,
-                  icon: Icons.article_outlined
+                'Desarrollo de la Actividad (Mensaje, Clase, Dinámica...)',
+                _developmentController,
+                maxLines: 3,
+                icon: Icons.article_outlined,
               ),
 
               const SizedBox(height: 10),
@@ -347,14 +367,12 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
     );
   }
 
-  // --- WIDGETS AUXILIARES ---
-
   Widget _buildSectionTitle(String title, IconData icon) {
     return Row(
       children: [
         Icon(icon, color: const Color(0xFF22539A)),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF22539A))),
+        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF22539A))),
       ],
     );
   }
@@ -380,10 +398,11 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
   Widget _buildDatePicker(String label, DateTime? date, Function(DateTime) onChanged) {
     return InkWell(
       onTap: () async {
+        final initial = date ?? DateTime.now();
         final picked = await showDatePicker(
           context: context,
-          initialDate: date ?? DateTime.now(),
-          firstDate: DateTime(2024),
+          initialDate: initial.isBefore(DateTime(2020)) ? DateTime.now() : initial,
+          firstDate: DateTime(2020),
           lastDate: DateTime(2030),
         );
         if (picked != null) onChanged(picked);
@@ -402,8 +421,6 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
     );
   }
 
-  // --- LÓGICA ---
-
   void _addExpenseItem() {
     if (_itemDescController.text.isEmpty || _itemPriceController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ingresa descripción y precio')));
@@ -412,7 +429,7 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
 
     setState(() {
       _expenses.add(BudgetItem(
-        description: _itemDescController.text,
+        description: _itemDescController.text.trim(),
         quantity: int.tryParse(_itemQtyController.text) ?? 1,
         unitPrice: double.tryParse(_itemPriceController.text) ?? 0.0,
       ));
@@ -439,28 +456,33 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
     setState(() => _isSaving = true);
 
     try {
+      final String targetWard = widget.budgetToEdit?.ward ??
+          widget.fromActivity?.ward ??
+          widget.currentUser?.ward ??
+          '';
+
       final newBudget = ActivityBudgetModel(
-        id: widget.budgetToEdit?.id ?? '', // 👇 AGREGADO: Mantiene el ID si estamos editando
-        organization: _organizationController.text,
-        responsibleLeader: _leaderController.text,
+        id: widget.budgetToEdit?.id ?? '',
+        organization: _organizationController.text.trim(),
+        responsibleLeader: _leaderController.text.trim(),
         activityDate: _activityDate!,
-        activityName: _activityNameController.text,
-        activityPurpose: _purposeController.text,
+        activityName: _activityNameController.text.trim(),
+        activityPurpose: _purposeController.text.trim(),
         presentationDate: _presentationDate!,
-        applicantName: _applicantController.text,
+        applicantName: _applicantController.text.trim(),
+        ward: targetWard,
         expenses: _expenses,
-        conductedBy: _conductedByController.text,
-        presidedBy: _presidedByController.text,
-        openingHymn: _openingHymnController.text,
-        openingPrayer: _openingPrayerController.text,
-        activityDevelopment: _developmentController.text,
-        closingHymn: _closingHymnController.text,
-        closingPrayer: _closingPrayerController.text,
-        cleaningTeam: _cleaningController.text,
-        securityTeam: _securityController.text,
+        conductedBy: _conductedByController.text.trim(),
+        presidedBy: _presidedByController.text.trim(),
+        openingHymn: _openingHymnController.text.trim(),
+        openingPrayer: _openingPrayerController.text.trim(),
+        activityDevelopment: _developmentController.text.trim(),
+        closingHymn: _closingHymnController.text.trim(),
+        closingPrayer: _closingPrayerController.text.trim(),
+        cleaningTeam: _cleaningController.text.trim(),
+        securityTeam: _securityController.text.trim(),
       );
 
-      // 👇 AGREGADO: Lógica de actualización si es edición, o creación si es nuevo
       if (widget.budgetToEdit != null) {
         await FirebaseFirestore.instance.collection('activity_budgets').doc(widget.budgetToEdit!.id).update(newBudget.toMap());
       } else {
@@ -478,11 +500,9 @@ class _ActivityBudgetFormScreenState extends State<ActivityBudgetFormScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Guardado y generado exitosamente')));
         Navigator.pop(context);
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
-        print("Error detallado: $e");
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
