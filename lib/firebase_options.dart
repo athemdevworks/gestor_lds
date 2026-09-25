@@ -23,20 +23,11 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -50,20 +41,45 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyB6CX5dedJ_pzTIw08uPe0y5s5HhX0bZxc',
-    appId: '1:360573211683:web:6f4559d9e1273546fbcd96',
-    messagingSenderId: '360573211683',
-    projectId: 'gestorldsestacajerusalen',
-    authDomain: 'gestorldsestacajerusalen.firebaseapp.com',
-    storageBucket: 'gestorldsestacajerusalen.firebasestorage.app',
+    apiKey: 'AIzaSyDvKYUtcs7G1QUJgenNyf9JH9DzPkKbrhE',
+    appId: '1:352891071220:web:bab49e7d881bde0829cca1',
+    messagingSenderId: '352891071220',
+    projectId: 'gestorlds-demo',
+    authDomain: 'gestorlds-demo.firebaseapp.com',
+    storageBucket: 'gestorlds-demo.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDeU7F_IwEnddNLqvwGV-LMYwFur9fY8C8',
-    appId: '1:848918126420:android:69685607942541d145f2c1',
-    messagingSenderId: '848918126420',
-    projectId: 'gestorlds',
-    storageBucket: 'gestorlds.firebasestorage.app',
+    apiKey: 'AIzaSyCd6b2VcdFDsGhoqGHe4Ak88gkK9dOrDkE',
+    appId: '1:352891071220:android:3c75c370c71a272929cca1',
+    messagingSenderId: '352891071220',
+    projectId: 'gestorlds-demo',
+    storageBucket: 'gestorlds-demo.firebasestorage.app',
+  );
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBJePeiORCWDLuE9SNU7WSbcEGGvmfo-Jk',
+    appId: '1:352891071220:ios:a22aac9a3db08cef29cca1',
+    messagingSenderId: '352891071220',
+    projectId: 'gestorlds-demo',
+    storageBucket: 'gestorlds-demo.firebasestorage.app',
+    iosBundleId: 'com.nuevotrujillo.gestorlds.gestorLds',
   );
 
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyBJePeiORCWDLuE9SNU7WSbcEGGvmfo-Jk',
+    appId: '1:352891071220:ios:ca96f16c932bc92e29cca1',
+    messagingSenderId: '352891071220',
+    projectId: 'gestorlds-demo',
+    storageBucket: 'gestorlds-demo.firebasestorage.app',
+    iosBundleId: 'com.athemdevworks.gestorlds.estaca',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDvKYUtcs7G1QUJgenNyf9JH9DzPkKbrhE',
+    appId: '1:352891071220:web:95729e0880e7a57129cca1',
+    messagingSenderId: '352891071220',
+    projectId: 'gestorlds-demo',
+    authDomain: 'gestorlds-demo.firebaseapp.com',
+    storageBucket: 'gestorlds-demo.firebasestorage.app',
+  );
 }

@@ -3,17 +3,20 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "gestorlds",
-          "appId": "1:848918126420:android:69685607942541d145f2c1",
+          "projectId": "gestorlds-demo",
+          "appId": "1:352891071220:android:3c75c370c71a272929cca1",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "gestorlds",
+          "projectId": "gestorlds-demo",
           "configurations": {
-            "android": "1:848918126420:android:69685607942541d145f2c1",
-            "web": "1:848918126420:web:2847e4a3bf46565f45f2c1"
+            "android": "1:352891071220:android:3c75c370c71a272929cca1",
+            "ios": "1:352891071220:ios:ca96f16c932bc92e29cca1",
+            "macos": "1:352891071220:ios:a22aac9a3db08cef29cca1",
+            "web": "1:352891071220:web:bab49e7d881bde0829cca1",
+            "windows": "1:352891071220:web:95729e0880e7a57129cca1"
           }
         }
       }
@@ -34,5 +37,11 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "nam5",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }

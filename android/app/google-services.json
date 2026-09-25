@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "848918126420",
-    "project_id": "gestorlds",
-    "storage_bucket": "gestorlds.firebasestorage.app"
+    "project_number": "352891071220",
+    "project_id": "gestorlds-demo",
+    "storage_bucket": "gestorlds-demo.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:848918126420:android:69685607942541d145f2c1",
+        "mobilesdk_app_id": "1:352891071220:android:3c75c370c71a272929cca1",
         "android_client_info": {
-          "package_name": "com.nuevotrujillo.gestorlds.gestor_lds"
+          "package_name": "com.athemdevworks.gestorlds.estaca"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDeU7F_IwEnddNLqvwGV-LMYwFur9fY8C8"
+          "current_key": "AIzaSyCd6b2VcdFDsGhoqGHe4Ak88gkK9dOrDkE"
         }
       ],
       "services": {
